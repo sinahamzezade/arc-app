@@ -10,6 +10,7 @@ export const assets = {
     welcome: "/assets/arlo/arlo-welcome.png",
     envelope: "/assets/arlo/arlo-envelope.png",
     thumbsUp: "/assets/arlo/arlo-thumbs-up.png",
+    waveHand: "/assets/arlo/arlo-wave-hand.png",
     celebrate: "/assets/arlo/arlo-celebrate.png",
     thinking: "/assets/arlo/arlo-thinking.png",
     sleepy: "/assets/arlo/arlo-sleepy.png",

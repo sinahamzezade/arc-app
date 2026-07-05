@@ -12,8 +12,18 @@ type MotionHeroProps = {
 
 export function MotionHero({ children, className, float = true }: MotionHeroProps) {
   return (
-    <motion.div className={cn(className)} variants={mascotEnter}>
-      <motion.div animate={float ? floatY : undefined}>{children}</motion.div>
+    <motion.div
+      className={cn(className)}
+      variants={mascotEnter}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div
+        className="relative h-full w-full"
+        animate={float ? floatY : undefined}
+      >
+        {children}
+      </motion.div>
     </motion.div>
   );
 }
