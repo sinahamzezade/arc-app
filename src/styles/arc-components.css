@@ -1,0 +1,41 @@
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-arc-lavender-100 text-arc-navy-900 font-sans;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  textarea {
+    @apply outline-none;
+  }
+}
+
+@layer components {
+  .arc-screen {
+    @apply min-h-screen bg-arc-lavender-100 px-5 pt-safe-top pb-safe-bottom;
+  }
+
+  .arc-card {
+    @apply rounded-arc-xl bg-white border border-arc-card shadow-arc-card;
+  }
+
+  .arc-primary-button {
+    @apply h-14 w-full rounded-arc-md bg-arc-purple-500 text-white font-rounded font-bold text-arc-body shadow-arc-button active:translate-y-1 transition-all;
+  }
+
+  .arc-secondary-button {
+    @apply h-14 w-full rounded-arc-md bg-white text-arc-purple-500 font-rounded font-bold border border-arc-soft shadow-arc-card;
+  }
+
+  .arc-input {
+    @apply h-16 rounded-arc-md border border-arc-soft bg-white px-4 text-arc-body font-semibold text-arc-navy-900 shadow-arc-inner;
+  }
+}

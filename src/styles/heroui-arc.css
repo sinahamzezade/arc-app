@@ -1,0 +1,50 @@
+/* Arc theme overrides for HeroUI v3 semantic tokens */
+:root,
+.light,
+.default,
+[data-theme="light"],
+[data-theme="default"] {
+  --background: #f7f5ff;
+  --foreground: #18142e;
+
+  --surface: #ffffff;
+  --surface-foreground: #18142e;
+  --surface-secondary: #efeaff;
+  --surface-secondary-foreground: #18142e;
+  --surface-tertiary: #e4dbff;
+  --surface-tertiary-foreground: #18142e;
+
+  --overlay: #ffffff;
+  --overlay-foreground: #18142e;
+
+  --muted: #665a91;
+
+  --accent: #6b4eff;
+  --accent-foreground: #ffffff;
+
+  --default: #efeaff;
+  --default-foreground: #18142e;
+
+  --field-background: #ffffff;
+  --field-foreground: #18142e;
+  --field-placeholder: #b3a8d6;
+  --field-border: #ede6ff;
+  --field-border-width: 1px;
+
+  --success: #2dbe65;
+  --success-foreground: #ffffff;
+
+  --warning: #ffb800;
+  --warning-foreground: #18142e;
+
+  --danger: #ff6d5a;
+  --danger-foreground: #ffffff;
+
+  --border: #ede6ff;
+  --separator: #e4dbff;
+  --focus: #6b4eff;
+  --link: #6b4eff;
+
+  --radius: 1.125rem;
+  --field-radius: 1.125rem;
+}

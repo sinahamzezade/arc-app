@@ -1,0 +1,293 @@
+@theme {
+  /* Arc brand colors */
+  --color-arc-purple-50: #f4f0ff;
+  --color-arc-purple-100: #ede6ff;
+  --color-arc-purple-200: #d8ccff;
+  --color-arc-purple-300: #bca8ff;
+  --color-arc-purple-400: #9b7bff;
+  --color-arc-purple-500: #6b4eff;
+  --color-arc-purple-600: #5b3ee8;
+  --color-arc-purple-700: #4b2fd6;
+  --color-arc-purple-800: #35209d;
+  --color-arc-purple-900: #24146f;
+
+  --color-arc-navy-50: #f6f7fb;
+  --color-arc-navy-100: #eef0f7;
+  --color-arc-navy-200: #d9dceb;
+  --color-arc-navy-300: #b8bed4;
+  --color-arc-navy-400: #8f97b8;
+  --color-arc-navy-500: #697294;
+  --color-arc-navy-600: #4a526f;
+  --color-arc-navy-700: #343b55;
+  --color-arc-navy-800: #242a40;
+  --color-arc-navy-900: #18142e;
+  --color-arc-navy-950: #100d22;
+
+  --color-arc-lavender-50: #fcfaff;
+  --color-arc-lavender-100: #f7f5ff;
+  --color-arc-lavender-200: #efeaff;
+  --color-arc-lavender-300: #e4dbff;
+  --color-arc-lavender-400: #cfc3ec;
+  --color-arc-lavender-500: #b3a8d6;
+  --color-arc-lavender-600: #8a7cb8;
+  --color-arc-lavender-700: #665a91;
+  --color-arc-lavender-800: #443b68;
+  --color-arc-lavender-900: #2b1b57;
+
+  --color-arc-gold-50: #fff9e6;
+  --color-arc-gold-100: #fff1bf;
+  --color-arc-gold-200: #ffe48a;
+  --color-arc-gold-300: #ffd65a;
+  --color-arc-gold-400: #ffc943;
+  --color-arc-gold-500: #ffb800;
+  --color-arc-gold-600: #e69b00;
+  --color-arc-gold-700: #b87500;
+  --color-arc-gold-800: #855300;
+  --color-arc-gold-900: #563500;
+
+  --color-arc-orange-50: #fff3ec;
+  --color-arc-orange-100: #ffe1d1;
+  --color-arc-orange-200: #ffc1a3;
+  --color-arc-orange-300: #ffa071;
+  --color-arc-orange-400: #ff8a3d;
+  --color-arc-orange-500: #ff7a00;
+  --color-arc-orange-600: #e86500;
+  --color-arc-orange-700: #b84d00;
+  --color-arc-orange-800: #853700;
+  --color-arc-orange-900: #552300;
+
+  --color-arc-green-50: #ecfff4;
+  --color-arc-green-100: #d4ffe5;
+  --color-arc-green-200: #a7f7c6;
+  --color-arc-green-300: #78eba5;
+  --color-arc-green-400: #4fd27e;
+  --color-arc-green-500: #2dbe65;
+  --color-arc-green-600: #209b51;
+  --color-arc-green-700: #19783f;
+  --color-arc-green-800: #145a31;
+  --color-arc-green-900: #0e3d22;
+
+  --color-arc-blue-50: #ecf8ff;
+  --color-arc-blue-100: #d7f0ff;
+  --color-arc-blue-200: #aee2ff;
+  --color-arc-blue-300: #7aceff;
+  --color-arc-blue-400: #3ba5ff;
+  --color-arc-blue-500: #188cff;
+  --color-arc-blue-600: #006ee6;
+  --color-arc-blue-700: #0054b3;
+  --color-arc-blue-800: #003d80;
+  --color-arc-blue-900: #002852;
+
+  --color-arc-gem-50: #f8f0ff;
+  --color-arc-gem-100: #f0dbff;
+  --color-arc-gem-200: #e0b8ff;
+  --color-arc-gem-300: #cc8fff;
+  --color-arc-gem-400: #b96cff;
+  --color-arc-gem-500: #a94cff;
+  --color-arc-gem-600: #8a32e6;
+  --color-arc-gem-700: #6b23b8;
+  --color-arc-gem-800: #4c1885;
+  --color-arc-gem-900: #321052;
+
+  --color-arc-coral-50: #fff0ee;
+  --color-arc-coral-100: #ffe0dc;
+  --color-arc-coral-200: #ffc1b8;
+  --color-arc-coral-300: #ff9e91;
+  --color-arc-coral-400: #ff7d6d;
+  --color-arc-coral-500: #ff6d5a;
+  --color-arc-coral-600: #e8513d;
+  --color-arc-coral-700: #b83b2b;
+  --color-arc-coral-800: #85291d;
+  --color-arc-coral-900: #551912;
+
+  /* Semantic border colors */
+  --color-arc-soft: #ede6ff;
+  --color-arc-card: rgb(107 78 255 / 0.1);
+  --color-arc-focus: #6b4eff;
+  --color-arc-error: #ff6d5a;
+  --color-arc-success: #4fd27e;
+
+  /* Typography */
+  --font-sans:
+    "SF Pro Rounded", "SF Pro Display", var(--font-nunito), -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  --font-display:
+    "SF Pro Rounded", var(--font-fredoka), var(--font-nunito), Inter, system-ui,
+    sans-serif;
+  --font-rounded:
+    "SF Pro Rounded", var(--font-nunito), Inter, system-ui, sans-serif;
+
+  --text-arc-micro: 11px;
+  --text-arc-micro--line-height: 14px;
+  --text-arc-micro--letter-spacing: 0.01em;
+
+  --text-arc-caption: 13px;
+  --text-arc-caption--line-height: 18px;
+
+  --text-arc-small: 15px;
+  --text-arc-small--line-height: 21px;
+
+  --text-arc-body: 17px;
+  --text-arc-body--line-height: 24px;
+
+  --text-arc-heading: 22px;
+  --text-arc-heading--line-height: 28px;
+  --text-arc-heading--letter-spacing: -0.02em;
+
+  --text-arc-title: 28px;
+  --text-arc-title--line-height: 34px;
+  --text-arc-title--letter-spacing: -0.025em;
+
+  --text-arc-large-title: 34px;
+  --text-arc-large-title--line-height: 41px;
+  --text-arc-large-title--letter-spacing: -0.03em;
+
+  --text-arc-hero: 56px;
+  --text-arc-hero--line-height: 60px;
+  --text-arc-hero--letter-spacing: -0.05em;
+
+  /* Spacing */
+  --spacing-safe-top: env(safe-area-inset-top);
+  --spacing-safe-bottom: env(safe-area-inset-bottom);
+  --spacing-18: 4.5rem;
+  --spacing-22: 5.5rem;
+  --spacing-26: 6.5rem;
+  --spacing-30: 7.5rem;
+  --spacing-screen-ios: 852px;
+
+  /* Radius */
+  --radius-arc-xs: 10px;
+  --radius-arc-sm: 14px;
+  --radius-arc-md: 18px;
+  --radius-arc-lg: 22px;
+  --radius-arc-xl: 28px;
+  --radius-arc-2xl: 32px;
+  --radius-arc-phone: 46px;
+  --radius-arc-full: 999px;
+
+  /* Shadows */
+  --shadow-arc-card: 0 8px 24px rgb(70 40 150 / 0.08);
+  --shadow-arc-card-lg: 0 20px 50px rgb(70 40 150 / 0.16);
+  --shadow-arc-button: 0 6px 0 #4b2fd6;
+  --shadow-arc-button-sm: 0 4px 0 #4b2fd6;
+  --shadow-arc-soft: 0 12px 30px rgb(107 78 255 / 0.16);
+  --shadow-arc-reward: 0 16px 36px rgb(255 184 0 / 0.28);
+  --shadow-arc-danger: 0 12px 30px rgb(255 109 90 / 0.22);
+  --shadow-arc-inner: inset 0 0 0 1px rgb(107 78 255 / 0.1);
+
+  /* Gradients */
+  --background-image-arc-primary: linear-gradient(180deg, #7b63ff 0%, #6b4eff 100%);
+  --background-image-arc-primary-horizontal: linear-gradient(
+    90deg,
+    #6b4eff 0%,
+    #8a6cff 100%
+  );
+  --background-image-arc-soft: linear-gradient(180deg, #f4f0ff 0%, #ffffff 100%);
+  --background-image-arc-hero: linear-gradient(
+    180deg,
+    #efe7ff 0%,
+    #f7f5ff 48%,
+    #ffffff 100%
+  );
+  --background-image-arc-reward: linear-gradient(180deg, #ffc943 0%, #ff8a3d 100%);
+  --background-image-arc-boss: linear-gradient(180deg, #18142e 0%, #35209d 100%);
+  --background-image-arc-gem: linear-gradient(180deg, #b96cff 0%, #6b4eff 100%);
+  --background-image-arc-success: linear-gradient(180deg, #4fd27e 0%, #22b86a 100%);
+  --background-image-arc-card-glow: radial-gradient(
+    circle at 50% 0%,
+    rgb(107 78 255 / 0.18),
+    transparent 55%
+  );
+
+  /* Z-index */
+  --z-base: 1;
+  --z-raised: 10;
+  --z-nav: 30;
+  --z-modal: 50;
+  --z-toast: 70;
+  --z-system: 100;
+
+  /* Motion */
+  --ease-arc-spring: cubic-bezier(0.2, 0.9, 0.2, 1);
+  --ease-arc-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --animate-arc-float: arc-float 3.4s ease-in-out infinite;
+  --animate-arc-pop: arc-pop 480ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  --animate-arc-rise: arc-rise 640ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  --animate-arc-pulse: arc-pulse 2s ease-in-out infinite;
+  --animate-arc-shake: arc-shake 500ms ease-in-out both;
+  --animate-arc-spin-slow: spin 4s linear infinite;
+}
+
+@keyframes arc-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes arc-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+
+  70% {
+    transform: scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes arc-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes arc-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(107 78 255 / 0.35);
+  }
+
+  50% {
+    box-shadow: 0 0 0 12px rgb(107 78 255 / 0);
+  }
+}
+
+@keyframes arc-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-4px);
+  }
+
+  40% {
+    transform: translateX(4px);
+  }
+
+  60% {
+    transform: translateX(-3px);
+  }
+
+  80% {
+    transform: translateX(3px);
+  }
+}

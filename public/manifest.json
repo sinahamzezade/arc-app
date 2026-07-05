@@ -1,0 +1,10 @@
+{
+  "name": "Arc",
+  "short_name": "Arc",
+  "description": "Arc is an AI personal coach for career transformation.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": []
+}

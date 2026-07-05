@@ -1,0 +1,6 @@
+/* arc-tokens must load before tailwindcss — Turbopack drops @theme in files imported after tailwind expands */
+@import "../styles/arc-tokens.css";
+@import "tailwindcss";
+@import "@heroui/styles";
+@import "../styles/heroui-arc.css";
+@import "../styles/arc-components.css";
