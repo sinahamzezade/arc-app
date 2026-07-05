@@ -7,7 +7,7 @@ export const assets = {
     checkEmail: "/assets/brand/check-email.png",
   },
   arlo: {
-    welcome: "/assets/arlo/arlo-welcome.jpg",
+    welcome: "/assets/arlo/arlo-welcome.png",
     envelope: "/assets/arlo/arlo-envelope.png",
     thumbsUp: "/assets/arlo/arlo-thumbs-up.png",
     celebrate: "/assets/arlo/arlo-celebrate.png",

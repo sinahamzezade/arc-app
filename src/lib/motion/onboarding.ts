@@ -2,71 +2,71 @@ import type { Transition, Variants } from "framer-motion";
 
 export const springSnappy: Transition = {
   type: "spring",
-  stiffness: 420,
-  damping: 32,
+  stiffness: 480,
+  damping: 34,
 };
 
 export const springSoft: Transition = {
   type: "spring",
-  stiffness: 280,
-  damping: 26,
+  stiffness: 380,
+  damping: 28,
 };
 
 export const springBouncy: Transition = {
   type: "spring",
-  stiffness: 320,
-  damping: 18,
+  stiffness: 400,
+  damping: 20,
 };
 
 export const easeSmooth: Transition = {
-  duration: 0.55,
+  duration: 0.35,
   ease: [0.22, 1, 0.36, 1],
 };
 
+/** Page wrapper — no opacity fade (prevents white flash). Children stagger only. */
 export const pageVariants: Variants = {
-  hidden: { opacity: 0 },
+  hidden: {},
   visible: {
-    opacity: 1,
-    transition: { when: "beforeChildren", staggerChildren: 0.07, delayChildren: 0.04 },
+    transition: { when: "beforeChildren", staggerChildren: 0.035, delayChildren: 0 },
   },
 };
 
 export const staggerContainer: Variants = {
   hidden: {},
   visible: {
-    transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+    transition: { staggerChildren: 0.04, delayChildren: 0.02 },
   },
 };
 
 export const staggerFast: Variants = {
   hidden: {},
   visible: {
-    transition: { staggerChildren: 0.05, delayChildren: 0.06 },
+    transition: { staggerChildren: 0.03, delayChildren: 0.01 },
   },
 };
 
 export const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 0, y: 14 },
   visible: { opacity: 1, y: 0, transition: springSoft },
 };
 
 export const fadeDown: Variants = {
-  hidden: { opacity: 0, y: -20 },
+  hidden: { opacity: 0, y: -10 },
   visible: { opacity: 1, y: 0, transition: springSoft },
 };
 
 export const scaleIn: Variants = {
-  hidden: { opacity: 0, scale: 0.88 },
+  hidden: { opacity: 0, scale: 0.94 },
   visible: { opacity: 1, scale: 1, transition: springSnappy },
 };
 
 export const slideUpPanel: Variants = {
-  hidden: { opacity: 0, y: 48 },
+  hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0, transition: springSoft },
 };
 
 export const mascotEnter: Variants = {
-  hidden: { opacity: 0, scale: 0.82, y: 40, rotate: -4 },
+  hidden: { opacity: 0, scale: 0.9, y: 20, rotate: -2 },
   visible: {
     opacity: 1,
     scale: 1,
@@ -81,24 +81,24 @@ export const dividerGrow: Variants = {
   visible: {
     scaleX: 1,
     opacity: 1,
-    transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
   },
 };
 
 export const otpSlot: Variants = {
-  hidden: { opacity: 0, y: 16, scale: 0.8 },
+  hidden: { opacity: 0, y: 8, scale: 0.9 },
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { ...springSnappy, delay: i * 0.07 },
+    transition: { ...springSnappy, delay: i * 0.03 },
   }),
 };
 
 export const checkPop: Variants = {
   hidden: { scale: 0, opacity: 0 },
   visible: { scale: 1, opacity: 1, transition: springBouncy },
-  exit: { scale: 0, opacity: 0, transition: { duration: 0.15 } },
+  exit: { scale: 0, opacity: 0, transition: { duration: 0.1 } },
 };
 
 export const floatY = {
