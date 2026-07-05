@@ -5,8 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronLeft } from "lucide-react";
+import { motion } from "framer-motion";
 import { ArcField } from "@/components/ArcField";
+import {
+  MotionBackButton,
+  MotionHero,
+  MotionReveal,
+  MotionStagger,
+  OnboardingPage,
+} from "@/components/motion";
 import { Button } from "@/components/ui";
 import { assets } from "@/lib/assets";
 import {
@@ -34,20 +41,11 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white px-5 pt-safe-top pb-safe-bottom">
-      <header className="pt-4">
-        <button
-          type="button"
-          aria-label="Go back"
-          onClick={() => router.back()}
-          className="-ml-2 inline-flex rounded-full p-2 text-arc-navy-900"
-        >
-          <ChevronLeft className="h-6 w-6" strokeWidth={2.25} />
-        </button>
-      </header>
+    <OnboardingPage className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white px-5 pt-safe-top pb-safe-bottom">
+      <MotionBackButton className="pt-4" onClick={() => router.back()} />
 
       <div className="flex flex-1 flex-col items-center justify-center pb-4">
-        <div className="relative h-80 w-full max-w-full">
+        <MotionHero className="relative h-80 w-full max-w-full">
           <Image
             src={assets.arlo.envelope}
             alt="Arlo holding a password reset envelope"
@@ -56,10 +54,10 @@ export default function ForgotPasswordScreen() {
             className="object-contain"
             sizes="320px"
           />
-        </div>
+        </MotionHero>
 
-        <div className="mt-4 w-full">
-          <div className="text-center">
+        <MotionStagger className="mt-4 w-full">
+          <MotionReveal className="text-center">
             <h1 className="font-display text-arc-title font-bold text-arc-navy-900">
               Reset your password
             </h1>
@@ -67,43 +65,50 @@ export default function ForgotPasswordScreen() {
               Enter your email and we&apos;ll send you a link to reset your
               password.
             </p>
-          </div>
+          </MotionReveal>
 
-          <form
-            onSubmit={handleSubmit(onSubmit)}
+          <MotionStagger
+            as="form"
             className="mt-6 flex flex-col"
+            onSubmit={handleSubmit(onSubmit)}
           >
-            <ArcField
-              id="email"
-              label="Email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@email.com"
-              error={errors.email?.message}
-              {...register("email")}
-            />
+            <MotionReveal>
+              <ArcField
+                id="email"
+                label="Email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@email.com"
+                error={errors.email?.message}
+                {...register("email")}
+              />
+            </MotionReveal>
 
-            <Button
-              type="submit"
-              fullWidth
-              variant="primary"
-              isDisabled={isSubmitting}
-              className="mt-6 h-14 rounded-arc-md bg-arc-purple-500 font-rounded text-arc-body font-bold shadow-arc-button transition-all active:translate-y-px active:shadow-arc-button-sm"
-            >
-              Send Reset Link
-            </Button>
-          </form>
+            <MotionReveal>
+              <motion.div whileTap={{ scale: 0.98 }}>
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="primary"
+                  isDisabled={isSubmitting}
+                  className="mt-6 h-14 rounded-arc-md bg-arc-purple-500 font-rounded text-arc-body font-bold shadow-arc-button transition-all active:translate-y-px active:shadow-arc-button-sm"
+                >
+                  Send Reset Link
+                </Button>
+              </motion.div>
+            </MotionReveal>
+          </MotionStagger>
 
-          <p className="mt-8 text-center text-arc-small text-arc-navy-700">
+          <MotionReveal as="p" className="mt-8 text-center text-arc-small text-arc-navy-700">
             <Link
               href="/login"
               className="font-bold text-arc-purple-500 underline-offset-2 hover:underline"
             >
               Back to log in
             </Link>
-          </p>
-        </div>
+          </MotionReveal>
+        </MotionStagger>
       </div>
-    </div>
+    </OnboardingPage>
   );
 }

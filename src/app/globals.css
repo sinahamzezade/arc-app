@@ -4,3 +4,7 @@
 @import "@heroui/styles";
 @import "../styles/heroui-arc.css";
 @import "../styles/arc-components.css";
+
+.checkbox__content {
+  @apply items-center justify-center;
+}

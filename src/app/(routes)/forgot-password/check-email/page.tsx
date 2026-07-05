@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import CheckEmailScreen from "@/components/CheckEmailScreen";
+import OtpScreen from "@/components/OtpScreen";
 
-export default function CheckEmailPage() {
+export default function OtpPage() {
   return (
     <Suspense>
-      <CheckEmailScreen />
+      <OtpScreen />
     </Suspense>
   );
 }
