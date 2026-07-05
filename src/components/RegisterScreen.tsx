@@ -36,8 +36,8 @@ export default function RegisterScreen() {
     },
   });
 
-  const onSubmit = (data: RegisterFormData) => {
-    console.log(data);
+  const onSubmit = () => {
+    router.push("/questionnaire");
   };
 
   return (
