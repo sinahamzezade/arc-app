@@ -1,10 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { Button, Link } from "@/components/ui";
+import { useRouter } from "next/navigation";
+import { Button, Link as ArcLink } from "@/components/ui";
 import { assets } from "@/lib/assets";
 
 export default function WelcomeScreen() {
+  const router = useRouter();
+
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-hidden">
       <div className="absolute inset-0">
@@ -39,18 +42,19 @@ export default function WelcomeScreen() {
           <Button
             fullWidth
             variant="primary"
+            onPress={() => router.push("/register")}
             className="h-14 rounded-arc-md bg-arc-purple-500 font-rounded text-arc-body font-bold shadow-arc-button transition-all active:translate-y-px active:shadow-arc-button-sm"
           >
             Get Started
           </Button>
           <p className="mt-5 text-center text-arc-small text-white/90">
             Already have an account?{" "}
-            <Link
+            <ArcLink
               href="/login"
               className="font-bold text-arc-lavender-200 underline-offset-2 hover:underline"
             >
               Log in
-            </Link>
+            </ArcLink>
           </p>
         </footer>
       </div>

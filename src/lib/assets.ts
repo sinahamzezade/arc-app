@@ -4,10 +4,12 @@ export const assets = {
     icon: "/assets/brand/arc-icon.svg",
     appIcon: "/assets/brand/arc-app-icon.png",
     wordmark: "/assets/brand/arc-wordmark.svg",
+    checkEmail: "/assets/brand/check-email.png",
   },
   arlo: {
     welcome: "/assets/arlo/arlo-welcome.jpg",
     envelope: "/assets/arlo/arlo-envelope.png",
+    thumbsUp: "/assets/arlo/arlo-thumbs-up.png",
     celebrate: "/assets/arlo/arlo-celebrate.png",
     thinking: "/assets/arlo/arlo-thinking.png",
     sleepy: "/assets/arlo/arlo-sleepy.png",
