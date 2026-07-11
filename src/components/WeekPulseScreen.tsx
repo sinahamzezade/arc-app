@@ -113,10 +113,18 @@ export default function WeekPulseScreen({
             <motion.div
               className="absolute top-0 right-0 z-[2] w-[92%] -rotate-2 rounded-2xl bg-[#ff8a3d] px-3 py-2.5 shadow-[0_5px_0_#d46520]"
               animate={{ y: [0, -3, 0] }}
-              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+              transition={{
+                duration: 2.6,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
             >
               <div className="flex items-center gap-1 text-white/85">
-                <Flame className="h-3.5 w-3.5" fill="currentColor" strokeWidth={1.5} />
+                <Flame
+                  className="h-3.5 w-3.5"
+                  fill="currentColor"
+                  strokeWidth={1.5}
+                />
                 <span className="text-[9px] font-black tracking-wide uppercase">
                   Streak
                 </span>
@@ -126,7 +134,7 @@ export default function WeekPulseScreen({
                 <span className="text-[14px] font-semibold">w</span>
               </p>
             </motion.div>
-            <div className="absolute right-2 bottom-0 z-[1] w-[80%] rotate-1 rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
+            <div className="absolute right-2 bottom-0 z-[1] w-[80%] rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
               <p className="text-[9px] font-black tracking-wide text-[#ffc928] uppercase">
                 Days lit
               </p>
@@ -146,17 +154,19 @@ export default function WeekPulseScreen({
             </span>
           </div>
           <div className="flex gap-1.5">
-            {Array.from({ length: data.progress.sessionsPlanned }).map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "h-2 flex-1 rounded-full",
-                  i < data.progress.sessionsDone
-                    ? "bg-[#ffc928]"
-                    : "bg-white/15",
-                )}
-              />
-            ))}
+            {Array.from({ length: data.progress.sessionsPlanned }).map(
+              (_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "h-2 flex-1 rounded-full",
+                    i < data.progress.sessionsDone
+                      ? "bg-[#ffc928]"
+                      : "bg-white/15",
+                  )}
+                />
+              ),
+            )}
           </div>
         </div>
       </section>
@@ -226,7 +236,8 @@ function DayRail({ days }: { days: WeekPulseMockData["days"] }) {
             key={day.label}
             className={cn(
               "flex min-w-0 flex-1 flex-col items-center rounded-xl px-0.5 py-2",
-              isToday && "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]",
+              isToday &&
+                "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]",
               isDone && "bg-[#eef9f3]",
               !isToday && !isDone && "bg-[#faf8ff]",
               i === 5 && !isToday && "ring-1 ring-arc-purple-200",
@@ -235,7 +246,11 @@ function DayRail({ days }: { days: WeekPulseMockData["days"] }) {
             <span
               className={cn(
                 "text-[9px] font-extrabold tracking-wide uppercase",
-                isToday ? "text-white/75" : isDone ? "text-[#16a56b]" : "text-[#8a7cb8]",
+                isToday
+                  ? "text-white/75"
+                  : isDone
+                    ? "text-[#16a56b]"
+                    : "text-[#8a7cb8]",
               )}
             >
               {day.label}
@@ -243,7 +258,11 @@ function DayRail({ days }: { days: WeekPulseMockData["days"] }) {
             <span
               className={cn(
                 "mt-1 flex h-5 items-center justify-center font-display text-[13px] font-bold",
-                isToday ? "text-white" : isDone ? "text-[#16a56b]" : "text-[#b3a8d6]",
+                isToday
+                  ? "text-white"
+                  : isDone
+                    ? "text-[#16a56b]"
+                    : "text-[#b3a8d6]",
               )}
             >
               {isDone ? (

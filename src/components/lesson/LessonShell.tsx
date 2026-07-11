@@ -2,11 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BackButton } from "@/components/BackButton";
 import { MessageCircle } from "lucide-react";
 import { motion } from "motion/react";
+import { BackButton } from "@/components/BackButton";
 import { cn } from "@/lib/utils";
 
+const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
+
+/**
+ * Shared lesson chrome — night step bar over lavender sheet.
+ * Matches overview / learn desk family. No decorative rotate.
+ */
 export function LessonShell({
   children,
   lessonId,
@@ -25,23 +31,32 @@ export function LessonShell({
   const router = useRouter();
 
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col bg-[#f3effc] font-rounded">
-      <header className="sticky top-0 z-20 border-b border-[#ebe4f6]/bg-[#f3effc]/90 px-4 pt-[calc(env(safe-area-inset-top)+10px)] pb-3 backdrop-blur-xl">
-        <div className="flex items-center gap-3">
+    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
+      <header className="relative z-20 overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 text-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-16 right-[-36px] h-40 w-40 rounded-full bg-arc-purple-500/35 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-[-24px] h-24 w-24 rounded-full bg-[#ffc928]/15 blur-2xl"
+        />
+
+        <div className="relative z-[1] flex items-center gap-3">
           <BackButton
-            tone="light"
+            tone="dark"
             onClick={() => (onBack ? onBack() : router.back())}
           />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold tracking-[0.06em] text-[#8a7cb8] uppercase">
+            <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
               {stepLabel}
             </p>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#ebe4f6]">
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
               <motion.div
                 className="h-full rounded-full bg-arc-purple-500"
                 initial={false}
                 animate={{ width: `${Math.max(progress, 4)}%` }}
-                transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                transition={softSpring}
               />
             </div>
           </div>
@@ -49,7 +64,7 @@ export function LessonShell({
             <Link
               href={`/learn/${lessonId}/arlo`}
               aria-label="Ask Arlo"
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]"
             >
               <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
             </Link>
@@ -59,7 +74,7 @@ export function LessonShell({
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+20px)]">
+      <div className="relative z-10 -mt-1 flex flex-1 flex-col rounded-t-[24px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+20px)] shadow-[0_-8px_28px_rgba(0,0,0,0.18)]">
         {children}
       </div>
     </div>
@@ -80,7 +95,7 @@ export function LessonPrimaryButton({
   className?: string;
 }) {
   const classes = cn(
-    "flex w-full items-center justify-center gap-2 rounded-xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_4px_0_#4b2fd6]",
+    "flex w-full items-center justify-center gap-2 rounded-[18px] bg-arc-purple-500 py-4 font-display text-[16px] font-bold text-white shadow-[0_5px_0_var(--color-arc-purple-700)]",
     disabled && "pointer-events-none opacity-40",
     className,
   );
@@ -121,12 +136,21 @@ export function LessonOptionCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        "w-full rounded-2xl border px-4 py-3.5 text-left font-display text-[15px] font-semibold transition-colors",
-        showCorrect && "border-[#62d84e] bg-[#f0fbeb] text-[#1f6b2e]",
-        showWrong && "border-[#ff8a3d] bg-[#fff4ec] text-[#9a4a12]",
-        !revealed && selected && "border-arc-purple-500 bg-[#f6f2ff] text-[#2b1b57]",
-        !revealed && !selected && "border-[#ebe4f6] bg-white text-[#2b1b57]",
-        revealed && !selected && !correct && "border-[#ebe4f6] bg-white text-[#8a7cb8]",
+        "w-full rounded-[18px] border-2 px-4 py-3.5 text-left font-display text-[15px] font-bold transition-colors",
+        showCorrect &&
+          "border-[#62d84e] bg-[#f0fbeb] text-[#1f6b2e] shadow-[0_4px_0_#b8e6a8]",
+        showWrong &&
+          "border-[#ff8a3d] bg-[#fff4ec] text-[#9a4a12] shadow-[0_4px_0_#ffd4b0]",
+        !revealed &&
+          selected &&
+          "border-arc-purple-500 bg-white text-[#0f1220] shadow-[0_4px_0_var(--color-arc-purple-700)]",
+        !revealed &&
+          !selected &&
+          "border-[#ebe4f6] bg-white text-[#0f1220] shadow-[0_4px_0_#ebe4f6]",
+        revealed &&
+          !selected &&
+          !correct &&
+          "border-[#ebe4f6] bg-white/70 text-arc-lavender-600",
       )}
     >
       <span className="text-[14px] leading-snug whitespace-pre-wrap">{label}</span>

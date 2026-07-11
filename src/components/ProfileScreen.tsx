@@ -120,7 +120,7 @@ export default function ProfileScreen({
 
         {/* Overlapping economy chips */}
         <div className="relative mt-6 flex gap-2">
-          <div className="-rotate-1 rounded-2xl bg-[#ff8a3d] px-3 py-2 shadow-[0_4px_0_#d46520]">
+          <div className="rounded-2xl bg-[#ff8a3d] px-3 py-2 shadow-[0_4px_0_#d46520]">
             <p className="text-[9px] font-black tracking-wide text-white/80 uppercase">
               Streak
             </p>
@@ -129,7 +129,7 @@ export default function ProfileScreen({
               {data.weekStreak}w
             </p>
           </div>
-          <div className="rotate-1 rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
+          <div className="rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
             <p className="text-[9px] font-black tracking-wide text-white/40 uppercase">
               XP
             </p>
@@ -139,7 +139,7 @@ export default function ProfileScreen({
           </div>
           <Link
             href="/wallet"
-            className="ml-auto -rotate-1 rounded-2xl bg-[#ffc928] px-3 py-2 text-[#0f1220] shadow-[0_4px_0_#c79a2e]"
+            className="ml-auto rounded-2xl bg-[#ffc928] px-3 py-2 text-[#0f1220] shadow-[0_4px_0_#c79a2e]"
           >
             <p className="text-[9px] font-black tracking-wide opacity-60 uppercase">
               Coins
@@ -352,11 +352,7 @@ function ActionTwinRow({ coins }: { coins: number }) {
         </Link>
       </motion.div>
 
-      <motion.div
-        className="mt-2 -ml-0.5 rotate-1"
-        whileTap={{ scale: 0.98 }}
-        transition={snappySpring}
-      >
+      <motion.div whileTap={{ scale: 0.98 }} transition={snappySpring}>
         <Link
           href="/friends"
           className="flex min-h-[132px] flex-col items-start justify-between rounded-[22px] border border-[#ebe4f6] bg-white p-4 text-left shadow-[0_8px_20px_rgba(70,40,150,0.08)]"

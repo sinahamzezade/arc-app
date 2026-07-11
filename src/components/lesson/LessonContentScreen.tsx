@@ -1,12 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Lightbulb, Terminal } from "lucide-react";
 import { motion } from "motion/react";
-import { getLesson } from "@/lib/lesson/mock-data";
+import { getLesson, type LessonContentBlock } from "@/lib/lesson/mock-data";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton, LessonShell } from "./LessonShell";
 
+const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
+
+/**
+ * Lesson content pager — night chrome + clay study sheet.
+ * Text / Arlo vault / code terminal. No decorative rotate.
+ */
 export default function LessonContentScreen({
   lessonId,
 }: {
@@ -19,8 +25,13 @@ export default function LessonContentScreen({
 
   if (!lesson) {
     return (
-      <LessonShell lessonId={lessonId} stepLabel="Missing" progress={0} showArlo={false}>
-        <LessonPrimaryButton href="/path">Back to Path</LessonPrimaryButton>
+      <LessonShell
+        lessonId={lessonId}
+        stepLabel="Missing"
+        progress={0}
+        showArlo={false}
+      >
+        <LessonPrimaryButton href="/learn">Back to Learn</LessonPrimaryButton>
       </LessonShell>
     );
   }
@@ -42,74 +53,94 @@ export default function LessonContentScreen({
     >
       <motion.div
         key={page.id}
-        initial={{ opacity: 0, x: 18 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ type: "spring", stiffness: 380, damping: 28 }}
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={softSpring}
         className="flex flex-1 flex-col"
       >
-        <h1 className="font-display text-[26px] leading-tight font-bold tracking-[-0.03em] text-[#2b1b57]">
-          {page.title}
-        </h1>
+        {/* Step notch + asymmetric title */}
+        <div className="grid grid-cols-[auto_1fr] items-start gap-3">
+          <span className="mt-1 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0f1220] font-display text-[15px] font-bold text-[#ffc928] shadow-[0_3px_0_#2a2f45]">
+            {contentStep + 1}
+          </span>
+          <div className="min-w-0 pt-0.5">
+            <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
+              Beat {contentStep + 1} of {total}
+            </p>
+            <h1 className="mt-1 font-display text-[28px] leading-[0.95] font-bold tracking-[-0.035em] text-[#0f1220] text-balance">
+              {page.title}
+            </h1>
+          </div>
+        </div>
 
         <div className="mt-5 space-y-3">
-          {page.blocks.map((block, i) => {
-            if (block.type === "text") {
-              return (
-                <p
-                  key={i}
-                  className="text-[15px] leading-relaxed font-semibold text-[#4a3d78]"
-                >
-                  {block.body}
-                </p>
-              );
-            }
-            if (block.type === "callout") {
-              return (
-                <div
-                  key={i}
-                  className="rounded-2xl border border-arc-purple-200 bg-[#f6f2ff] px-4 py-3.5"
-                >
-                  <p className="text-[11px] font-bold tracking-[0.06em] text-arc-purple-500 uppercase">
-                    {block.title}
-                  </p>
-                  <p className="mt-1 text-[14px] font-semibold text-[#2b1b57]">
-                    {block.body}
-                  </p>
-                </div>
-              );
-            }
-            return (
-              <div
-                key={i}
-                className="overflow-hidden rounded-2xl border border-[#ebe4f6] bg-[#1b1433]"
-              >
-                <div className="border-b border-white/10 px-3.5 py-2 text-[11px] font-bold tracking-[0.05em] text-white/50 uppercase">
-                  {block.label}
-                </div>
-                <pre className="overflow-x-auto p-3.5 font-mono text-[12px] leading-relaxed whitespace-pre text-[#e8e0ff]">
-                  {block.code}
-                </pre>
-              </div>
-            );
-          })}
+          {page.blocks.map((block, i) => (
+            <ContentBlock key={i} block={block} />
+          ))}
         </div>
 
         <div className="mt-auto pt-8">
-          {isLast ? (
-            <LessonPrimaryButton href={`/learn/${lesson.id}/practice`}>
-              Practice time
-              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-            </LessonPrimaryButton>
-          ) : (
-            <LessonPrimaryButton
-              onClick={() => setContentStep(contentStep + 1)}
-            >
-              Continue
-              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-            </LessonPrimaryButton>
-          )}
+          <motion.div whileTap={{ scale: 0.98, y: 2 }} transition={softSpring}>
+            {isLast ? (
+              <LessonPrimaryButton href={`/learn/${lesson.id}/practice`}>
+                Practice time
+                <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
+              </LessonPrimaryButton>
+            ) : (
+              <LessonPrimaryButton
+                onClick={() => setContentStep(contentStep + 1)}
+              >
+                Continue
+                <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
+              </LessonPrimaryButton>
+            )}
+          </motion.div>
         </div>
       </motion.div>
     </LessonShell>
+  );
+}
+
+function ContentBlock({ block }: { block: LessonContentBlock }) {
+  if (block.type === "text") {
+    return (
+      <p className="max-w-[22rem] text-[15px] leading-relaxed font-bold text-arc-lavender-700 text-pretty">
+        {block.body}
+      </p>
+    );
+  }
+
+  if (block.type === "callout") {
+    return (
+      <aside className="relative overflow-hidden rounded-[20px] bg-[#0f1220] p-4 text-white shadow-[0_12px_28px_rgba(15,18,32,0.22)]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-8 -right-6 h-24 w-24 rounded-full bg-[#ffc928]/20 blur-2xl"
+        />
+        <div className="relative z-[1] flex items-center gap-2 text-[#ffc928]">
+          <Lightbulb className="h-4 w-4" strokeWidth={2.5} />
+          <p className="text-[10px] font-extrabold tracking-[0.12em] uppercase">
+            {block.title}
+          </p>
+        </div>
+        <p className="relative z-[1] mt-2 text-[14px] leading-snug font-bold text-white/85 text-pretty">
+          {block.body}
+        </p>
+      </aside>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-[20px] border-2 border-[#ebe4f6] bg-[#0f1220] shadow-[0_4px_0_#ebe4f6]">
+      <div className="flex items-center gap-2 border-b border-white/10 px-3.5 py-2.5">
+        <Terminal className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
+        <span className="text-[10px] font-black tracking-[0.1em] text-white/50 uppercase">
+          {block.label}
+        </span>
+      </div>
+      <pre className="overflow-x-auto p-3.5 font-mono text-[12px] leading-relaxed whitespace-pre text-[#e8e0ff]">
+        {block.code}
+      </pre>
+    </div>
   );
 }

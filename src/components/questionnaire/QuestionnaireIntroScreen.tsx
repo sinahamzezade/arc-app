@@ -148,7 +148,7 @@ export default function QuestionnaireIntroScreen() {
                 <span className="relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0f1220] text-[#ffc928] shadow-[0_3px_0_#05060c]">
                   <Pencil className="h-4 w-4" strokeWidth={2.5} />
                 </span>
-                <div className="min-w-0 -rotate-1 rounded-[16px] bg-[#0f1220] px-3.5 py-3 text-white shadow-[0_8px_20px_rgba(15,18,32,0.18)]">
+                <div className="min-w-0 rounded-[16px] bg-[#0f1220] px-3.5 py-3 text-white shadow-[0_8px_20px_rgba(15,18,32,0.18)]">
                   <p className="font-display text-[17px] leading-none font-bold tracking-[-0.02em]">
                     Edit anytime
                   </p>

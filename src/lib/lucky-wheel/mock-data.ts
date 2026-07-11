@@ -14,6 +14,8 @@ export type LuckyWheelMockData = {
   subtitle: string;
   spinsLeft: number;
   spinsPerDay: number;
+  expiresIn: string;
+  previewGems: number;
   segments: WheelSegment[];
 };
 
@@ -30,6 +32,8 @@ export const luckyWheelMockData: LuckyWheelMockData = {
   subtitle: "Daily free spin. Land the loot.",
   spinsLeft: 1,
   spinsPerDay: 1,
+  expiresIn: "4h",
+  previewGems: 15,
   segments: [
     {
       id: "coins-50",

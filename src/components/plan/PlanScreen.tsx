@@ -24,7 +24,6 @@ export default function PlanScreen({
 }: {
   data?: PlanMockData;
 }) {
-
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
       <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-16 text-white">
@@ -88,7 +87,7 @@ export default function PlanScreen({
                 {data.status}
               </p>
             </div>
-            <div className="absolute right-1 bottom-0 z-[1] w-[88%] rotate-1 rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
+            <div className="absolute right-1 bottom-0 z-[1] w-[88%] rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
               <p className="text-[9px] font-black tracking-wide text-[#ffc928] uppercase">
                 Renews
               </p>

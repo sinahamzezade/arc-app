@@ -193,7 +193,7 @@ export default function WalletScreen() {
           {/* Overlapping chips — break equal grid */}
           <div className="relative h-[118px]">
             <motion.div
-              className="absolute top-0 right-0 z-[2] w-[92%] -rotate-3 rounded-2xl bg-[#b35cff] px-3 py-2.5 shadow-[0_8px_0_#7a2fc4]"
+              className="absolute top-0 right-0 z-[2] w-[92%] rounded-2xl bg-[#b35cff] px-3 py-2.5 shadow-[0_8px_0_#7a2fc4]"
               initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ ...softSpring, delay: 0.08 }}
@@ -252,9 +252,7 @@ export default function WalletScreen() {
                 onClick={() => setTab(id)}
                 className={cn(
                   "flex-1 rounded-[14px] py-2.5 font-display text-[13px] font-semibold",
-                  active
-                    ? "bg-[#12141c] text-[#ffc928]"
-                    : "text-[#8a7cb8]",
+                  active ? "bg-[#12141c] text-[#ffc928]" : "text-[#8a7cb8]",
                 )}
               >
                 {label}

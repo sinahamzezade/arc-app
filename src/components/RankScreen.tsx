@@ -143,7 +143,7 @@ export default function RankScreen({
             icon={<Star className="h-4 w-4 fill-white text-white" />}
           />
           <CurrencyChip
-            className="absolute top-3 left-[31%] z-[2] w-[38%] rotate-1"
+            className="absolute top-3 left-[31%] z-[2] w-[38%]"
             label="Gems"
             value={stats.gems}
             tip={data.walletTips[1].tip}
@@ -151,7 +151,7 @@ export default function RankScreen({
             icon={<Gem className="h-4 w-4 text-white" strokeWidth={2.5} />}
           />
           <CurrencyChip
-            className="absolute top-1 right-0 z-[1] w-[36%] -rotate-1"
+            className="absolute top-1 right-0 z-[1] w-[36%]"
             label="Coins"
             value={stats.coins}
             tip={data.walletTips[2].tip}
@@ -300,19 +300,18 @@ function CurrencyChip({
   );
 }
 
-function RankLadderRow({
-  tier,
-  offset,
-}: {
-  tier: RankTier;
-  offset?: string;
-}) {
+function RankLadderRow({ tier, offset }: { tier: RankTier; offset?: string }) {
   const current = tier.status === "current";
   const earned = tier.status === "earned";
   const locked = tier.status === "locked";
 
   return (
-    <li className={cn("relative mb-2.5 flex items-center gap-3 last:mb-0", offset)}>
+    <li
+      className={cn(
+        "relative mb-2.5 flex items-center gap-3 last:mb-0",
+        offset,
+      )}
+    >
       <span
         className={cn(
           "relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl",

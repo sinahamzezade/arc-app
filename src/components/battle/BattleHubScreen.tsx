@@ -1,15 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Coins,
-  Flame,
-  Gem,
-  Swords,
-  Users,
-  Wallet,
-  Zap,
-} from "lucide-react";
+import { Coins, Flame, Gem, Swords, Users, Wallet, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import {
   battleFriends,
@@ -89,7 +81,11 @@ export default function BattleHubScreen() {
           <div className="min-w-0">
             <p className="text-[11px] font-bold text-white/45">Win streak</p>
             <p className="mt-1 flex items-center gap-2 font-display text-[42px] leading-none font-bold tracking-[-0.04em]">
-              <Flame className="h-8 w-8 text-[#ff8a3d]" fill="currentColor" strokeWidth={1.5} />
+              <Flame
+                className="h-8 w-8 text-[#ff8a3d]"
+                fill="currentColor"
+                strokeWidth={1.5}
+              />
               {stats.winStreak}
             </p>
             <p className="mt-2 text-[12px] font-bold text-white/55">
@@ -97,7 +93,7 @@ export default function BattleHubScreen() {
             </p>
           </div>
 
-          <div className="shrink-0 -rotate-3 rounded-[22px] border border-[#ffc928]/40 bg-[#ffc928] px-4 py-3 text-[#1b1730] shadow-[0_8px_0_#c79a2e]">
+          <div className="shrink-0 rounded-[22px] border border-[#ffc928]/40 bg-[#ffc928] px-4 py-3 text-[#1b1730] shadow-[0_8px_0_#c79a2e]">
             <p className="text-[10px] font-black tracking-[0.08em] uppercase">
               Best subject
             </p>
@@ -135,7 +131,11 @@ export default function BattleHubScreen() {
             <motion.span
               className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20"
               animate={{ rotate: [0, -8, 8, 0] }}
-              transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+              transition={{
+                duration: 2.8,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
             >
               <Swords className="h-7 w-7" strokeWidth={2.25} />
             </motion.span>
@@ -152,7 +152,7 @@ export default function BattleHubScreen() {
 
         {/* Incoming invite as TICKET — rotated, overlapping */}
         <motion.div
-          className="relative z-[1] mt-4 -rotate-1"
+          className="relative z-[1] mt-4"
           initial={{ opacity: 0, x: -18 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ ...softSpring, delay: 0.14 }}
@@ -216,7 +216,7 @@ export default function BattleHubScreen() {
                   href={`/battle/create?opponent=${f.id}`}
                   className={cn(
                     "relative shrink-0 rounded-[22px] border border-[#ebe4f6] bg-white p-3 shadow-[0_8px_20px_rgba(70,40,150,0.08)]",
-                    big ? "w-[148px] -rotate-2" : "w-[112px] rotate-1",
+                    big ? "w-[148px]" : "w-[112px]",
                     i === 1 && "translate-y-2",
                   )}
                 >
@@ -298,7 +298,10 @@ export default function BattleHubScreen() {
               href="/friends"
               className="flex w-[120px] shrink-0 flex-col items-center justify-center rounded-[18px] border border-dashed border-[#d5ccec] bg-white/80 px-3 py-3 text-center"
             >
-              <Users className="h-5 w-5 text-arc-purple-500" strokeWidth={2.25} />
+              <Users
+                className="h-5 w-5 text-arc-purple-500"
+                strokeWidth={2.25}
+              />
               <span className="mt-2 text-[12px] font-extrabold text-[#4a3d78]">
                 Study or invite
               </span>

@@ -232,3 +232,141 @@ export const leaderboardMockData: LeaderboardMockData = {
   footerNote:
     "Consistency beats cramming — ranks track progress, not raw hours.",
 };
+
+export type LeaguePeerProfile = LeaderboardEntry & {
+  leagueName: string;
+  leagueTier: LeaderboardMockData["leagueTier"];
+  weekLabel: string;
+  cohortLabel: string;
+  cohortSize: number;
+  promoteTop: number;
+  demoteBottom: number;
+  daysLeft: number;
+  fromRole: string;
+  becoming: string;
+  rankTitle: string;
+  bio: string;
+  badgesEarned: number;
+  badgesTotal: number;
+  lessonsThisWeek: number;
+  battlesWon: number;
+  joinedLabel: string;
+  recent: { id: string; label: string; when: string }[];
+};
+
+const peerExtras: Record<
+  string,
+  Pick<
+    LeaguePeerProfile,
+    | "fromRole"
+    | "becoming"
+    | "rankTitle"
+    | "bio"
+    | "badgesEarned"
+    | "badgesTotal"
+    | "lessonsThisWeek"
+    | "battlesWon"
+    | "joinedLabel"
+    | "recent"
+  >
+> = {
+  priya: {
+    fromRole: "Ops analyst",
+    becoming: "Data Analyst",
+    rankTitle: "Full Ninja",
+    bio: "SQL mornings before standup. Climbing for Silver.",
+    badgesEarned: 18,
+    badgesTotal: 24,
+    lessonsThisWeek: 6,
+    battlesWon: 4,
+    joinedLabel: "Joined Week 1",
+    recent: [
+      { id: "r1", label: "Sealed week commit", when: "2h ago" },
+      { id: "r2", label: "Won battle vs Marcus", when: "Yesterday" },
+      { id: "r3", label: "Finished WHERE Practice", when: "2d ago" },
+    ],
+  },
+  marcus: {
+    fromRole: "Support lead",
+    becoming: "Data Analyst",
+    rankTitle: "Semi Ninja",
+    bio: "Battles for fun. Lessons for the career arc.",
+    badgesEarned: 11,
+    badgesTotal: 24,
+    lessonsThisWeek: 4,
+    battlesWon: 7,
+    joinedLabel: "Joined Week 1",
+    recent: [
+      { id: "r1", label: "Cheered 3 learners", when: "1h ago" },
+      { id: "r2", label: "Completed SQL joins", when: "Yesterday" },
+    ],
+  },
+  dani: {
+    fromRole: "Marketer",
+    becoming: "Data Analyst",
+    rankTitle: "Semi Ninja",
+    bio: "Weekend warrior. Charts > slides.",
+    badgesEarned: 9,
+    badgesTotal: 24,
+    lessonsThisWeek: 3,
+    battlesWon: 2,
+    joinedLabel: "Joined Week 2",
+    recent: [
+      { id: "r1", label: "Hit 3-lesson quest", when: "Today" },
+      { id: "r2", label: "Spun Lucky Wheel", when: "3d ago" },
+    ],
+  },
+};
+
+const defaultExtras: (typeof peerExtras)[string] = {
+  fromRole: "Office worker",
+  becoming: "Data Analyst",
+  rankTitle: "Rookie",
+  bio: "On the Arc — one lesson at a time.",
+  badgesEarned: 4,
+  badgesTotal: 24,
+  lessonsThisWeek: 2,
+  battlesWon: 0,
+  joinedLabel: "Joined this season",
+  recent: [
+    { id: "r1", label: "Opened a lesson", when: "Today" },
+    { id: "r2", label: "Checked the board", when: "Yesterday" },
+  ],
+};
+
+/** Build peer passport from standings id. Null if missing. */
+export function getLeaguePeerProfile(
+  id: string,
+): LeaguePeerProfile | null {
+  const entry = leaderboardMockData.entries.find((e) => e.id === id);
+  if (!entry) return null;
+
+  const extras = peerExtras[id] ?? {
+    ...defaultExtras,
+    rankTitle:
+      entry.rank <= 3
+        ? "Full Ninja"
+        : entry.rank <= 7
+          ? "Semi Ninja"
+          : entry.rank <= 15
+            ? "Apprentice"
+            : "Rookie",
+    lessonsThisWeek: Math.max(0, Math.round(entry.xp / 25)),
+    battlesWon: entry.showLike ? 3 : entry.rank < 10 ? 1 : 0,
+    badgesEarned: Math.min(24, 2 + Math.floor(entry.xp / 15)),
+  };
+
+  return {
+    ...entry,
+    ...extras,
+    leagueName: leaderboardMockData.leagueName,
+    leagueTier: leaderboardMockData.leagueTier,
+    weekLabel: leaderboardMockData.weekLabel,
+    cohortLabel: leaderboardMockData.cohortLabel,
+    cohortSize: leaderboardMockData.stats.cohortSize,
+    promoteTop: leaderboardMockData.stats.promoteTop,
+    demoteBottom: leaderboardMockData.stats.demoteBottom,
+    daysLeft: leaderboardMockData.stats.daysLeft,
+  };
+}
+

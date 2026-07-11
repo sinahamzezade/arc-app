@@ -92,78 +92,14 @@ export default function LeaderboardScreen({
         </div>
 
         {you ? (
-          <div className="relative mt-8 grid grid-cols-[1.25fr_1fr] items-end gap-3">
-            <div>
-              <p className="text-[10px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
-                Your spot
-              </p>
-              <motion.p
-                className="mt-1 font-display text-[64px] leading-[0.85] font-bold tracking-[-0.05em]"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={softSpring}
-              >
-                #{you.rank}
-              </motion.p>
-              <p className="mt-2 text-[13px] font-bold text-white/45">
-                of {data.stats.cohortSize} · {you.xp} XP
-              </p>
-            </div>
-
-            {/* Overlapping chips — Wallet gem/XP pattern */}
-            <div className="relative h-[128px]">
-              <motion.div
-                className="absolute top-0 right-0 z-[3] w-[95%] -rotate-2 rounded-2xl bg-[#16a56b] px-3 py-2.5 shadow-[0_6px_0_#0e7a4c]"
-                initial={{ opacity: 0, x: 14 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ ...softSpring, delay: 0.06 }}
-              >
-                <div className="flex items-center gap-1 text-white/85">
-                  <ArrowUp className="h-3.5 w-3.5" strokeWidth={3} />
-                  <span className="text-[10px] font-black tracking-wide uppercase">
-                    Promote
-                  </span>
-                </div>
-                <p className="mt-1 font-display text-[18px] leading-none font-bold">
-                  Top {data.stats.promoteTop}
-                </p>
-              </motion.div>
-
-              <motion.div
-                className="absolute top-[42px] right-3 z-[2] w-[88%] rotate-1 rounded-2xl bg-[#ffc928] px-3 py-2 text-[#0f1220] shadow-[0_5px_0_#c79a2e]"
-                initial={{ opacity: 0, x: 14 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ ...softSpring, delay: 0.1 }}
-              >
-                <div className="flex items-center gap-1 opacity-70">
-                  <Clock className="h-3 w-3" strokeWidth={2.75} />
-                  <span className="text-[9px] font-black tracking-wide uppercase">
-                    Clock
-                  </span>
-                </div>
-                <p className="mt-0.5 font-display text-[16px] leading-none font-bold">
-                  {data.stats.daysLeft} days
-                </p>
-              </motion.div>
-
-              <motion.div
-                className="absolute right-0 bottom-0 z-[1] w-[82%] -rotate-1 rounded-2xl bg-[#e5484d] px-3 py-2 shadow-[0_5px_0_#b43438]"
-                initial={{ opacity: 0, x: 14 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ ...softSpring, delay: 0.14 }}
-              >
-                <div className="flex items-center gap-1 text-white/85">
-                  <ArrowDown className="h-3 w-3" strokeWidth={3} />
-                  <span className="text-[9px] font-black tracking-wide uppercase">
-                    Demote
-                  </span>
-                </div>
-                <p className="mt-0.5 font-display text-[15px] leading-none font-bold">
-                  Bot {data.stats.demoteBottom}
-                </p>
-              </motion.div>
-            </div>
-          </div>
+          <YourSpotStage
+            rank={you.rank}
+            xp={you.xp}
+            promoteTop={data.stats.promoteTop}
+            demoteBottom={data.stats.demoteBottom}
+            cohortSize={data.stats.cohortSize}
+            daysLeft={data.stats.daysLeft}
+          />
         ) : null}
       </section>
 
@@ -250,6 +186,169 @@ export default function LeaderboardScreen({
         ) : null}
       </AnimatePresence>
     </div>
+  );
+}
+
+function YourSpotStage({
+  rank,
+  xp,
+  promoteTop,
+  demoteBottom,
+  cohortSize,
+  daysLeft,
+}: {
+  rank: number;
+  xp: number;
+  promoteTop: number;
+  demoteBottom: number;
+  cohortSize: number;
+  daysLeft: number;
+}) {
+  const demoteFloor = cohortSize - demoteBottom + 1;
+  const promotePct = (promoteTop / cohortSize) * 100;
+  const demotePct = (demoteBottom / cohortSize) * 100;
+  const midPct = 100 - promotePct - demotePct;
+  const pinPct = Math.min(
+    96,
+    Math.max(4, ((rank - 0.5) / cohortSize) * 100),
+  );
+
+  const zone =
+    rank <= promoteTop
+      ? "promote"
+      : rank >= demoteFloor
+        ? "demote"
+        : "safe";
+
+  const zoneCopy =
+    zone === "promote"
+      ? "In the promote cut — hold it"
+      : zone === "demote"
+        ? "Demote danger — climb now"
+        : "Safe midfield — keep climbing";
+
+  const zoneTone =
+    zone === "promote"
+      ? "bg-[#16a56b]/20 text-[#62d84e]"
+      : zone === "demote"
+        ? "bg-[#e5484d]/20 text-[#ff8a8a]"
+        : "bg-[#ffc928]/20 text-[#ffc928]";
+
+  return (
+    <motion.div
+      className="relative mt-7"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={softSpring}
+    >
+      {/* Rank masthead */}
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
+            Your spot
+          </p>
+          <p className="mt-1 font-display text-[64px] leading-[0.82] font-bold tracking-[-0.05em]">
+            #{rank}
+          </p>
+        </div>
+        <div className="mb-2 flex flex-col items-end gap-1.5">
+          <span className="rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-extrabold tabular-nums text-white ring-1 ring-white/15">
+            of {cohortSize}
+          </span>
+          <span className="rounded-full bg-[#ffc928]/15 px-2.5 py-1 text-[12px] font-extrabold tabular-nums text-[#ffc928]">
+            {xp} XP
+          </span>
+        </div>
+      </div>
+
+      <p
+        className={cn(
+          "mt-3 inline-flex rounded-full px-2.5 py-1 text-[11px] font-extrabold",
+          zoneTone,
+        )}
+      >
+        {zoneCopy}
+      </p>
+
+      {/* Zone race ladder — #1 left → last right */}
+      <div className="relative mt-5">
+        <div className="mb-2 flex items-center justify-between text-[9px] font-extrabold tracking-wide uppercase">
+          <span className="inline-flex items-center gap-1 text-[#62d84e]">
+            <ArrowUp className="h-3 w-3" strokeWidth={3} />
+            #1
+          </span>
+          <span className="text-white/35">Cohort track</span>
+          <span className="inline-flex items-center gap-1 text-[#ff8a8a]">
+            #{cohortSize}
+            <ArrowDown className="h-3 w-3" strokeWidth={3} />
+          </span>
+        </div>
+
+        <div className="relative pt-5">
+          {/* You label above pin */}
+          <span
+            className="absolute top-0 -translate-x-1/2 text-[11px] font-extrabold text-[#ffc928]"
+            style={{ left: `${pinPct}%` }}
+          >
+            You
+          </span>
+
+          <div className="relative h-4 overflow-hidden rounded-full bg-white/10">
+            <div className="flex h-full w-full">
+              <span
+                className="h-full bg-[#16a56b]"
+                style={{ width: `${promotePct}%` }}
+              />
+              <span
+                className="h-full bg-white/15"
+                style={{ width: `${midPct}%` }}
+              />
+              <span
+                className="h-full bg-[#e5484d]"
+                style={{ width: `${demotePct}%` }}
+              />
+            </div>
+
+            <motion.span
+              className="absolute top-1/2 z-[2] h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffc928] shadow-[0_0_0_3px_#0f1220,0_0_12px_rgba(255,201,40,0.55)]"
+              style={{ left: `${pinPct}%` }}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ ...softSpring, delay: 0.12 }}
+              aria-hidden
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Cut chips — flat row */}
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-[#16a56b] px-2.5 py-2.5 text-white shadow-[0_3px_0_#0e7a4c]">
+          <p className="text-[9px] font-black tracking-wide uppercase opacity-85">
+            Promote
+          </p>
+          <p className="mt-0.5 font-display text-[15px] leading-none font-bold">
+            Top {promoteTop}
+          </p>
+        </div>
+        <div className="rounded-2xl bg-[#ffc928] px-2.5 py-2.5 text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
+          <p className="text-[9px] font-black tracking-wide uppercase opacity-70">
+            Season
+          </p>
+          <p className="mt-0.5 font-display text-[15px] leading-none font-bold">
+            {daysLeft}d left
+          </p>
+        </div>
+        <div className="rounded-2xl bg-[#e5484d] px-2.5 py-2.5 text-white shadow-[0_3px_0_#b43438]">
+          <p className="text-[9px] font-black tracking-wide uppercase opacity-85">
+            Demote
+          </p>
+          <p className="mt-0.5 font-display text-[15px] leading-none font-bold">
+            Bot {demoteBottom}
+          </p>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -379,6 +478,7 @@ function TableRow({
   zone: "promote" | "mid" | "demote";
 }) {
   const you = entry.isYou;
+  const href = you ? "/profile" : `/leaderboard/${entry.id}`;
 
   return (
     <tr
@@ -390,12 +490,20 @@ function TableRow({
       )}
     >
       <td className="px-3 py-3 text-center align-middle">
-        <RankCell rank={entry.rank} />
+        <Link href={href} className="block" tabIndex={-1}>
+          <RankCell rank={entry.rank} />
+        </Link>
       </td>
 
       <td className="px-2 py-3 align-middle">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div
+        <Link
+          href={href}
+          className="flex min-w-0 items-center gap-2.5"
+          aria-label={
+            you ? "Open your profile" : `Open ${entry.name}'s profile`
+          }
+        >
+          <span
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-display text-[14px] font-bold",
               you && "ring-2 ring-arc-purple-500 ring-offset-1",
@@ -403,11 +511,11 @@ function TableRow({
             style={{ background: entry.avatarBg, color: entry.avatarColor }}
           >
             {entry.initial}
-          </div>
-          <div className="min-w-0">
-            <p
+          </span>
+          <span className="min-w-0">
+            <span
               className={cn(
-                "truncate text-[14px] font-semibold",
+                "block truncate text-[14px] font-semibold",
                 you ? "text-arc-purple-500" : "text-[#1b1730]",
               )}
             >
@@ -417,36 +525,43 @@ function TableRow({
                   You
                 </span>
               ) : null}
-            </p>
+            </span>
             {entry.nudge && you ? (
-              <p className="mt-0.5 truncate text-[10px] font-bold text-arc-purple-500/70">
+              <span className="mt-0.5 block truncate text-[10px] font-bold text-arc-purple-500/70">
                 {entry.nudge}
-              </p>
+              </span>
             ) : null}
-          </div>
-        </div>
+          </span>
+        </Link>
       </td>
 
       <td className="px-2 py-3 text-center align-middle">
-        {entry.streakWeeks != null ? (
-          <span className="inline-flex items-center justify-center gap-0.5 text-[12px] font-bold text-[#8a7cb8]">
-            <Flame className="h-3.5 w-3.5 text-[#ff8a3d]" strokeWidth={2.25} />
-            {entry.streakWeeks}w
-          </span>
-        ) : (
-          <span className="text-[12px] font-medium text-[#d5cee8]">—</span>
-        )}
+        <Link href={href} className="block" tabIndex={-1}>
+          {entry.streakWeeks != null ? (
+            <span className="inline-flex items-center justify-center gap-0.5 text-[12px] font-bold text-[#8a7cb8]">
+              <Flame
+                className="h-3.5 w-3.5 text-[#ff8a3d]"
+                strokeWidth={2.25}
+              />
+              {entry.streakWeeks}w
+            </span>
+          ) : (
+            <span className="text-[12px] font-medium text-[#d5cee8]">—</span>
+          )}
+        </Link>
       </td>
 
       <td className="px-3 py-3 text-right align-middle">
-        <span
-          className={cn(
-            "font-display text-[15px] font-bold tabular-nums",
-            you ? "text-arc-purple-500" : "text-[#1b1730]",
-          )}
-        >
-          {entry.xp}
-        </span>
+        <Link href={href} className="block" tabIndex={-1}>
+          <span
+            className={cn(
+              "font-display text-[15px] font-bold tabular-nums",
+              you ? "text-arc-purple-500" : "text-[#1b1730]",
+            )}
+          >
+            {entry.xp}
+          </span>
+        </Link>
       </td>
 
       <td className="px-2 py-3 align-middle">

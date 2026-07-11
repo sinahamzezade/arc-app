@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { getDefaultLessonId } from "@/lib/lesson/mock-data";
+import LearnScreen from "@/components/LearnScreen";
 
 export default function LearnIndexPage() {
-  redirect(`/learn/${getDefaultLessonId()}`);
+  return <LearnScreen />;
 }

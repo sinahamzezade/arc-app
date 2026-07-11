@@ -3,8 +3,6 @@ export type HomeDayStatus = "done" | "empty";
 export type HomeMockData = {
   userName: string;
   notificationCount: number;
-  /** Short outcome line under greeting */
-  outcomeLine: string;
   mission: {
     title: string;
     track: string;
@@ -13,10 +11,6 @@ export type HomeMockData = {
     xp: number;
     gems: number;
     progressPercent: number;
-    /** Benefit-led why now */
-    nudge: string;
-    /** Button label — action + time */
-    ctaLabel: string;
     href: string;
   };
   weeklyProgress: {
@@ -26,29 +20,27 @@ export type HomeMockData = {
     sessionsDone: number;
     sessionsPlanned: number;
     onTrack: boolean;
+    lockRewardXp: number;
+    lockRewardGems: number;
   };
   weeklyStreak: {
     weeks: number;
     days: { label: string; status: HomeDayStatus }[];
-  };
-  stats: {
-    xp: number;
-    gems: number;
-    coins: number;
-    rank: string;
-    level: number;
-    xpIntoLevel: number;
-    xpForLevel: number;
   };
   milestone: {
     title: string;
     subtitle: string;
     stepsDone: number;
     stepsTotal: number;
+    rewardXp: number;
+    rewardGems: number;
   };
   dailyBonus: {
     title: string;
     subtitle: string;
+    spinsLeft: number;
+    expiresIn: string;
+    previewGems: number;
   };
   arloSays: {
     quote: string;
@@ -62,24 +54,33 @@ export type HomeMockData = {
     league: string;
     endsIn: string;
     yourXp: number;
-    peers: { initial: string; color: string }[];
+    yourPlace: number;
+    xpToNext: number;
+    peers: { initial: string; color: string; xp: number }[];
+  };
+  stats: {
+    xp: number;
+    gems: number;
+    coins: number;
+    rank: string;
+    nextRank: string;
+    level: number;
+    xpIntoLevel: number;
+    xpForLevel: number;
   };
 };
 
 export const homeMockData: HomeMockData = {
   userName: "Soheil",
   notificationCount: 3,
-  outcomeLine: "Office worker → Data Analyst",
   mission: {
-    title: "Filtering with WHERE",
-    track: "SQL Basics",
-    type: "Coding Practice",
-    minutes: 25,
-    xp: 25,
+    title: "Your first webpage",
+    track: "Frontend · Unit 1",
+    type: "Lesson",
+    minutes: 18,
+    xp: 35,
     gems: 5,
-    progressPercent: 40,
-    nudge: "One more session locks your week. SQL filter skills employers actually ask for.",
-    ctaLabel: "Finish lesson · 25 min",
+    progressPercent: 8,
     href: "/learn/lesson-1",
   },
   weeklyProgress: {
@@ -89,6 +90,8 @@ export const homeMockData: HomeMockData = {
     sessionsDone: 3,
     sessionsPlanned: 4,
     onTrack: true,
+    lockRewardXp: 50,
+    lockRewardGems: 8,
   },
   weeklyStreak: {
     weeks: 7,
@@ -107,23 +110,29 @@ export const homeMockData: HomeMockData = {
     gems: 350,
     coins: 2450,
     rank: "Semi Ninja",
+    nextRank: "Full Ninja",
     level: 5,
     xpIntoLevel: 250,
     xpForLevel: 500,
   },
   milestone: {
-    title: "SQL Mini Challenge",
-    subtitle: "1 step left · WHERE Practice",
-    stepsDone: 2,
+    title: "First Webpage",
+    subtitle: "Finish Hello World Rookie",
+    stepsDone: 0,
     stepsTotal: 3,
+    rewardXp: 40,
+    rewardGems: 10,
   },
   dailyBonus: {
     title: "Lucky Wheel",
-    subtitle: "Free spin waiting",
+    subtitle: "Free spin",
+    spinsLeft: 1,
+    expiresIn: "4h",
+    previewGems: 15,
   },
   arloSays: {
     quote:
-      "You're 25 minutes away from keeping your week on track. Tiny SQL step, big career energy.",
+      "Eighteen minutes. One tiny HTML page. Keep the week seal warm — I believe in dramatic tags.",
     actions: [
       "Motivate me",
       "Explain today's task",
@@ -139,9 +148,11 @@ export const homeMockData: HomeMockData = {
     league: "Silver League",
     endsIn: "Ends in 5d 12h",
     yourXp: 1250,
+    yourPlace: 4,
+    xpToNext: 80,
     peers: [
-      { initial: "M", color: "#6B4EFF" },
-      { initial: "J", color: "#2DB7F5" },
+      { initial: "M", color: "#6B4EFF", xp: 1480 },
+      { initial: "J", color: "#2DB7F5", xp: 1330 },
     ],
   },
 };
