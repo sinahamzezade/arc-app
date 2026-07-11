@@ -3,13 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { BackButton } from "@/components/BackButton";
-import {
-  Copy,
-  Gift,
-  Search,
-  Swords,
-  Users,
-} from "lucide-react";
+import { Copy, Gift, Search, Swords, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { battleFriends } from "@/lib/battle/mock-data";
 import { cn } from "@/lib/utils";
@@ -99,9 +93,9 @@ export default function FriendsScreen() {
         <motion.button
           type="button"
           onClick={copy}
-          initial={{ opacity: 0, y: 14, rotate: -1.5 }}
-          animate={{ opacity: 1, y: 0, rotate: -1.5 }}
-          whileTap={{ scale: 0.98, rotate: 0 }}
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileTap={{ scale: 0.98 }}
           className="relative flex w-full overflow-hidden rounded-[18px] border-2 border-dashed border-[#c79a2e] bg-[#fff8e8] text-left shadow-[0_14px_28px_rgba(199,154,46,0.2)]"
         >
           <div className="flex w-[4.5rem] shrink-0 flex-col items-center justify-center bg-[#ffc928] px-2 py-4 text-[#1b1730]">

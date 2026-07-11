@@ -1,12 +1,19 @@
+import {
+  CUTE_HAIR_COLORS,
+  CUTE_SHIRT_COLORS,
+  HAIR_FOR,
+  GLASSES_FOR,
+  SHIRT_FOR,
+} from "@/components/avatar/cute/styles";
+import type { AvatarPartId } from "@/components/avatar/AvatarCharacter";
+
 export type AvatarGender = "boy" | "girl";
 
 export type AvatarCategory =
   | "hair"
-  | "hats"
   | "glasses"
   | "moustache"
   | "hoodies"
-  | "capes"
   | "backgrounds";
 
 export type AvatarItem = {
@@ -15,13 +22,9 @@ export type AvatarItem = {
   category: AvatarCategory;
   cost: number;
   rarity: "common" | "rare" | "legendary";
-  /** CSS accent tint for the SVG part */
   accent: string;
-  /** Key into avatarPartRegistry — omit for backgrounds */
   partId?: string;
-  /** Who this item is shown for. Default = any */
   gender?: AvatarGender | "any";
-  /** Unequip / clear slot — no part rendered */
   clear?: boolean;
 };
 
@@ -45,13 +48,192 @@ function noneItem(category: AvatarCategory): AvatarItem {
   };
 }
 
+const HAIR_META: Record<
+  string,
+  { name: string; cost: number; rarity: AvatarItem["rarity"]; accent: string }
+> = {
+  fluffy: { name: "Fluffy Cloud", cost: 0, rarity: "common", accent: "#8a5a3a" },
+  buzz: { name: "Buzz Cut", cost: 120, rarity: "common", accent: "#3a3a38" },
+  swoop: { name: "Side Swoop", cost: 180, rarity: "common", accent: "#3a3a38" },
+  spiky: { name: "Spiky", cost: 220, rarity: "common", accent: "#FAC775" },
+  bowl: { name: "Bowl Cut", cost: 260, rarity: "rare", accent: "#AFA9EC" },
+  mohawk: { name: "Mohawk", cost: 420, rarity: "rare", accent: "#ED93B1" },
+  afro: { name: "Afro", cost: 380, rarity: "rare", accent: "#8a5a3a" },
+  long: { name: "Long Flow", cost: 0, rarity: "common", accent: "#8a5a3a" },
+  bob: { name: "Soft Bob", cost: 160, rarity: "common", accent: "#3a3a38" },
+  wavy: { name: "Wavy", cost: 280, rarity: "common", accent: "#F0997B" },
+  pigtails: { name: "Pigtails", cost: 320, rarity: "rare", accent: "#ED93B1" },
+  ponytail: { name: "Ponytail", cost: 300, rarity: "rare", accent: "#8a5a3a" },
+  bun: { name: "Top Bun", cost: 260, rarity: "common", accent: "#FAC775" },
+  braids: { name: "Braids", cost: 440, rarity: "rare", accent: "#AFA9EC" },
+  spacebuns: {
+    name: "Space Buns",
+    cost: 520,
+    rarity: "legendary",
+    accent: "#ED93B1",
+  },
+};
+
+const GLASSES_META: Record<
+  string,
+  { name: string; cost: number; rarity: AvatarItem["rarity"]; accent: string }
+> = {
+  round: { name: "Round Specs", cost: 150, rarity: "common", accent: "#3a3a38" },
+  square: { name: "Square Frames", cost: 180, rarity: "common", accent: "#3a3a38" },
+  nerd: { name: "Nerd Specs", cost: 280, rarity: "rare", accent: "#2C2C2A" },
+  aviator: { name: "Aviator", cost: 340, rarity: "rare", accent: "#5F5E5A" },
+  cateye: { name: "Cat Eye", cost: 360, rarity: "rare", accent: "#D4537E" },
+  hearts: { name: "Heart Eyes", cost: 380, rarity: "rare", accent: "#ED93B1" },
+  star: { name: "Star Shades", cost: 520, rarity: "legendary", accent: "#FAC775" },
+  sun: { name: "Sunnies", cost: 300, rarity: "rare", accent: "#2C2C2A" },
+};
+
+const STACHE_META: Record<
+  string,
+  { name: string; cost: number; rarity: AvatarItem["rarity"]; accent: string }
+> = {
+  tiny: { name: "Tiny Stache", cost: 90, rarity: "common", accent: "#8a5a3a" },
+  chevron: { name: "Chevron", cost: 160, rarity: "common", accent: "#3a3a38" },
+  curly: { name: "Curly Stache", cost: 260, rarity: "rare", accent: "#3a3a38" },
+  broom: { name: "Broom Stache", cost: 420, rarity: "rare", accent: "#8a5a3a" },
+  handlebar: {
+    name: "Handlebar",
+    cost: 540,
+    rarity: "legendary",
+    accent: "#3a3a38",
+  },
+};
+
+const SHIRT_META: Record<
+  string,
+  { name: string; cost: number; rarity: AvatarItem["rarity"]; accent: string }
+> = {
+  plain: { name: "Plain Tee", cost: 0, rarity: "common", accent: "#AFA9EC" },
+  stripes: { name: "Stripes", cost: 160, rarity: "common", accent: "#85B7EB" },
+  collar: { name: "Collar", cost: 200, rarity: "common", accent: "#5DCAA5" },
+  hoodie: { name: "Hoodie", cost: 280, rarity: "rare", accent: "#6B4EFF" },
+  buttons: { name: "Buttons", cost: 220, rarity: "common", accent: "#F0997B" },
+  heart: { name: "Heart Tee", cost: 180, rarity: "common", accent: "#ED93B1" },
+  bow: { name: "Bow Neck", cost: 260, rarity: "rare", accent: "#ED93B1" },
+  floral: { name: "Floral", cost: 340, rarity: "rare", accent: "#5DCAA5" },
+  dress: { name: "Dress", cost: 480, rarity: "legendary", accent: "#AFA9EC" },
+};
+
+function hairItems(): AvatarItem[] {
+  const out: AvatarItem[] = [];
+  for (const style of HAIR_FOR.boy) {
+    if (style === "none") continue;
+    const meta = HAIR_META[style];
+    out.push({
+      id: `hair-${style}`,
+      name: meta.name,
+      category: "hair",
+      cost: meta.cost,
+      rarity: meta.rarity,
+      accent: meta.accent,
+      partId: `hair-${style}`,
+      gender: "boy",
+    });
+  }
+  for (const style of HAIR_FOR.girl) {
+    if (style === "none") continue;
+    const meta = HAIR_META[style];
+    out.push({
+      id: `hair-${style}`,
+      name: meta.name,
+      category: "hair",
+      cost: meta.cost,
+      rarity: meta.rarity,
+      accent: meta.accent,
+      partId: `hair-${style}`,
+      gender: "girl",
+    });
+  }
+  return out;
+}
+
+function glassesItems(): AvatarItem[] {
+  const seen = new Set<string>();
+  const out: AvatarItem[] = [];
+  for (const g of ["boy", "girl"] as const) {
+    for (const style of GLASSES_FOR[g]) {
+      if (style === "none" || seen.has(style)) continue;
+      seen.add(style);
+      const meta = GLASSES_META[style];
+      const inBoy = (GLASSES_FOR.boy as readonly string[]).includes(style);
+      const inGirl = (GLASSES_FOR.girl as readonly string[]).includes(style);
+      out.push({
+        id: `glasses-${style}`,
+        name: meta.name,
+        category: "glasses",
+        cost: meta.cost,
+        rarity: meta.rarity,
+        accent: meta.accent,
+        partId: `glasses-${style}`,
+        gender: inBoy && inGirl ? "any" : inBoy ? "boy" : "girl",
+      });
+    }
+  }
+  return out;
+}
+
+function stacheItems(): AvatarItem[] {
+  return Object.entries(STACHE_META).map(([style, meta]) => ({
+    id: `stache-${style}`,
+    name: meta.name,
+    category: "moustache" as const,
+    cost: meta.cost,
+    rarity: meta.rarity,
+    accent: meta.accent,
+    partId: `stache-${style}`,
+    gender: "boy" as const,
+  }));
+}
+
+function shirtItems(): AvatarItem[] {
+  const out: AvatarItem[] = [];
+  for (const style of SHIRT_FOR.boy) {
+    const meta = SHIRT_META[style];
+    out.push({
+      id: `shirt-${style}`,
+      name: meta.name,
+      category: "hoodies",
+      cost: meta.cost,
+      rarity: meta.rarity,
+      accent: meta.accent,
+      partId: `shirt-${style}`,
+      gender: "boy",
+    });
+  }
+  for (const style of SHIRT_FOR.girl) {
+    if ((SHIRT_FOR.boy as readonly string[]).includes(style)) {
+      // shared styles (plain, stripes) already added as boy — mark any
+      const existing = out.find((i) => i.id === `shirt-${style}`);
+      if (existing) {
+        existing.gender = "any";
+        continue;
+      }
+    }
+    const meta = SHIRT_META[style];
+    out.push({
+      id: `shirt-${style}`,
+      name: meta.name,
+      category: "hoodies",
+      cost: meta.cost,
+      rarity: meta.rarity,
+      accent: meta.accent,
+      partId: `shirt-${style}`,
+      gender: "girl",
+    });
+  }
+  return out;
+}
+
 const categoryIds: AvatarCategory[] = [
   "hair",
-  "hats",
   "glasses",
   "moustache",
   "hoodies",
-  "capes",
   "backgrounds",
 ];
 
@@ -59,194 +241,24 @@ export const avatarStudioMockData: AvatarStudioMockData = {
   coins: 2450,
   categories: [
     { id: "hair", label: "Hair" },
-    { id: "hats", label: "Hats" },
     { id: "glasses", label: "Glasses" },
     { id: "moustache", label: "Stache" },
-    { id: "hoodies", label: "Shirts" },
-    { id: "capes", label: "Capes" },
+    { id: "hoodies", label: "Shirt" },
     { id: "backgrounds", label: "BGs" },
   ],
   items: [
     ...categoryIds.map(noneItem),
+    ...hairItems(),
+    ...glassesItems(),
+    ...stacheItems(),
+    ...shirtItems(),
     {
-      id: "hair-short",
-      name: "Crop Cut",
-      category: "hair",
+      id: "bg-cream",
+      name: "Cream Paper",
+      category: "backgrounds",
       cost: 0,
       rarity: "common",
-      accent: "#2A2438",
-      partId: "hair-short",
-      gender: "boy",
-    },
-    {
-      id: "hair-sweep",
-      name: "Side Sweep",
-      category: "hair",
-      cost: 180,
-      rarity: "common",
-      accent: "#4A3428",
-      partId: "hair-sweep",
-      gender: "boy",
-    },
-    {
-      id: "hair-curly",
-      name: "Cloud Curls",
-      category: "hair",
-      cost: 420,
-      rarity: "rare",
-      accent: "#1B1433",
-      partId: "hair-curly",
-      gender: "boy",
-    },
-    {
-      id: "hair-bob",
-      name: "Soft Bob",
-      category: "hair",
-      cost: 0,
-      rarity: "common",
-      accent: "#3D2A1F",
-      partId: "hair-bob",
-      gender: "girl",
-    },
-    {
-      id: "hair-long",
-      name: "Long Flow",
-      category: "hair",
-      cost: 280,
-      rarity: "common",
-      accent: "#5C3D2E",
-      partId: "hair-long",
-      gender: "girl",
-    },
-    {
-      id: "hair-pony",
-      name: "High Pony",
-      category: "hair",
-      cost: 460,
-      rarity: "rare",
-      accent: "#2A1830",
-      partId: "hair-pony",
-      gender: "girl",
-    },
-    {
-      id: "hat-beanie",
-      name: "Focus Beanie",
-      category: "hats",
-      cost: 120,
-      rarity: "common",
-      accent: "#6B4EFF",
-      partId: "hat-beanie",
-    },
-    {
-      id: "hat-crown",
-      name: "Tiny Crown",
-      category: "hats",
-      cost: 480,
-      rarity: "rare",
-      accent: "#FFC928",
-      partId: "hat-crown",
-    },
-    {
-      id: "hat-grad",
-      name: "Grad Cap",
-      category: "hats",
-      cost: 900,
-      rarity: "legendary",
-      accent: "#1B1433",
-      partId: "hat-grad",
-    },
-    {
-      id: "glasses-round",
-      name: "Round Specs",
-      category: "glasses",
-      cost: 150,
-      rarity: "common",
-      accent: "#2D8CFF",
-      partId: "glasses-round",
-    },
-    {
-      id: "glasses-shade",
-      name: "Night Shades",
-      category: "glasses",
-      cost: 320,
-      rarity: "rare",
-      accent: "#101923",
-      partId: "glasses-shade",
-    },
-    {
-      id: "stache-soft",
-      name: "Soft Stache",
-      category: "moustache",
-      cost: 90,
-      rarity: "common",
-      accent: "#4A3428",
-      partId: "stache-soft",
-      gender: "boy",
-    },
-    {
-      id: "stache-handlebar",
-      name: "Handlebar",
-      category: "moustache",
-      cost: 260,
-      rarity: "rare",
-      accent: "#2A2438",
-      partId: "stache-handlebar",
-      gender: "boy",
-    },
-    {
-      id: "stache-thick",
-      name: "Professor",
-      category: "moustache",
-      cost: 540,
-      rarity: "legendary",
-      accent: "#1B1433",
-      partId: "stache-thick",
-      gender: "boy",
-    },
-    {
-      id: "hoodie-arc",
-      name: "Arc Hoodie",
-      category: "hoodies",
-      cost: 280,
-      rarity: "common",
-      accent: "#6B4EFF",
-      partId: "hoodie-arc",
-    },
-    {
-      id: "hoodie-gold",
-      name: "Gold Zip",
-      category: "hoodies",
-      cost: 650,
-      rarity: "rare",
-      accent: "#F0A81E",
-      partId: "hoodie-gold",
-    },
-    {
-      id: "shirt-tee",
-      name: "Arc Tee",
-      category: "hoodies",
-      cost: 160,
-      rarity: "common",
-      accent: "#2D8CFF",
-      partId: "shirt-tee",
-    },
-    {
-      id: "cape-hero",
-      name: "Hero Cape",
-      category: "capes",
-      cost: 400,
-      rarity: "rare",
-      accent: "#FF8A3D",
-      partId: "cape-hero",
-    },
-    {
-      id: "cape-shadow",
-      name: "Shadow Cloak",
-      category: "capes",
-      cost: 1100,
-      rarity: "legendary",
-      accent: "#35209D",
-      partId: "cape-shadow",
+      accent: "#F5F4EF",
     },
     {
       id: "bg-lavender",
@@ -275,17 +287,16 @@ export const avatarStudioMockData: AvatarStudioMockData = {
   ],
   starterOwned: [
     ...categoryIds.map((c) => `none-${c}`),
+    "bg-cream",
     "bg-lavender",
-    "hair-short",
-    "hair-bob",
-    "hat-beanie",
-    "hoodie-arc",
+    "hair-fluffy",
+    "hair-long",
+    "shirt-plain",
   ],
   starterEquipped: {
-    backgrounds: "bg-lavender",
-    hair: "hair-short",
-    hats: "hat-beanie",
-    hoodies: "hoodie-arc",
+    backgrounds: "bg-cream",
+    hair: "hair-fluffy",
+    hoodies: "shirt-plain",
   },
 };
 
@@ -303,54 +314,30 @@ export function itemFitsGender(
 }
 
 export function defaultHairForGender(gender: AvatarGender): string {
-  return gender === "girl" ? "hair-bob" : "hair-short";
+  return gender === "girl" ? "hair-long" : "hair-fluffy";
+}
+
+export function defaultShirtForGender(gender: AvatarGender): string {
+  return "shirt-plain";
 }
 
 /** Color slots user can tint */
 export type AvatarColorSlot =
   | "skin"
   | "hair"
-  | "hats"
   | "glasses"
   | "moustache"
   | "hoodies"
-  | "capes"
   | "backgrounds";
 
 export const avatarColorPalettes: Record<AvatarColorSlot, string[]> = {
-  skin: ["#F8E0C8", "#F2C4A0", "#D4A574", "#B07D54", "#8D5524", "#5C3A21"],
-  hair: [
-    "#1B1433",
-    "#2A2438",
-    "#4A3428",
-    "#8B5A2B",
-    "#C9A227",
-    "#E8E4F0",
-    "#6B4EFF",
-    "#FF8A3D",
-  ],
-  hats: [
-    "#6B4EFF",
-    "#FFC928",
-    "#1B1433",
-    "#FF8A3D",
-    "#2D8CFF",
-    "#16A56B",
-    "#E8E4F0",
-  ],
-  glasses: ["#2D8CFF", "#101923", "#6B4EFF", "#FFC928", "#FF8A3D", "#E8E4F0"],
-  moustache: ["#1B1433", "#2A2438", "#4A3428", "#8B5A2B", "#C9A227", "#E8E4F0"],
-  hoodies: [
-    "#6B4EFF",
-    "#F0A81E",
-    "#2D8CFF",
-    "#FF8A3D",
-    "#16A56B",
-    "#1B1433",
-    "#E8E4F0",
-  ],
-  capes: ["#FF8A3D", "#35209D", "#6B4EFF", "#101923", "#FFC928", "#2D8CFF"],
+  skin: ["#FBD8B8", "#F5C89E", "#D4A574", "#B07D54", "#8D5524", "#5C3A21"],
+  hair: [...CUTE_HAIR_COLORS],
+  glasses: ["#3a3a38", "#ED93B1", "#FAC775", "#85B7EB", "#AFA9EC", "#5DCAA5"],
+  moustache: [...CUTE_HAIR_COLORS],
+  hoodies: [...CUTE_SHIRT_COLORS],
   backgrounds: [
+    "#F5F4EF",
     "#F6F2FF",
     "#FFB088",
     "#4B2FD6",
@@ -362,14 +349,12 @@ export const avatarColorPalettes: Record<AvatarColorSlot, string[]> = {
 };
 
 export const defaultAvatarColors: Record<AvatarColorSlot, string> = {
-  skin: "#F2C4A0",
-  hair: "#2A2438",
-  hats: "#6B4EFF",
-  glasses: "#2D8CFF",
-  moustache: "#2A2438",
-  hoodies: "#6B4EFF",
-  capes: "#FF8A3D",
-  backgrounds: "#F6F2FF",
+  skin: "#FBD8B8",
+  hair: "#8a5a3a",
+  glasses: "#3a3a38",
+  moustache: "#8a5a3a",
+  hoodies: "#AFA9EC",
+  backgrounds: "#F5F4EF",
 };
 
 export function colorSlotLabel(slot: AvatarColorSlot): string {
@@ -378,16 +363,12 @@ export function colorSlotLabel(slot: AvatarColorSlot): string {
       return "Skin";
     case "hair":
       return "Hair";
-    case "hats":
-      return "Hat";
     case "glasses":
       return "Glasses";
     case "moustache":
       return "Stache";
     case "hoodies":
       return "Shirt";
-    case "capes":
-      return "Cape";
     case "backgrounds":
       return "Backdrop";
   }
@@ -408,36 +389,42 @@ export function lookFromEquipped(
   };
 
   const hair = resolve("hair");
-  const hat = resolve("hats");
   const glasses = resolve("glasses");
   const moustache = resolve("moustache");
   const shirt = resolve("hoodies");
-  const cape = resolve("capes");
-  const bg = resolve("backgrounds");
 
   const tint = (slot: AvatarColorSlot, fallback?: string) =>
     colors[slot] ?? fallback ?? defaultAvatarColors[slot];
 
+  // Avatar stays transparent; stage glow comes from stageAccentFromEquipped
   return {
     gender,
-    skin: tint("skin"),
-    hair: (hair?.partId as string | undefined) ?? null,
-    hat: hat?.partId as string | undefined,
-    glasses: glasses?.partId as string | undefined,
+    hair: (hair?.partId as AvatarPartId | undefined) ?? null,
+    glasses: glasses?.partId as AvatarPartId | undefined,
     moustache:
       gender === "boy"
-        ? (moustache?.partId as string | undefined)
+        ? (moustache?.partId as AvatarPartId | undefined)
         : undefined,
-    shirt: shirt?.partId as string | undefined,
-    cape: cape?.partId as string | undefined,
-    background: tint("backgrounds", bg?.accent ?? "#E8E4F0"),
+    shirt: shirt?.partId as AvatarPartId | undefined,
+    background: undefined as string | undefined,
     accents: {
       hair: tint("hair", hair?.accent),
-      hat: tint("hats", hat?.accent),
       glasses: tint("glasses", glasses?.accent),
       moustache: tint("moustache", moustache?.accent),
       shirt: tint("hoodies", shirt?.accent),
-      cape: tint("capes", cape?.accent),
     },
   };
+}
+
+export function stageAccentFromEquipped(
+  equipped: Partial<Record<AvatarCategory, string>>,
+  colors: Partial<Record<AvatarColorSlot, string>> = {},
+) {
+  const bgId = equipped.backgrounds;
+  const bg = bgId ? getAvatarItem(bgId) : null;
+  return (
+    colors.backgrounds ??
+    (bg && !bg.clear ? bg.accent : undefined) ??
+    defaultAvatarColors.backgrounds
+  );
 }

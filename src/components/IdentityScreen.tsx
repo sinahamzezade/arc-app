@@ -206,7 +206,7 @@ export default function IdentityScreen({
                 Open Avatar Studio
               </span>
               <span className="mt-0.5 block text-[12px] font-bold text-white/45">
-                Hats, hoodies, capes — dress Arlo
+                Hair, glasses, tees — dress your chibi
               </span>
             </span>
             <Sparkles

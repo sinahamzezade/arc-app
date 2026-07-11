@@ -3,6 +3,8 @@ import {
   avatarStudioMockData,
   defaultAvatarColors,
   defaultHairForGender,
+  defaultShirtForGender,
+  itemFitsGender,
   type AvatarCategory,
   type AvatarColorSlot,
   type AvatarGender,
@@ -23,6 +25,43 @@ type AvatarStudioState = {
   unequip: (category: AvatarCategory) => void;
 };
 
+function snapEquippedForGender(
+  equipped: Partial<Record<AvatarCategory, string>>,
+  gender: AvatarGender,
+): Partial<Record<AvatarCategory, string>> {
+  const next = { ...equipped };
+
+  const hairId = next.hair;
+  const hairItem = hairId
+    ? avatarStudioMockData.items.find((i) => i.id === hairId)
+    : null;
+  if (!hairItem || hairItem.clear || !itemFitsGender(hairItem, gender)) {
+    next.hair = defaultHairForGender(gender);
+  }
+
+  const glassesId = next.glasses;
+  const glassesItem = glassesId
+    ? avatarStudioMockData.items.find((i) => i.id === glassesId)
+    : null;
+  if (glassesItem && !glassesItem.clear && !itemFitsGender(glassesItem, gender)) {
+    delete next.glasses;
+  }
+
+  const shirtId = next.hoodies;
+  const shirtItem = shirtId
+    ? avatarStudioMockData.items.find((i) => i.id === shirtId)
+    : null;
+  if (!shirtItem || shirtItem.clear || !itemFitsGender(shirtItem, gender)) {
+    next.hoodies = defaultShirtForGender(gender);
+  }
+
+  if (gender === "girl") {
+    delete next.moustache;
+  }
+
+  return next;
+}
+
 export const useAvatarStudioStore = create<AvatarStudioState>((set, get) => ({
   coins: avatarStudioMockData.coins,
   gender: "boy",
@@ -33,21 +72,7 @@ export const useAvatarStudioStore = create<AvatarStudioState>((set, get) => ({
   setCategory: (category) => set({ category }),
   setGender: (gender) => {
     const { equipped, category } = get();
-    const nextEquipped = { ...equipped };
-    const hairId = nextEquipped.hair;
-    const hairItem = avatarStudioMockData.items.find((i) => i.id === hairId);
-    if (
-      hairItem?.gender &&
-      hairItem.gender !== "any" &&
-      hairItem.gender !== gender
-    ) {
-      nextEquipped.hair = defaultHairForGender(gender);
-    } else if (!hairId) {
-      nextEquipped.hair = defaultHairForGender(gender);
-    }
-    if (gender === "girl") {
-      delete nextEquipped.moustache;
-    }
+    const nextEquipped = snapEquippedForGender(equipped, gender);
     const nextCategory =
       gender === "girl" && category === "moustache" ? "hair" : category;
     set({ gender, equipped: nextEquipped, category: nextCategory });
@@ -68,7 +93,6 @@ export const useAvatarStudioStore = create<AvatarStudioState>((set, get) => ({
   equip: (category, itemId) =>
     set((s) => {
       const item = avatarStudioMockData.items.find((i) => i.id === itemId);
-      // Sync color tray to item's native accent when equipping a tinted part
       const nextColors = { ...s.colors };
       if (item && !item.clear && item.accent && category !== "backgrounds") {
         nextColors[category as AvatarColorSlot] = item.accent;

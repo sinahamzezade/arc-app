@@ -11,11 +11,14 @@ import {
   CheckCheck,
   Flame,
   Gift,
+  Radio,
   Star,
   Trophy,
   UserPlus,
+  Users,
+  Zap,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assets } from "@/lib/assets";
 import { cn } from "@/lib/utils";
 import {
@@ -39,20 +42,28 @@ const iconMap = {
   flame: Flame,
 } as const;
 
-const categorySpine: Record<NotificationItem["category"], string> = {
-  streak: "bg-[#ff8a3d]",
-  coach: "bg-arc-purple-500",
-  social: "bg-[#2d8cff]",
-  rewards: "bg-[#ffc928]",
-  system: "bg-[#8a7cb8]",
+const filterIcons: Record<NotificationFilter, typeof Bell> = {
+  all: Radio,
+  unread: Zap,
+  rewards: Gift,
+  social: Users,
+};
+
+const categoryInk: Record<NotificationItem["category"], string> = {
+  streak: "#ff8a3d",
+  coach: "#6b4eff",
+  social: "#2d8cff",
+  rewards: "#e6a800",
+  system: "#8a7cb8",
 };
 
 /**
- * Signal desk — night hero + overhang filters + soft day slabs.
- * Matches Battle / Wallet / League grammar.
+ * Signal desk v2 — dispatch wire.
+ * Radar hero + channel dials + timeline spine. Not Rank/Wallet card clone.
  */
 export default function NotificationsScreen() {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const [filter, setFilter] = useState<NotificationFilter>("all");
   const [items, setItems] = useState(() =>
     notificationSections.flatMap((section) => section.items),
@@ -83,148 +94,139 @@ export default function NotificationsScreen() {
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      {/* SIGNAL HERO */}
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-16 text-white">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[-30px] h-40 w-40 rounded-full bg-[#ffc928]/20 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
-          style={{
-            backgroundImage:
-              "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1.5px at 55% 60%, #fff, transparent)",
-          }}
-        />
+      {/* DISPATCH HERO */}
+      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-24 text-white">
+        <RadarBackdrop reduceMotion={!!reduceMotion} />
 
         <div className="relative flex items-center gap-3">
           <BackButton />
           <div className="min-w-0 flex-1">
-            <p className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
-              <Bell className="h-3 w-3" strokeWidth={2.5} />
-              Inbox
+            <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+              Dispatch
             </p>
-            <h1 className="mt-1 font-display text-[26px] leading-none font-bold tracking-[-0.03em]">
-              Notifications
+            <h1 className="mt-0.5 font-display text-[28px] leading-none font-bold tracking-[-0.03em] text-balance">
+              Signals
             </h1>
           </div>
           <motion.button
             type="button"
             onClick={markAllRead}
             disabled={unreadCount === 0}
-            whileTap={{ scale: 0.96 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.96 }}
             transition={snappySpring}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-[12px] font-extrabold text-white ring-1 ring-white/15 disabled:opacity-35"
+            aria-label="Mark all as read"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/15 disabled:opacity-35"
           >
-            <CheckCheck className="h-4 w-4" strokeWidth={2.5} />
-            Read all
+            <CheckCheck className="h-5 w-5" strokeWidth={2.5} />
           </motion.button>
         </div>
 
-        <div className="relative mt-7 grid grid-cols-[1.2fr_1fr] items-end gap-3">
-          <div>
-            <p className="text-[10px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
-              Waiting
-            </p>
-            <motion.p
-              className="mt-1 font-display text-[64px] leading-[0.85] font-bold tracking-[-0.05em]"
-              key={unreadCount}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={softSpring}
-            >
-              {unreadCount}
-            </motion.p>
-            <p className="mt-2 text-[13px] font-bold text-white/45">
-              {unreadCount === 0 ? "All clear" : "new updates"}
+        <div className="relative mt-6 flex items-end gap-3">
+          <div className="min-w-0 flex-1 pb-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {unreadCount > 0 ? (
+                <motion.span
+                  key={unreadCount}
+                  initial={reduceMotion ? false : { opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={softSpring}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#ffc928] px-3 py-1 text-[11px] font-black tracking-wide text-[#0f1220]"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span
+                      className={cn(
+                        "absolute inset-0 rounded-full bg-[#0f1220]/40",
+                        !reduceMotion && "animate-ping",
+                      )}
+                    />
+                    <span className="relative h-2 w-2 rounded-full bg-[#0f1220]" />
+                  </span>
+                  LIVE · {unreadCount}
+                </motion.span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-black tracking-wide text-white/70 ring-1 ring-white/15">
+                  Clear channel
+                </span>
+              )}
+            </div>
+            <p className="mt-3 max-w-[13.5rem] text-[14px] leading-snug font-semibold text-white/55">
+              {unreadCount === 0
+                ? "Wire quiet. Arlo will ping when something matters."
+                : "Unread traffic on the wire. Tap a signal to clear it."}
             </p>
           </div>
 
-          <div className="relative h-[100px]">
-            <motion.div
-              className="absolute top-0 right-0 z-[2] w-[92%] -rotate-2 rounded-2xl bg-arc-purple-500 px-3 py-2.5 shadow-[0_6px_0_#4b2fd6]"
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ ...softSpring, delay: 0.06 }}
-            >
-              <p className="text-[10px] font-black tracking-wide text-white/70 uppercase">
-                Today
-              </p>
-              <p className="mt-1 font-display text-[18px] leading-none font-bold">
-                {
-                  items.filter(
-                    (i) =>
-                      i.unread &&
-                      notificationSections[0]?.items.some((t) => t.id === i.id),
-                  ).length
-                }{" "}
-                unread
-              </p>
-            </motion.div>
-            <motion.div
-              className="absolute right-2 bottom-0 z-[1] w-[80%] rotate-2 rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15"
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ ...softSpring, delay: 0.12 }}
-            >
-              <p className="text-[10px] font-black tracking-wide text-[#ffc928] uppercase">
-                Filters
-              </p>
-              <p className="mt-0.5 font-display text-[15px] font-bold capitalize">
-                {filter}
-              </p>
-            </motion.div>
-          </div>
+          <motion.div
+            className="relative -mr-3 mb-[-28px] h-[132px] w-[120px] shrink-0"
+            animate={
+              reduceMotion ? undefined : { y: [0, -5, 0], rotate: [2, -1, 2] }
+            }
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          >
+            <Image
+              src={assets.arlo.point}
+              alt="Arlo monitoring the signal desk"
+              fill
+              priority
+              className="object-contain object-bottom drop-shadow-[0_12px_24px_rgba(0,0,0,0.45)]"
+              sizes="120px"
+            />
+          </motion.div>
         </div>
       </section>
 
-      {/* Filter overhang */}
-      <div className="relative z-[1] -mt-5 px-4">
+      {/* Channel dials — overhang */}
+      <div className="relative z-10 -mt-5 px-4">
         <nav
           role="tablist"
-          aria-label="Notification filters"
-          className="flex gap-1 overflow-x-auto rounded-[20px] border border-[#ebe4f6] bg-white p-1.5 shadow-[0_14px_32px_rgba(70,40,150,0.1)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="Signal channels"
+          className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {notificationFilters.map((chip) => {
+          {notificationFilters.map((chip, i) => {
             const active = filter === chip.id;
+            const Icon = filterIcons[chip.id];
             return (
-              <button
+              <motion.button
                 key={chip.id}
                 type="button"
                 role="tab"
                 aria-selected={active}
                 onClick={() => setFilter(chip.id)}
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...softSpring, delay: 0.04 * i }}
+                whileTap={reduceMotion ? undefined : { scale: 0.96 }}
                 className={cn(
-                  "min-w-0 flex-1 shrink-0 rounded-[14px] px-2 py-2.5 font-display text-[12px] font-semibold",
+                  "inline-flex shrink-0 items-center gap-2 rounded-[16px] px-3.5 py-2.5 font-display text-[13px] font-bold ring-1 transition-colors",
                   active
-                    ? "bg-[#0f1220] text-[#ffc928]"
-                    : "text-[#8a7cb8]",
+                    ? "bg-[#0f1220] text-[#ffc928] ring-[#0f1220] shadow-[0_4px_0_#4b2fd6]"
+                    : "bg-white text-[#5a5278] ring-[#ebe4f6] shadow-[0_3px_0_#ebe4f6]",
                 )}
               >
+                <Icon className="h-4 w-4" strokeWidth={2.4} aria-hidden />
                 {chip.label}
-              </button>
+              </motion.button>
             );
           })}
         </nav>
       </div>
 
-      <div className="relative px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+28px)]">
+      <div className="relative px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+28px)]">
         <AnimatePresence>
           {(filter === "all" || filter === "unread") && unreadCount > 0 ? (
             <motion.div
-              key="streak"
-              initial={{ opacity: 0, y: 10 }}
+              key="priority"
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={softSpring}
-              className="mb-4"
+              className="mb-5"
             >
-              <StreakTicket onResume={() => router.push("/home")} />
+              <PriorityWire onResume={() => router.push("/home")} />
             </motion.div>
           ) : null}
         </AnimatePresence>
@@ -232,29 +234,35 @@ export default function NotificationsScreen() {
         <AnimatePresence mode="wait">
           <motion.div
             key={filter}
-            initial={{ opacity: 0, y: 10 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
+            exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
             transition={softSpring}
-            className="space-y-4"
           >
-            {sections.map((section, i) => (
-              <NotificationGroup
-                key={section.id}
-                section={section}
-                onOpen={markRead}
-                offset={i === 1}
-              />
-            ))}
-
             {sections.length === 0 ? (
-              <p className="rounded-[20px] border border-dashed border-[#d5ccec] bg-white/70 px-5 py-10 text-center text-[13px] font-extrabold text-[#b3a8d6]">
-                Nothing here yet
-              </p>
+              <EmptyWire />
             ) : (
-              <p className="pt-2 text-center text-[12px] font-extrabold text-[#b3a8d6]">
-                You&apos;re all caught up
-              </p>
+              <div className="relative space-y-7">
+                {/* Timeline spine */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute top-3 bottom-3 left-[11px] w-px bg-[repeating-linear-gradient(180deg,#d5ccec_0_6px,transparent_6px_12px)]"
+                />
+
+                {sections.map((section, si) => (
+                  <WireGroup
+                    key={section.id}
+                    section={section}
+                    onOpen={markRead}
+                    skew={si % 2 === 1}
+                    reduceMotion={!!reduceMotion}
+                  />
+                ))}
+
+                <p className="pl-8 pt-1 text-[12px] font-extrabold text-[#9a8fc0]">
+                  End of wire · you&apos;re caught up
+                </p>
+              </div>
             )}
           </motion.div>
         </AnimatePresence>
@@ -269,80 +277,144 @@ function matchesFilter(item: NotificationItem, filter: NotificationFilter) {
   return item.filterTags.includes(filter);
 }
 
-function StreakTicket({ onResume }: { onResume: () => void }) {
+function RadarBackdrop({ reduceMotion }: { reduceMotion: boolean }) {
   return (
-    <div className="relative overflow-hidden rounded-[22px] bg-[#0f1220] text-white shadow-[0_14px_32px_rgba(15,18,32,0.25)]">
+    <>
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-[#ff8a3d]/30 blur-2xl"
+        className="pointer-events-none absolute -top-24 right-[-48px] h-72 w-72 rounded-full bg-arc-purple-500/35 blur-3xl"
       />
-      <div className="relative flex items-stretch">
-        <div className="flex w-14 shrink-0 flex-col items-center justify-center bg-[#ff8a3d]">
-          <Flame className="h-6 w-6 text-white" strokeWidth={2.25} />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-0 left-[-36px] h-44 w-44 rounded-full bg-[#ffc928]/18 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-25"
+        style={{
+          backgroundImage:
+            "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1px at 55% 60%, #fff, transparent)",
+        }}
+      />
+      {/* Concentric radar */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-8 -right-16 h-56 w-56"
+      >
+        {[1, 2, 3].map((ring) => (
+          <motion.span
+            key={ring}
+            className="absolute inset-0 rounded-full border border-[#ffc928]/25"
+            style={{
+              inset: `${(ring - 1) * 18}%`,
+            }}
+            animate={
+              reduceMotion
+                ? undefined
+                : { opacity: [0.15, 0.45, 0.15], scale: [1, 1.02, 1] }
+            }
+            transition={{
+              duration: 3.2 + ring * 0.4,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: ring * 0.2,
+            }}
+          />
+        ))}
+        <span className="absolute top-1/2 left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffc928]" />
+      </div>
+    </>
+  );
+}
+
+function PriorityWire({ onResume }: { onResume: () => void }) {
+  return (
+    <div className="relative ml-1 overflow-hidden rounded-[22px] bg-[#0f1220] text-white shadow-[0_14px_32px_rgba(15,18,32,0.22)]">
+      <div
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1.5 bg-[#ff8a3d]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-10 right-8 h-28 w-28 rounded-full bg-[#ff8a3d]/25 blur-2xl"
+      />
+      <div className="relative flex items-start gap-3 px-4 py-4 pl-5">
+        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#ff8a3d]">
+          <Flame className="h-5 w-5 text-white" strokeWidth={2.25} />
         </div>
-        <div className="min-w-0 flex-1 px-4 py-4">
-          <p className="font-display text-[17px] leading-tight font-bold">
+        <div className="min-w-0 flex-1 pr-16">
+          <p className="text-[10px] font-black tracking-[0.12em] text-[#ff8a3d] uppercase">
+            Priority wire
+          </p>
+          <p className="mt-1 font-display text-[17px] leading-tight font-bold text-balance">
             Keep your streak alive
           </p>
           <p className="mt-1 text-[12px] font-bold text-white/50">
-            25 minutes from Day 8. Don&apos;t let it slip.
+            25 min from Day 8. Don&apos;t let it slip.
           </p>
           <motion.button
             type="button"
             onClick={onResume}
             whileTap={{ scale: 0.97, y: 1 }}
             transition={snappySpring}
-            className="mt-3 rounded-xl bg-arc-purple-500 px-4 py-2 text-[13px] font-extrabold text-white shadow-[0_3px_0_#4b2fd6]"
+            className="mt-3 rounded-xl bg-[#ffc928] px-4 py-2 text-[13px] font-extrabold text-[#0f1220] shadow-[0_3px_0_#c79a2e]"
           >
-            Resume Lesson
+            Resume lesson
           </motion.button>
         </div>
         <Image
-          src={assets.arlo.point}
+          src={assets.arlo.thinking}
           alt=""
-          width={88}
-          height={88}
-          className="pointer-events-none absolute -right-1 -bottom-2 h-auto w-[88px]"
+          width={72}
+          height={72}
+          className="pointer-events-none absolute right-1 bottom-0 h-auto w-[72px]"
         />
       </div>
       <div
         aria-hidden
-        className="h-1.5 bg-[repeating-linear-gradient(90deg,#ffc928_0_8px,transparent_8px_14px)] opacity-50"
+        className="h-1 bg-[repeating-linear-gradient(90deg,#ffc928_0_8px,transparent_8px_14px)] opacity-55"
       />
     </div>
   );
 }
 
-function NotificationGroup({
+function WireGroup({
   section,
   onOpen,
-  offset,
+  skew,
+  reduceMotion,
 }: {
   section: NotificationSection;
   onOpen: (id: string) => void;
-  offset?: boolean;
+  skew?: boolean;
+  reduceMotion: boolean;
 }) {
   return (
-    <section className={cn(offset && "ml-2")}>
-      <div className="mb-2 flex items-baseline justify-between gap-2 px-0.5">
-        <h2 className="font-display text-[16px] font-bold text-[#1b1730]">
-          {section.label}
-        </h2>
-        <span className="text-[11px] font-extrabold text-[#8a7cb8]">
+    <section className={cn("relative", skew && "translate-x-1")}>
+      <div className="mb-3 flex items-center gap-3">
+        <span className="relative z-[1] flex h-6 w-6 items-center justify-center rounded-full bg-[#0f1220] text-[10px] font-black text-[#ffc928] ring-4 ring-[#f3effc]">
           {section.items.length}
         </span>
+        <h2 className="-rotate-1 font-display text-[15px] font-bold tracking-[-0.02em] text-[#1b1730]">
+          {section.label}
+        </h2>
+        <span
+          aria-hidden
+          className="h-px flex-1 bg-[#d5ccec]/80"
+        />
       </div>
 
-      <ul className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white shadow-[0_10px_24px_rgba(70,40,150,0.06)]">
+      <ul className="space-y-2.5 pl-7">
         {section.items.map((item, i) => (
-          <li
+          <motion.li
             key={item.id}
-            className={cn(
-              i < section.items.length - 1 && "border-b border-[#f0ecf7]",
-            )}
+            initial={reduceMotion ? false : { opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...softSpring, delay: 0.03 * i }}
+            className={cn(i % 2 === 1 && "ml-2")}
           >
             <NotificationRow item={item} onOpen={onOpen} />
-          </li>
+          </motion.li>
         ))}
       </ul>
     </section>
@@ -356,46 +428,80 @@ function NotificationRow({
   item: NotificationItem;
   onOpen: (id: string) => void;
 }) {
+  const ink = categoryInk[item.category];
+
   return (
     <button
       type="button"
       onClick={() => onOpen(item.id)}
       className={cn(
-        "relative flex w-full items-start gap-3 px-3.5 py-3.5 text-left transition-colors",
-        item.unread ? "bg-[#faf8ff]" : "bg-white",
+        "relative flex w-full items-start gap-3 overflow-hidden rounded-[18px] px-3 py-3 text-left transition-colors",
+        item.unread
+          ? "bg-white shadow-[0_8px_20px_rgba(70,40,150,0.1)] ring-1 ring-[#ebe4f6]"
+          : "bg-white/65 ring-1 ring-[#ebe4f6]/80",
       )}
     >
       <span
         aria-hidden
-        className={cn(
-          "absolute top-3 bottom-3 left-0 w-1 rounded-r-full",
-          categorySpine[item.category],
-          !item.unread && "opacity-30",
-        )}
+        className="absolute top-0 bottom-0 left-0 w-1"
+        style={{ background: ink, opacity: item.unread ? 1 : 0.35 }}
       />
 
       <NotificationIcon item={item} />
 
-      <div className="min-w-0 flex-1 pl-0.5">
-        <div className="flex items-center gap-1.5">
-          <span className="truncate font-display text-[14px] font-semibold text-[#1b1730]">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-2">
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate font-display text-[14px] font-semibold",
+              item.unread ? "text-[#1b1730]" : "text-[#4a4460]",
+            )}
+          >
             {item.title}
           </span>
+          <time
+            className={cn(
+              "shrink-0 pt-0.5 text-[10px] font-bold",
+              item.unread ? "text-[#6b4eff]" : "text-[#b3a8d6]",
+            )}
+          >
+            {item.time}
+          </time>
+        </div>
+
+        <p
+          className={cn(
+            "mt-0.5 text-[12.5px] leading-snug font-semibold text-pretty",
+            item.unread ? "text-[#6a6188]" : "text-[#9a8fc0]",
+          )}
+        >
+          {item.body}
+        </p>
+
+        <div className="mt-2 flex items-center gap-1.5">
           {item.coachBadge ? (
-            <span className="shrink-0 rounded-full bg-[#0f1220] px-1.5 py-0.5 text-[9px] font-black tracking-wide text-[#ffc928] uppercase">
+            <span className="rounded-full bg-[#0f1220] px-1.5 py-0.5 text-[9px] font-black tracking-wide text-[#ffc928] uppercase">
               Coach
+            </span>
+          ) : (
+            <span
+              className="rounded-full px-1.5 py-0.5 text-[9px] font-black tracking-wide uppercase"
+              style={{
+                background: `${ink}18`,
+                color: ink,
+              }}
+            >
+              {item.category}
+            </span>
+          )}
+          {item.unread ? (
+            <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-black tracking-wide text-arc-purple-500 uppercase">
+              <span className="h-1.5 w-1.5 rounded-full bg-arc-purple-500" />
+              New
             </span>
           ) : null}
         </div>
-        <p className="mt-0.5 text-[12.5px] leading-snug font-semibold text-[#8a7cb8]">
-          {item.body}
-        </p>
-        <p className="mt-1.5 text-[11px] font-bold text-[#b3a8d6]">{item.time}</p>
       </div>
-
-      {item.unread ? (
-        <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-arc-purple-500 shadow-[0_0_0_3px_rgba(107,78,255,0.2)]" />
-      ) : null}
     </button>
   );
 }
@@ -427,6 +533,33 @@ function NotificationIcon({ item }: { item: NotificationItem }) {
         fill={item.icon.name === "star" ? item.icon.color : "none"}
         strokeWidth={2.25}
       />
+    </div>
+  );
+}
+
+function EmptyWire() {
+  return (
+    <div className="relative overflow-hidden rounded-[24px] border border-dashed border-[#d5ccec] bg-white/70 px-5 py-10 text-center">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-8 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-arc-purple-500/10 blur-2xl"
+      />
+      <div className="relative mx-auto mb-3 h-20 w-20">
+        <Image
+          src={assets.arlo.thinking}
+          alt=""
+          fill
+          className="object-contain"
+          sizes="80px"
+        />
+      </div>
+      <p className="font-display text-[17px] font-bold text-[#1b1730]">
+        Channel empty
+      </p>
+      <p className="mx-auto mt-1 max-w-[16rem] text-[13px] font-semibold text-[#8a7cb8]">
+        Nothing on this frequency. Flip channels or check back after your next
+        lesson.
+      </p>
     </div>
   );
 }

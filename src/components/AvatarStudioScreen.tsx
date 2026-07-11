@@ -15,10 +15,8 @@ import {
   Lock,
   Shirt,
   Smile,
-  Sparkles,
   SunMedium,
   UserRound,
-  WandSparkles,
   Ban,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -28,6 +26,7 @@ import {
   colorSlotLabel,
   itemFitsGender,
   lookFromEquipped,
+  stageAccentFromEquipped,
   type AvatarCategory,
   type AvatarColorSlot,
   type AvatarItem,
@@ -39,13 +38,11 @@ import { cn } from "@/lib/utils";
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
-const categoryIcon: Record<AvatarCategory, typeof WandSparkles> = {
+const categoryIcon: Record<AvatarCategory, typeof UserRound> = {
   hair: UserRound,
-  hats: WandSparkles,
   glasses: Glasses,
   moustache: Smile,
   hoodies: Shirt,
-  capes: Sparkles,
   backgrounds: SunMedium,
 };
 
@@ -54,8 +51,8 @@ function categoryToColorSlot(category: AvatarCategory): AvatarColorSlot {
 }
 
 /**
- * Avatar Studio — SVG paper-doll runway.
- * Equipped items paint real vector layers on the character.
+ * Avatar Studio — cute chibi runway.
+ * Equipped items paint hair / glasses / stache / shirt on the character.
  */
 export default function AvatarStudioScreen() {
   const coins = useAvatarStudioStore((s) => s.coins);
@@ -87,23 +84,12 @@ export default function AvatarStudioScreen() {
     [category, gender],
   );
 
-  const look = useMemo(() => {
-    const raw = lookFromEquipped(equipped, gender, colors);
-    return {
-      gender: raw.gender,
-      skin: raw.skin,
-      hair: raw.hair as AvatarPartId | null,
-      hat: raw.hat as AvatarPartId | undefined,
-      glasses: raw.glasses as AvatarPartId | undefined,
-      moustache: raw.moustache as AvatarPartId | undefined,
-      shirt: raw.shirt as AvatarPartId | undefined,
-      cape: raw.cape as AvatarPartId | undefined,
-      background: raw.background,
-      accents: raw.accents,
-    };
-  }, [equipped, gender, colors]);
+  const look = useMemo(
+    () => lookFromEquipped(equipped, gender, colors),
+    [equipped, gender, colors],
+  );
 
-  const stageAccent = colors.backgrounds || "#6B4EFF";
+  const stageAccent = stageAccentFromEquipped(equipped, colors);
   const activeCat = avatarStudioMockData.categories.find(
     (c) => c.id === category,
   );
@@ -160,10 +146,9 @@ export default function AvatarStudioScreen() {
               {profileMockData.userName}
             </p>
             <p className="mt-2 max-w-[11rem] text-[12px] leading-snug font-bold text-white/50">
-              SVG layers · pick boy or girl base
+              Boy & girl sets · hair, glasses, shirt
             </p>
 
-            {/* Gender toggle */}
             <div
               role="group"
               aria-label="Character gender"
@@ -194,15 +179,16 @@ export default function AvatarStudioScreen() {
               {Object.entries(equipped).map(([cat, id]) => {
                 if (!id || cat === "backgrounds") return null;
                 if (gender === "girl" && cat === "moustache") return null;
-                const item = avatarStudioMockData.items.find((i) => i.id === id);
+                const item = avatarStudioMockData.items.find(
+                  (i) => i.id === id,
+                );
                 if (!item) return null;
                 return (
                   <span
                     key={cat}
                     className="max-w-[7rem] truncate rounded-full px-2.5 py-1 text-[10px] font-extrabold text-[#0f1220]"
                     style={{
-                      background:
-                        colors[cat as AvatarColorSlot] ?? item.accent,
+                      background: colors[cat as AvatarColorSlot] ?? item.accent,
                     }}
                   >
                     {item.name}
@@ -211,11 +197,7 @@ export default function AvatarStudioScreen() {
               })}
             </div>
           </div>
-          <motion.div
-            className="relative -mr-1 justify-self-end"
-            animate={{ y: [0, -6, 0] }}
-            transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-          >
+          <div className="relative -mr-1 justify-self-end">
             <div
               aria-hidden
               className="absolute bottom-4 left-1/2 h-10 w-32 -translate-x-1/2 rounded-full blur-2xl"
@@ -227,16 +209,11 @@ export default function AvatarStudioScreen() {
               label={`${profileMockData.userName}'s avatar`}
               className="relative z-[1] drop-shadow-[0_20px_36px_rgba(0,0,0,0.5)]"
             />
-          </motion.div>
+          </div>
         </div>
       </section>
 
       <div className="relative z-[1] -mt-5 rounded-t-[28px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+28px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
-        <div
-          aria-hidden
-          className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#d8ccff]"
-        />
-
         <div className="flex gap-3">
           <nav
             aria-label="Cosmetic categories"
@@ -287,6 +264,7 @@ export default function AvatarStudioScreen() {
               primarySlot={activeColorSlot}
               colors={colors}
               onPick={setColor}
+              hideSkin
             />
 
             <AnimatePresence mode="wait">
@@ -305,7 +283,8 @@ export default function AvatarStudioScreen() {
                     : equipped[item.category] === item.id;
                   const previewAccent =
                     !isClear && item.partId
-                      ? colors[item.category as AvatarColorSlot] ?? item.accent
+                      ? (colors[item.category as AvatarColorSlot] ??
+                        item.accent)
                       : item.accent;
                   return (
                     <ShopTile
@@ -340,17 +319,31 @@ function ColorTray({
   primarySlot,
   colors,
   onPick,
+  hideSkin,
 }: {
   primarySlot: AvatarColorSlot;
   colors: Record<AvatarColorSlot, string>;
   onPick: (slot: AvatarColorSlot, hex: string) => void;
+  hideSkin?: boolean;
 }) {
   const slots: AvatarColorSlot[] =
-    primarySlot === "skin" ? ["skin"] : ["skin", primarySlot];
+    hideSkin || primarySlot === "skin" ? [primarySlot] : ["skin", primarySlot];
+
+  // Cute avatar has fixed skin — only show tint tray for hair/shirt/etc.
+  const visible =
+    hideSkin && primarySlot === "backgrounds"
+      ? (["backgrounds"] as AvatarColorSlot[])
+      : hideSkin
+        ? primarySlot === "glasses"
+          ? [] // glasses styles are fixed-color artwork
+          : [primarySlot]
+        : slots;
+
+  if (visible.length === 0) return null;
 
   return (
     <div className="mb-3 space-y-2 rounded-[18px] border border-[#ebe4f6] bg-white p-3 shadow-[0_6px_16px_rgba(70,40,150,0.05)]">
-      {slots.map((slot) => (
+      {visible.map((slot) => (
         <div key={slot}>
           <div className="mb-1.5 flex items-center justify-between">
             <p className="text-[10px] font-black tracking-[0.1em] text-[#8a7cb8] uppercase">
@@ -462,6 +455,11 @@ function ShopTile({
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#8a7cb8] ring-1 ring-[#ebe4f6]">
               <Ban className="h-5 w-5" strokeWidth={2.4} />
             </span>
+          ) : item.category === "backgrounds" ? (
+            <span
+              className="h-12 w-12 rounded-2xl shadow-[0_6px_14px_rgba(0,0,0,0.12)] ring-1 ring-black/5"
+              style={{ background: accent }}
+            />
           ) : item.partId ? (
             <AvatarPartPreview
               partId={item.partId as AvatarPartId}
@@ -527,7 +525,13 @@ function ShopTile({
                   : "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]",
             )}
           >
-            {equipped ? (isClear ? "Cleared" : "Equipped") : isClear ? "Remove" : "Equip"}
+            {equipped
+              ? isClear
+                ? "Cleared"
+                : "Equipped"
+              : isClear
+                ? "Remove"
+                : "Equip"}
           </button>
         ) : (
           <button
