@@ -29,13 +29,13 @@ export function ArcField({
     <div className="flex flex-col gap-1.5">
       <div
         className={cn(
-          "relative flex h-16 flex-col justify-center rounded-arc-md border bg-white px-4 shadow-arc-inner",
-          error ? "border-arc-error" : "border-arc-soft",
+          "relative flex h-[58px] flex-col justify-center rounded-[16px] border-2 bg-white px-4 shadow-[0_3px_0_#ebe4f6]",
+          error ? "border-arc-error" : "border-[#ebe4f6]",
         )}
       >
         <label
           htmlFor={id}
-          className="text-arc-caption font-semibold text-arc-lavender-700"
+          className="text-[10px] font-black tracking-[0.08em] text-[#b3a8d6] uppercase"
         >
           {label}
         </label>
@@ -44,7 +44,7 @@ export function ArcField({
           type={inputType}
           autoComplete={autoComplete}
           className={cn(
-            "w-full bg-transparent text-arc-body font-semibold text-arc-navy-900 outline-none",
+            "w-full bg-transparent text-[15px] font-bold text-[#0f1220] outline-none placeholder:text-[#c3badb]",
             isPassword && "pr-10",
             className,
           )}
@@ -55,7 +55,7 @@ export function ArcField({
             type="button"
             aria-label={visible ? "Hide password" : "Show password"}
             onClick={() => setVisible((current) => !current)}
-            className="absolute top-1/2 right-4 -translate-y-1/2 text-arc-lavender-600"
+            className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#b3a8d6]"
           >
             {visible ? (
               <Eye className="h-5 w-5" strokeWidth={2.25} />
@@ -66,7 +66,7 @@ export function ArcField({
         ) : null}
       </div>
       {error ? (
-        <p className="px-1 text-arc-caption text-arc-error">{error}</p>
+        <p className="px-1 text-[12px] font-bold text-arc-error">{error}</p>
       ) : null}
     </div>
   );

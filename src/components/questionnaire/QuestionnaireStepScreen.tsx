@@ -2,8 +2,10 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
+import { authCtaClassName } from "@/components/onboarding/AuthShell";
 import { isStepComplete } from "@/lib/questionnaire/format-answers";
 import {
   getStepByNumber,
@@ -47,14 +49,16 @@ export default function QuestionnaireStepScreen({
       title={step.title}
       subtitle={step.subtitle}
       footer={
-        <Button
-          type="button"
-          className="mt-6 h-14 w-full rounded-arc-md bg-arc-purple-500 font-rounded text-arc-body font-bold shadow-arc-button transition-all active:translate-y-px active:shadow-arc-button-sm"
-          isDisabled={!canProceed}
-          onPress={() => router.push(nextPath)}
-        >
-          Next
-        </Button>
+        <motion.div whileTap={{ scale: 0.98 }}>
+          <Button
+            type="button"
+            className={cn(authCtaClassName, !canProceed && "opacity-45")}
+            isDisabled={!canProceed}
+            onPress={() => router.push(nextPath)}
+          >
+            Next
+          </Button>
+        </motion.div>
       }
     >
       {step.id === "schedule" ? (
@@ -102,7 +106,7 @@ function StandardStep({
   const showIcons = step.id === "goal";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {step.options.map((option) => (
         <QuestionnaireOptionCard
           key={option.value}
@@ -113,14 +117,14 @@ function StandardStep({
         />
       ))}
 
-      {step.allowOther && (
+      {step.allowOther ? (
         <OtherField
           value={otherValue}
           onChange={(text) =>
             setAnswers({ [otherKey]: text } as Partial<QuestionnaireAnswers>)
           }
         />
-      )}
+      ) : null}
     </div>
   );
 }
@@ -151,7 +155,7 @@ function ScheduleStep({
   return (
     <div className="space-y-6">
       <section>
-        <h2 className="mb-3 text-arc-caption font-bold text-arc-navy-900">
+        <h2 className="mb-2.5 text-[10px] font-black tracking-[0.12em] text-[#7a6fa3] uppercase">
           Days
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -163,10 +167,10 @@ function ScheduleStep({
                 type="button"
                 onClick={() => toggleDay(day)}
                 className={cn(
-                  "rounded-arc-sm px-4 py-2 text-arc-caption font-semibold transition-colors",
+                  "rounded-[12px] px-3.5 py-2 text-[13px] font-bold transition-colors",
                   selected
-                    ? "bg-arc-purple-100 text-arc-purple-600"
-                    : "border border-arc-navy-200 bg-white text-arc-navy-500",
+                    ? "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
+                    : "border-2 border-[#ebe4f6] bg-white text-[#7a6fa3] shadow-[0_2px_0_#ebe4f6]",
                 )}
               >
                 {day}
@@ -177,10 +181,10 @@ function ScheduleStep({
       </section>
 
       <section>
-        <h2 className="mb-3 text-arc-caption font-bold text-arc-navy-900">
+        <h2 className="mb-2.5 text-[10px] font-black tracking-[0.12em] text-[#7a6fa3] uppercase">
           Time of day
         </h2>
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {scheduleTimes.map((time) => (
             <QuestionnaireOptionCard
               key={time.value}
@@ -203,8 +207,8 @@ function OtherField({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="rounded-arc-md border border-arc-navy-200 bg-white p-4">
-      <p className="mb-2 text-arc-body font-semibold text-arc-navy-900">
+    <div className="rounded-[16px] border-2 border-[#ebe4f6] bg-white p-4 shadow-[0_3px_0_#ebe4f6]">
+      <p className="mb-2 text-[10px] font-black tracking-[0.1em] text-[#b3a8d6] uppercase">
         Other
       </p>
       <input
@@ -212,7 +216,7 @@ function OtherField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Write your answer..."
-        className="h-12 w-full rounded-arc-sm border border-arc-navy-200 bg-white px-4 text-arc-body text-arc-navy-900 placeholder:text-arc-navy-400 focus:border-arc-purple-500 focus:outline-none"
+        className="h-12 w-full rounded-[12px] border-2 border-[#ebe4f6] bg-[#f3effc] px-3.5 text-[14px] font-bold text-[#0f1220] placeholder:text-[#c3badb] focus:border-arc-purple-500 focus:outline-none"
       />
     </div>
   );

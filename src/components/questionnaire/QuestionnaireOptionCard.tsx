@@ -24,41 +24,53 @@ export function QuestionnaireOptionCard({
       type="button"
       onClick={onToggle}
       className={cn(
-        "flex w-full items-center gap-3 rounded-arc-md border px-4 py-3.5 text-left transition-colors",
+        "flex w-full items-center gap-3 rounded-[16px] border-2 px-4 py-3.5 text-left shadow-[0_3px_0_#ebe4f6] transition-colors",
         selected
-          ? "border-arc-purple-500 bg-arc-purple-50 text-arc-purple-600"
-          : "border-arc-navy-200 bg-white text-arc-navy-900",
+          ? "border-arc-purple-500 bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
+          : "border-[#ebe4f6] bg-white text-[#0f1220]",
       )}
     >
-      {showIcon && Icon && (
+      {showIcon && Icon ? (
         <span
           className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-arc-sm",
-            option.iconClassName ?? "bg-arc-purple-100 text-arc-purple-600",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]",
+            selected
+              ? "bg-white/15 text-white"
+              : (option.iconClassName ??
+                "bg-arc-purple-100 text-arc-purple-600"),
           )}
         >
-          <Icon className="h-5 w-5" strokeWidth={2} />
+          <Icon className="h-5 w-5" strokeWidth={2.25} />
         </span>
-      )}
+      ) : null}
 
-      {option.emoji && (
-        <span className="text-xl leading-none" aria-hidden>
-          {option.emoji}
+      {!showIcon && Icon ? (
+        <span
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]",
+            selected
+              ? "bg-white/15 text-white"
+              : "bg-[#f3effc] text-arc-purple-500",
+          )}
+        >
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2.25} />
         </span>
-      )}
+      ) : null}
 
-      <span className="flex-1 text-arc-body font-semibold">{option.label}</span>
+      <span className="flex-1 text-[14px] font-bold">{option.label}</span>
 
       <span
         className={cn(
-          "flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border-2 transition-colors",
+          "flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border-2 transition-colors",
           selected
-            ? "border-arc-purple-500 bg-arc-purple-500"
-            : "border-arc-navy-200 bg-white",
+            ? "border-white bg-white text-arc-purple-500"
+            : "border-[#d8d0ea] bg-white",
         )}
         aria-hidden
       >
-        {selected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+        {selected ? (
+          <Check className="h-3 w-3" strokeWidth={3} />
+        ) : null}
       </span>
     </button>
   );

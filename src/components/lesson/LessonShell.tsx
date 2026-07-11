@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
+import { MessageCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -27,14 +28,10 @@ export function LessonShell({
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col bg-[#f3effc] font-rounded">
       <header className="sticky top-0 z-20 border-b border-[#ebe4f6]/bg-[#f3effc]/90 px-4 pt-[calc(env(safe-area-inset-top)+10px)] pb-3 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="Go back"
+          <BackButton
+            tone="light"
             onClick={() => (onBack ? onBack() : router.back())}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#ebe4f6] bg-white text-[#2b1b57]"
-          >
-            <ArrowLeft className="h-5 w-5" strokeWidth={2.25} />
-          </button>
+          />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-bold tracking-[0.06em] text-[#8a7cb8] uppercase">
               {stepLabel}

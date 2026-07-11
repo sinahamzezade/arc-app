@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
+import Image from "next/image";
 import {
-  MotionReveal,
-  MotionStagger,
-  OnboardingPage,
-} from "@/components/motion";
+  AuthShell,
+  authCtaClassName,
+  authGhostLinkClassName,
+} from "@/components/onboarding/AuthShell";
 import { Button, InputOTP, REGEXP_ONLY_DIGITS } from "@/components/ui";
-import { otpSlot, scaleIn } from "@/lib/motion/onboarding";
+import { assets } from "@/lib/assets";
 
 const OTP_LENGTH = 6;
 
@@ -56,101 +57,105 @@ export default function OtpScreen() {
   const isComplete = otp.length === OTP_LENGTH;
 
   return (
-    <OnboardingPage className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white px-5 pt-safe-top pb-safe-bottom">
-      <div className="flex flex-1 flex-col items-center justify-center pb-4">
-        <MotionStagger className="w-full">
-          <MotionReveal className="text-center">
-            <h1 className="font-display text-arc-title font-bold text-arc-navy-900">
-              Enter the code
-            </h1>
-            <p className="mt-2 px-2 text-arc-body text-arc-navy-500">
-              We sent a 6-digit code to{" "}
-              <span className="font-bold text-arc-navy-900">{email}</span>
-            </p>
-          </MotionReveal>
+    <AuthShell
+      eyebrow="Check inbox"
+      title={
+        <>
+          Enter the
+          <br />
+          6-digit code
+        </>
+      }
+      subtitle={
+        <>
+          Sent to{" "}
+          <span className="text-white/80">{email}</span>
+        </>
+      }
+      onBack={() => router.back()}
+      heroMedia={
+        <Image
+          src={assets.brand.checkEmail}
+          alt=""
+          fill
+          priority
+          className="object-contain"
+          sizes="120px"
+        />
+      }
+      footer={
+        <p className="text-center text-[13px] font-bold text-[#7a6fa3]">
+          <Link href="/login" className={authGhostLinkClassName}>
+            Back to log in
+          </Link>
+        </p>
+      }
+    >
+      <div className="flex flex-col">
+        <motion.div
+          className="flex justify-center"
+          animate={isComplete ? { scale: [1, 1.02, 1] } : undefined}
+          transition={{ duration: 0.35 }}
+        >
+          <InputOTP
+            maxLength={OTP_LENGTH}
+            pattern={REGEXP_ONLY_DIGITS}
+            value={otp}
+            onChange={setOtp}
+          >
+            <InputOTP.Group className="gap-2">
+              {Array.from({ length: OTP_LENGTH }).map((_, i) => (
+                <InputOTP.Slot
+                  key={i}
+                  className="size-12 rounded-[14px] border-2 border-[#ebe4f6] bg-white text-[18px] font-black shadow-[0_3px_0_#ebe4f6] sm:size-14"
+                  index={i}
+                />
+              ))}
+            </InputOTP.Group>
+          </InputOTP>
+        </motion.div>
 
-          <MotionReveal className="mt-8 flex justify-center">
-            <motion.div
-              animate={isComplete ? { scale: [1, 1.02, 1] } : undefined}
-              transition={{ duration: 0.35 }}
-            >
-              <InputOTP
-                maxLength={OTP_LENGTH}
-                pattern={REGEXP_ONLY_DIGITS}
-                value={otp}
-                onChange={setOtp}
+        <motion.div whileTap={{ scale: 0.98 }} className="mt-8">
+          <Button
+            fullWidth
+            variant="primary"
+            isDisabled={!isComplete || isLoading}
+            onPress={handleVerify}
+            className={authCtaClassName}
+          >
+            Verify code
+          </Button>
+        </motion.div>
+
+        <p className="mt-5 text-center text-[13px] font-bold text-[#7a6fa3]">
+          Didn&apos;t get it?{" "}
+          <AnimatePresence mode="wait">
+            {countdown > 0 ? (
+              <motion.span
+                key="countdown"
+                className="text-[#b3a8d6]"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
               >
-                <InputOTP.Group>
-                  {Array.from({ length: OTP_LENGTH }).map((_, i) => (
-                    <motion.div
-                      key={i}
-                      custom={i}
-                      variants={otpSlot}
-                      initial="hidden"
-                      animate="visible"
-                    >
-                      <InputOTP.Slot className="size-14" index={i} />
-                    </motion.div>
-                  ))}
-                </InputOTP.Group>
-              </InputOTP>
-            </motion.div>
-          </MotionReveal>
-
-          <MotionReveal>
-            <motion.div whileTap={{ scale: 0.98 }} variants={scaleIn}>
-              <Button
-                fullWidth
-                variant="primary"
-                isDisabled={!isComplete || isLoading}
-                onPress={handleVerify}
-                className="mt-8 h-14 rounded-arc-md bg-arc-purple-500 font-rounded text-arc-body font-bold shadow-arc-button transition-all active:translate-y-px active:shadow-arc-button-sm"
+                Resend in {countdown}s
+              </motion.span>
+            ) : (
+              <motion.button
+                key="resend"
+                type="button"
+                onClick={handleResend}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                className="font-black text-arc-purple-500 underline-offset-2 hover:underline"
               >
-                Verify Code
-              </Button>
-            </motion.div>
-          </MotionReveal>
-
-          <MotionReveal as="p" className="mt-6 text-center text-arc-small text-arc-navy-700">
-            Didn&apos;t receive it?{" "}
-            <AnimatePresence mode="wait">
-              {countdown > 0 ? (
-                <motion.span
-                  key="countdown"
-                  className="text-arc-navy-500"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                >
-                  Resend in {countdown}s
-                </motion.span>
-              ) : (
-                <motion.button
-                  key="resend"
-                  type="button"
-                  onClick={handleResend}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  whileHover={{ scale: 1.04 }}
-                  className="font-bold text-arc-purple-500 underline-offset-2 hover:underline"
-                >
-                  Resend code
-                </motion.button>
-              )}
-            </AnimatePresence>
-          </MotionReveal>
-
-          <MotionReveal as="p" className="mt-4 text-center text-arc-small text-arc-navy-700">
-            <Link
-              href="/login"
-              className="font-bold text-arc-purple-500 underline-offset-2 hover:underline"
-            >
-              Back to log in
-            </Link>
-          </MotionReveal>
-        </MotionStagger>
+                Resend code
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </p>
       </div>
-    </OnboardingPage>
+    </AuthShell>
   );
 }

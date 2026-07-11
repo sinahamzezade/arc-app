@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGroup, motion } from "motion/react";
-import { Home, Map, Trophy, User } from "lucide-react";
+import { Home, Map, Swords, Trophy, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/path", label: "Path", icon: Map },
+  { href: "/battle", label: "Battle", icon: Swords },
   { href: "/leaderboard", label: "League", icon: Trophy },
   { href: "/profile", label: "Profile", icon: User },
 ] as const;
@@ -57,7 +58,7 @@ export function MobileTabBar() {
                   {active ? (
                     <motion.span
                       layoutId="tab-active-pill"
-                      className="absolute inset-0 rounded-[18px] bg-arc-purple-500 shadow-[0_4px_0_#4b2fd6]"
+                      className="absolute inset-x-0 top-0 h-[48px] rounded-[18px] bg-arc-purple-500 shadow-[0_4px_0_#4b2fd6]"
                       transition={spring}
                     />
                   ) : null}

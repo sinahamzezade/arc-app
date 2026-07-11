@@ -5,18 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { ArcField } from "@/components/ArcField";
 import { AppleIcon, GoogleIcon } from "@/components/icons";
 import {
-  MotionBackButton,
-  MotionReveal,
-  MotionStagger,
-  OnboardingPage,
-} from "@/components/motion";
+  AuthShell,
+  authCtaClassName,
+  authGhostLinkClassName,
+} from "@/components/onboarding/AuthShell";
 import { Button, Link as ArcLink } from "@/components/ui";
 import { assets } from "@/lib/assets";
-import { dividerGrow, mascotEnter, scaleIn } from "@/lib/motion/onboarding";
 import { loginSchema, type LoginFormData } from "@/schemas/login";
 
 export default function LoginScreen() {
@@ -27,10 +25,7 @@ export default function LoginScreen() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = (data: LoginFormData) => {
@@ -38,138 +33,115 @@ export default function LoginScreen() {
   };
 
   return (
-    <OnboardingPage className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white px-5 pt-safe-top pb-safe-bottom">
-      <MotionBackButton className="pt-4" onClick={() => router.back()} />
+    <AuthShell
+      eyebrow="Welcome back"
+      title={
+        <>
+          Log in
+          <br />
+          and keep going
+        </>
+      }
+      subtitle="Your roadmap is waiting."
+      onBack={() => router.back()}
+      heroMedia={
+        <Image
+          src={assets.arlo.waveHand}
+          alt="Arlo waving hello"
+          fill
+          priority
+          className="object-contain"
+          sizes="120px"
+        />
+      }
+      footer={
+        <p className="text-center text-[13px] font-bold text-[#7a6fa3]">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className={authGhostLinkClassName}>
+            Sign up
+          </Link>
+        </p>
+      }
+    >
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={handleSubmit(onSubmit)}
+      >
+        <ArcField
+          id="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@email.com"
+          error={errors.email?.message}
+          {...register("email")}
+        />
+        <ArcField
+          id="password"
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          error={errors.password?.message}
+          {...register("password")}
+        />
 
-      <div className="flex flex-1 flex-col pb-4">
-        <MotionStagger className="w-full">
-          <MotionReveal
-            custom={mascotEnter}
-            className="relative mx-auto mt-2 h-56 w-full max-w-[280px] shrink-0"
+        <div className="flex justify-end">
+          <ArcLink
+            href="/forgot-password"
+            className="text-[12px] font-black text-arc-purple-500 underline-offset-2 hover:underline"
           >
-            <Image
-              src={assets.arlo.waveHand}
-              alt="Arlo waving hello"
-              fill
-              priority
-              className="object-contain"
-              sizes="320px"
-            />
-          </MotionReveal>
+            Forgot password?
+          </ArcLink>
+        </div>
 
-          <MotionReveal className="mt-4 text-center">
-            <h1 className="font-display text-arc-title font-bold text-arc-navy-900">
-              Welcome back!
-            </h1>
-            <p className="mt-1 text-arc-body text-arc-navy-500">
-              Glad to see you again
-            </p>
-          </MotionReveal>
-
-          <MotionStagger
-            as="form"
-            className="mt-6 flex flex-col"
-            onSubmit={handleSubmit(onSubmit)}
+        <motion.div whileTap={{ scale: 0.98 }} className="mt-2">
+          <Button
+            type="submit"
+            fullWidth
+            variant="primary"
+            isDisabled={isSubmitting}
+            className={authCtaClassName}
           >
-            <div className="flex flex-col gap-4">
-              <MotionReveal>
-                <ArcField
-                  id="email"
-                  label="Email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="you@email.com"
-                  error={errors.email?.message}
-                  {...register("email")}
-                />
-              </MotionReveal>
-              <MotionReveal>
-                <ArcField
-                  id="password"
-                  label="Password"
-                  type="password"
-                  autoComplete="current-password"
-                  error={errors.password?.message}
-                  {...register("password")}
-                />
-              </MotionReveal>
-            </div>
+            Log in
+          </Button>
+        </motion.div>
 
-            <MotionReveal className="mt-3 flex justify-end">
-              <ArcLink
-                href="/forgot-password"
-                className="text-arc-small font-semibold text-arc-purple-500 underline-offset-2 hover:underline"
-              >
-                Forgot password?
-              </ArcLink>
-            </MotionReveal>
+        <div className="my-2 flex items-center gap-3">
+          <div className="h-px flex-1 bg-[#ebe4f6]" />
+          <span className="text-[11px] font-black tracking-wide text-[#b3a8d6] uppercase">
+            or
+          </span>
+          <div className="h-px flex-1 bg-[#ebe4f6]" />
+        </div>
 
-            <MotionReveal>
-              <motion.div whileTap={{ scale: 0.98 }}>
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="primary"
-                  isDisabled={isSubmitting}
-                  className="mt-6 h-14 rounded-arc-md bg-arc-purple-500 font-rounded text-arc-body font-bold shadow-arc-button transition-all active:translate-y-px active:shadow-arc-button-sm"
-                >
-                  Log In
-                </Button>
-              </motion.div>
-            </MotionReveal>
+        <div className="flex gap-2.5">
+          <SocialButton label="Apple">
+            <AppleIcon />
+          </SocialButton>
+          <SocialButton label="Google">
+            <GoogleIcon />
+          </SocialButton>
+        </div>
+      </form>
+    </AuthShell>
+  );
+}
 
-            <MotionReveal className="mt-8 flex items-center gap-3">
-              <motion.div
-                className="h-px flex-1 origin-left bg-arc-soft"
-                variants={dividerGrow}
-              />
-              <span className="text-arc-caption font-medium text-arc-lavender-700">
-                or continue with
-              </span>
-              <motion.div
-                className="h-px flex-1 origin-right bg-arc-soft"
-                variants={dividerGrow}
-              />
-            </MotionReveal>
-
-            <MotionStagger fast className="mt-5 flex gap-3">
-              <motion.button
-                type="button"
-                variants={scaleIn}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                className="flex h-14 flex-1 items-center justify-center gap-2 rounded-arc-md border border-arc-soft bg-white font-rounded text-arc-body font-semibold text-arc-navy-900 shadow-arc-card transition-colors active:bg-arc-lavender-50"
-              >
-                <AppleIcon />
-                Apple
-              </motion.button>
-              <motion.button
-                type="button"
-                variants={scaleIn}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                className="flex h-14 flex-1 items-center justify-center gap-2 rounded-arc-md border border-arc-soft bg-white font-rounded text-arc-body font-semibold text-arc-navy-900 shadow-arc-card transition-colors active:bg-arc-lavender-50"
-              >
-                <GoogleIcon />
-                Google
-              </motion.button>
-            </MotionStagger>
-
-            <MotionReveal
-              as="p"
-              className="mt-14 text-center text-arc-small text-arc-navy-700"
-            >
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
-                className="font-bold text-arc-purple-500 underline-offset-2 hover:underline"
-              >
-                Sign up
-              </Link>
-            </MotionReveal>
-          </MotionStagger>
-        </MotionStagger>
-      </div>
-    </OnboardingPage>
+function SocialButton({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.97 }}
+      className="flex h-14 flex-1 items-center justify-center gap-2 rounded-[16px] border-2 border-[#ebe4f6] bg-white text-[14px] font-bold text-[#0f1220] shadow-[0_3px_0_#ebe4f6]"
+    >
+      {children}
+      {label}
+    </motion.button>
   );
 }

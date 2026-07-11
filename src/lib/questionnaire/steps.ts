@@ -4,12 +4,17 @@ import {
   Calendar,
   Clock,
   Code,
+  Flame,
   GraduationCap,
   Megaphone,
   Mountain,
+  Rocket,
   Server,
   Shield,
+  Smile,
+  Sparkles,
   Target,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,7 +38,6 @@ export const stepFieldKeys = {
 export type StepOption = {
   value: string;
   label: string;
-  emoji?: string;
   icon?: LucideIcon;
   iconClassName?: string;
 };
@@ -189,11 +193,11 @@ export const questionnaireSteps: QuestionnaireStepConfig[] = [
     subtitle: "Select one option.",
     selection: "single",
     options: [
-      { value: "starting", label: "Just getting started", emoji: "🙂" },
-      { value: "beginner", label: "Beginner", emoji: "🙂" },
-      { value: "somewhat", label: "Somewhat confident", emoji: "😁" },
-      { value: "confident", label: "Confident", emoji: "😃" },
-      { value: "very", label: "Very confident", emoji: "🙂" },
+      { value: "starting", label: "Just getting started", icon: Sparkles },
+      { value: "beginner", label: "Beginner", icon: Smile },
+      { value: "somewhat", label: "Somewhat confident", icon: Zap },
+      { value: "confident", label: "Confident", icon: Flame },
+      { value: "very", label: "Very confident", icon: Rocket },
     ],
   },
   {

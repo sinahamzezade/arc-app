@@ -18,15 +18,15 @@ export function QuestionnaireProgress({
   );
 
   return (
-    <div className={cn("flex items-center gap-3", className)}>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-arc-purple-100">
+    <div className={cn("flex items-center gap-2.5", className)}>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/15">
         <div
-          className="h-full rounded-full bg-arc-purple-500 transition-all duration-300"
+          className="h-full rounded-full bg-[#ffc928] transition-all duration-300"
           style={{ width: `${progress}%` }}
         />
       </div>
-      <span className="shrink-0 text-arc-caption font-semibold text-arc-navy-700">
-        {stepNumber} of {QUESTIONNAIRE_TOTAL_STEPS}
+      <span className="shrink-0 text-[11px] font-black tracking-wide text-white/60 uppercase">
+        {stepNumber}/{QUESTIONNAIRE_TOTAL_STEPS}
       </span>
     </div>
   );

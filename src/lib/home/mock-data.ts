@@ -3,7 +3,8 @@ export type HomeDayStatus = "done" | "empty";
 export type HomeMockData = {
   userName: string;
   notificationCount: number;
-  tagline: string;
+  /** Short outcome line under greeting */
+  outcomeLine: string;
   mission: {
     title: string;
     track: string;
@@ -12,7 +13,10 @@ export type HomeMockData = {
     xp: number;
     gems: number;
     progressPercent: number;
+    /** Benefit-led why now */
     nudge: string;
+    /** Button label — action + time */
+    ctaLabel: string;
     href: string;
   };
   weeklyProgress: {
@@ -65,7 +69,7 @@ export type HomeMockData = {
 export const homeMockData: HomeMockData = {
   userName: "Soheil",
   notificationCount: 3,
-  tagline: "Ready to level up your data skills today?",
+  outcomeLine: "Office worker → Data Analyst",
   mission: {
     title: "Filtering with WHERE",
     track: "SQL Basics",
@@ -74,7 +78,8 @@ export const homeMockData: HomeMockData = {
     xp: 25,
     gems: 5,
     progressPercent: 40,
-    nudge: "You're halfway — finish this to lock Day 8.",
+    nudge: "One more session locks your week. SQL filter skills employers actually ask for.",
+    ctaLabel: "Finish lesson · 25 min",
     href: "/learn/lesson-1",
   },
   weeklyProgress: {
@@ -108,13 +113,13 @@ export const homeMockData: HomeMockData = {
   },
   milestone: {
     title: "SQL Mini Challenge",
-    subtitle: "Complete WHERE Practice",
+    subtitle: "1 step left · WHERE Practice",
     stepsDone: 2,
     stepsTotal: 3,
   },
   dailyBonus: {
     title: "Lucky Wheel",
-    subtitle: "Spin to win rewards!",
+    subtitle: "Free spin waiting",
   },
   arloSays: {
     quote:
@@ -142,7 +147,7 @@ export const homeMockData: HomeMockData = {
 };
 
 export function greetingForHour(hour: number): string {
-  if (hour < 12) return "Good morning,";
-  if (hour < 17) return "Good afternoon,";
-  return "Good evening,";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }

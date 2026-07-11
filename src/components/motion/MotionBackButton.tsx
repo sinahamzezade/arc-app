@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ChevronLeft } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 import { fadeDown } from "@/lib/motion/onboarding";
 
 type MotionBackButtonProps = {
@@ -12,16 +12,7 @@ type MotionBackButtonProps = {
 export function MotionBackButton({ onClick, className }: MotionBackButtonProps) {
   return (
     <motion.header className={className} variants={fadeDown}>
-      <motion.button
-        type="button"
-        aria-label="Go back"
-        onClick={onClick}
-        whileTap={{ scale: 0.9 }}
-        whileHover={{ x: -2 }}
-        className="-ml-2 inline-flex rounded-full p-2 text-arc-navy-900"
-      >
-        <ChevronLeft className="h-6 w-6" strokeWidth={2.25} />
-      </motion.button>
+      <BackButton onClick={onClick} tone="light" className="-ml-1" />
     </motion.header>
   );
 }

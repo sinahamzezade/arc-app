@@ -2,9 +2,13 @@
 
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
-import { MotionReveal, MotionStagger, OnboardingPage } from "@/components/motion";
-import { Button, TextField, Label, Input, FieldError } from "@/components/ui";
+import { motion } from "motion/react";
+import { ArcField } from "@/components/ArcField";
+import {
+  AuthShell,
+  authCtaClassName,
+} from "@/components/onboarding/AuthShell";
+import { Button } from "@/components/ui";
 import {
   onboardingSchema,
   type OnboardingFormData,
@@ -29,59 +33,72 @@ export default function OnboardingForm() {
   };
 
   return (
-    <OnboardingPage className="mx-auto w-full max-w-md px-5 pt-safe-top pb-safe-bottom">
-      <MotionStagger
-        as="form"
+    <AuthShell
+      eyebrow="Profile basics"
+      title={
+        <>
+          Where you are
+          <br />
+          → where you go
+        </>
+      }
+      subtitle="Quick role snapshot for your plan."
+    >
+      <form
         onSubmit={handleSubmit(onSubmit)}
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-3.5"
       >
         <Controller
           name="currentRole"
           control={control}
           render={({ field }) => (
-            <MotionReveal>
-              <TextField isInvalid={!!errors.currentRole}>
-                <Label>Current Role</Label>
-                <Input {...field} />
-                <FieldError>{errors.currentRole?.message}</FieldError>
-              </TextField>
-            </MotionReveal>
+            <ArcField
+              id="currentRole"
+              label="Current role"
+              error={errors.currentRole?.message}
+              {...field}
+            />
           )}
         />
         <Controller
           name="targetRole"
           control={control}
           render={({ field }) => (
-            <MotionReveal>
-              <TextField isInvalid={!!errors.targetRole}>
-                <Label>Target Role</Label>
-                <Input {...field} />
-                <FieldError>{errors.targetRole?.message}</FieldError>
-              </TextField>
-            </MotionReveal>
+            <ArcField
+              id="targetRole"
+              label="Target role"
+              error={errors.targetRole?.message}
+              {...field}
+            />
           )}
         />
         <Controller
           name="yearsExperience"
           control={control}
           render={({ field }) => (
-            <MotionReveal>
-              <TextField isInvalid={!!errors.yearsExperience}>
-                <Label>Years of Experience</Label>
-                <Input {...field} type="number" />
-                <FieldError>{errors.yearsExperience?.message}</FieldError>
-              </TextField>
-            </MotionReveal>
+            <ArcField
+              id="yearsExperience"
+              label="Years of experience"
+              type="text"
+              inputMode="numeric"
+              error={errors.yearsExperience?.message}
+              value={String(field.value ?? "")}
+              onChange={(e) =>
+                field.onChange(
+                  e.target.value === "" ? 0 : Number(e.target.value),
+                )
+              }
+              onBlur={field.onBlur}
+              name={field.name}
+            />
           )}
         />
-        <MotionReveal>
-          <motion.div whileTap={{ scale: 0.98 }}>
-            <Button type="submit" variant="primary">
-              Continue
-            </Button>
-          </motion.div>
-        </MotionReveal>
-      </MotionStagger>
-    </OnboardingPage>
+        <motion.div whileTap={{ scale: 0.98 }} className="mt-2">
+          <Button type="submit" variant="primary" className={authCtaClassName}>
+            Continue
+          </Button>
+        </motion.div>
+      </form>
+    </AuthShell>
   );
 }

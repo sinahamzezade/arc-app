@@ -2,245 +2,251 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { BackButton } from "@/components/BackButton";
 import {
   ArrowRight,
   Check,
-  ChevronLeft,
   Coins,
   Gem,
   Lock,
   Sparkles,
   Star,
   Trophy,
+  Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { assets } from "@/lib/assets";
-import { rankMockData, type RankMockData, type RankTier } from "@/lib/rank/mock-data";
+import {
+  rankMockData,
+  type RankMockData,
+  type RankTier,
+} from "@/lib/rank/mock-data";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
-const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
-const pageStagger = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } },
-};
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: softSpring },
-};
-
+/**
+ * Rank stage — night hero family (Home/Wallet/League).
+ * Giant level + overlapping currency chips + soft ladder.
+ * Not purple-gradient header + equal wallet cards.
+ */
 export default function RankScreen({
   data = rankMockData,
 }: {
   data?: RankMockData;
 }) {
-  const router = useRouter();
   const { stats } = data;
   const levelPct = Math.round((stats.xpIntoLevel / stats.xpForLevel) * 100);
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      <motion.div
-        className="relative pb-[calc(env(safe-area-inset-bottom)+100px)]"
-        variants={pageStagger}
-        initial="hidden"
-        animate="visible"
-      >
-        <div className="relative overflow-hidden bg-[linear-gradient(145deg,#1b1433_0%,#35209d_52%,#4b2fd6_100%)] px-[18px] pt-[calc(env(safe-area-inset-top)+14px)] pb-16">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -top-10 -right-8 h-44 w-44 rounded-full bg-white/10"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute bottom-4 left-8 h-28 w-40 rounded-full bg-arc-gold-400/25 blur-2xl"
-          />
+      {/* RANK HERO */}
+      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-20 text-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-[-30px] h-40 w-40 rounded-full bg-[#ffc928]/20 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-30"
+          style={{
+            backgroundImage:
+              "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1.5px at 55% 60%, #fff, transparent)",
+          }}
+        />
 
-          <motion.header
-            className="relative mb-6 flex items-center gap-3"
-            variants={fadeUp}
-          >
-            <button
-              type="button"
-              aria-label="Go back"
-              onClick={() => router.back()}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/20"
-            >
-              <ChevronLeft className="h-5 w-5" strokeWidth={2.25} />
-            </button>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold tracking-[0.08em] text-white/55 uppercase">
-                Career ranks
-              </p>
-              <h1 className="font-display text-[24px] leading-none font-bold tracking-[-0.03em] text-white">
-                Your Rank
-              </h1>
-            </div>
-            <Trophy className="h-6 w-6 text-arc-gold-400" strokeWidth={2} />
-          </motion.header>
-
-          <motion.div
-            className="relative flex items-start gap-3.5"
-            variants={fadeUp}
-          >
-            <div className="relative shrink-0">
-              <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[22px] bg-white/15 ring-2 ring-white/25">
-                <Image
-                  src={assets.home.ninja}
-                  alt=""
-                  width={54}
-                  height={60}
-                  className="h-auto w-[52px]"
-                />
-              </div>
-              <span className="absolute -right-1.5 -bottom-1.5 rounded-full bg-arc-gold-400 px-2 py-0.5 text-[11px] font-black text-[#1b1730] shadow-[0_4px_10px_-2px_rgba(255,201,40,0.7)]">
-                Lv {stats.level}
-              </span>
-            </div>
-
-            <div className="min-w-0 flex-1 pt-1">
-              <p className="text-[11px] font-extrabold tracking-[0.06em] text-white/60 uppercase">
-                Current
-              </p>
-              <h2 className="mt-0.5 font-display text-[28px] leading-none font-bold tracking-[-0.03em] text-white">
-                {stats.rank}
-              </h2>
-              <p className="mt-2 text-[13px] font-semibold text-white/65">
-                Next: {data.nextRank} · {data.xpToNextRank} XP in this level
-              </p>
-
-              <div className="mt-3.5">
-                <div className="mb-1 flex items-center justify-between text-[11px] font-extrabold">
-                  <span className="text-white/70">Level progress</span>
-                  <span className="text-arc-gold-300">
-                    {stats.xpIntoLevel}/{stats.xpForLevel} XP
-                  </span>
-                </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-white/15">
-                  <motion.div
-                    className="h-full rounded-full bg-[linear-gradient(90deg,#ffd34d,#ffc928)]"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${levelPct}%` }}
-                    transition={{ ...softSpring, delay: 0.2 }}
-                  />
-                </div>
-              </div>
-            </div>
-          </motion.div>
+        <div className="relative flex items-center gap-3">
+          <BackButton />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+              Career ranks
+            </p>
+            <h1 className="mt-0.5 font-display text-[24px] leading-none font-bold tracking-[-0.03em]">
+              Your Rank
+            </h1>
+          </div>
+          <Trophy className="h-5 w-5 text-[#ffc928]" strokeWidth={2.25} />
         </div>
 
-        {/* overlapping wallet strip */}
-        <motion.div
-          className="relative z-[1] -mt-10 grid grid-cols-3 gap-2 px-[18px]"
-          variants={fadeUp}
-        >
-          <WalletCard
+        <div className="relative mt-7 grid grid-cols-[1.2fr_1fr] items-end gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
+              Current
+            </p>
+            <motion.p
+              className="mt-1 font-display text-[56px] leading-[0.88] font-bold tracking-[-0.05em]"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={softSpring}
+            >
+              Lv {stats.level}
+            </motion.p>
+            <h2 className="mt-2 font-display text-[22px] leading-tight font-bold">
+              {stats.rank}
+            </h2>
+            <p className="mt-1.5 text-[12px] font-bold text-white/45">
+              Next: {data.nextRank} · {data.xpToNextRank} XP left
+            </p>
+          </div>
+
+          <div className="relative flex justify-end">
+            <motion.div
+              className="relative flex h-[112px] w-[112px] items-center justify-center rounded-[28px] bg-white/10 ring-2 ring-white/15"
+              animate={{ y: [0, -4, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Image
+                src={assets.home.ninja}
+                alt=""
+                width={72}
+                height={80}
+                className="h-auto w-[68px]"
+              />
+              <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-[#ffc928] px-2.5 py-0.5 text-[10px] font-black text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
+                You
+              </span>
+            </motion.div>
+          </div>
+        </div>
+
+        <div className="relative mt-6">
+          <div className="mb-1.5 flex items-center justify-between text-[11px] font-extrabold">
+            <span className="text-white/50">Level progress</span>
+            <span className="text-[#ffc928]">
+              {stats.xpIntoLevel}/{stats.xpForLevel} XP
+            </span>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+            <motion.div
+              className="h-full rounded-full bg-[#ffc928]"
+              initial={{ width: 0 }}
+              animate={{ width: `${levelPct}%` }}
+              transition={{ ...softSpring, delay: 0.15 }}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Currency overhang chips */}
+      <div className="relative z-[1] -mt-8 px-4">
+        <div className="relative h-[88px]">
+          <CurrencyChip
+            className="absolute top-0 left-0 z-[3] w-[38%] -rotate-2"
             label="XP"
             value={stats.xp}
-            icon={
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2d8cff] shadow-[0_6px_12px_-4px_rgba(45,140,255,0.55)]">
-                <Star className="h-4 w-4 fill-white text-white" />
-              </span>
-            }
             tip={data.walletTips[0].tip}
+            tone="xp"
+            icon={<Star className="h-4 w-4 fill-white text-white" />}
           />
-          <WalletCard
+          <CurrencyChip
+            className="absolute top-3 left-[31%] z-[2] w-[38%] rotate-1"
             label="Gems"
             value={stats.gems}
-            icon={
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-arc-gem-500 shadow-[0_6px_12px_-4px_rgba(169,76,255,0.5)]">
-                <Gem className="h-4 w-4 text-white" strokeWidth={2.5} />
-              </span>
-            }
             tip={data.walletTips[1].tip}
-            className="translate-y-1"
+            tone="gem"
+            icon={<Gem className="h-4 w-4 text-white" strokeWidth={2.5} />}
           />
-          <WalletCard
+          <CurrencyChip
+            className="absolute top-1 right-0 z-[1] w-[36%] -rotate-1"
             label="Coins"
             value={stats.coins}
-            icon={
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(150deg,#ffd34d,#f0a81e)] shadow-[0_6px_12px_-4px_rgba(240,168,30,0.5)]">
-                <Coins className="h-4 w-4 text-[#7a4a00]" strokeWidth={2.5} />
-              </span>
-            }
             tip={data.walletTips[2].tip}
+            tone="coin"
+            icon={
+              <Coins className="h-4 w-4 text-[#0f1220]" strokeWidth={2.5} />
+            }
           />
-        </motion.div>
+        </div>
+      </div>
 
-        <div className="mt-6 space-y-6 px-[18px]">
-          <motion.section variants={fadeUp}>
-            <h3 className="mb-3 font-display text-[18px] font-semibold text-[#1b1730]">
+      <div className="relative space-y-5 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+100px)]">
+        <section>
+          <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
+            <h3 className="font-display text-[18px] font-bold text-[#1b1730]">
               How XP drops
             </h3>
-            <ul className="space-y-2">
-              {data.howToEarn.map((row) => (
-                <li
-                  key={row.label}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-[#ebe4f6] bg-white px-3.5 py-3"
-                >
-                  <span className="text-[14px] font-semibold text-[#2b1b57]">
-                    {row.label}
-                  </span>
-                  <span className="shrink-0 text-[12px] font-extrabold text-arc-purple-500">
-                    {row.xp}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </motion.section>
-
-          <motion.section variants={fadeUp}>
-            <div className="mb-3 flex items-end justify-between gap-2">
-              <h3 className="font-display text-[18px] font-semibold text-[#1b1730]">
-                Rank ladder
-              </h3>
-              <span className="text-[11px] font-bold text-[#8a7cb8]">
-                XP + milestones
-              </span>
-            </div>
-            <ol className="relative space-y-0">
-              {data.tiers.map((tier, i) => (
-                <RankLadderRow
-                  key={tier.id}
-                  tier={tier}
-                  isLast={i === data.tiers.length - 1}
+            <Zap className="h-4 w-4 text-arc-purple-500" strokeWidth={2.5} />
+          </div>
+          <ul className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white shadow-[0_10px_24px_rgba(70,40,150,0.06)]">
+            {data.howToEarn.map((row, i) => (
+              <li
+                key={row.label}
+                className={cn(
+                  "relative flex items-center justify-between gap-3 px-4 py-3.5",
+                  i < data.howToEarn.length - 1 && "border-b border-[#f0ecf7]",
+                  i === 1 && "bg-[#faf8ff]",
+                )}
+              >
+                <span
+                  aria-hidden
+                  className="absolute top-3 bottom-3 left-0 w-1 rounded-r-full bg-arc-purple-500"
+                  style={{ opacity: 0.35 + i * 0.15 }}
                 />
-              ))}
-            </ol>
-          </motion.section>
+                <span className="pl-2 text-[14px] font-semibold text-[#1b1730]">
+                  {row.label}
+                </span>
+                <span className="shrink-0 font-display text-[12px] font-bold text-arc-purple-500">
+                  {row.xp}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-          <motion.div
-            className="rounded-2xl border border-arc-purple-200 bg-[#f6f2ff] px-4 py-3.5"
-            variants={fadeUp}
-          >
-            <div className="flex items-start gap-2.5">
-              <Sparkles
-                className="mt-0.5 h-4 w-4 shrink-0 text-arc-purple-500"
-                strokeWidth={2.5}
+        <section>
+          <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
+            <h3 className="font-display text-[18px] font-bold text-[#1b1730]">
+              Rank ladder
+            </h3>
+            <span className="text-[11px] font-extrabold text-[#8a7cb8]">
+              XP + milestones
+            </span>
+          </div>
+
+          <ol className="relative space-y-0 pl-1">
+            <div
+              aria-hidden
+              className="absolute top-5 bottom-5 left-[21px] w-0.5 bg-[#ebe4f6]"
+            />
+            {data.tiers.map((tier, i) => (
+              <RankLadderRow
+                key={tier.id}
+                tier={tier}
+                offset={i % 3 === 1 ? "ml-3" : i % 3 === 2 ? "ml-1" : ""}
               />
-              <p className="text-[13px] leading-snug font-semibold text-[#4a3d78]">
-                Ranks unlock from XP plus milestone clears — grinding XP alone
-                won’t fake Job-Ready Eagle.
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      </motion.div>
+            ))}
+          </ol>
+        </section>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md px-[18px] pb-[calc(env(safe-area-inset-bottom)+16px)]">
+        <div className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-3.5">
+          <div className="flex items-start gap-2.5">
+            <Sparkles
+              className="mt-0.5 h-4 w-4 shrink-0 text-arc-purple-500"
+              strokeWidth={2.5}
+            />
+            <p className="text-[13px] leading-snug font-semibold text-[#4a3d78]">
+              Ranks unlock from XP plus milestone clears — grinding XP alone
+              won&apos;t fake Job-Ready Eagle.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
         <motion.div
           className="pointer-events-auto"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...softSpring, delay: 0.2 }}
+          transition={{ ...softSpring, delay: 0.15 }}
           whileTap={{ scale: 0.98, y: 1 }}
         >
           <Link
             href="/path"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_4px_0_#4b2fd6]"
+            className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_5px_0_#4b2fd6]"
           >
             Climb on Path
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
@@ -251,34 +257,41 @@ export default function RankScreen({
   );
 }
 
-function WalletCard({
+function CurrencyChip({
   label,
   value,
   icon,
   tip,
+  tone,
   className,
 }: {
   label: string;
   value: number;
   icon: React.ReactNode;
   tip: string;
+  tone: "xp" | "gem" | "coin";
   className?: string;
 }) {
+  const tones = {
+    xp: "bg-[#2d8cff] text-white shadow-[0_5px_0_#1a5fad]",
+    gem: "bg-[#b35cff] text-white shadow-[0_5px_0_#7a2fc4]",
+    coin: "bg-[#ffc928] text-[#0f1220] shadow-[0_5px_0_#c79a2e]",
+  };
+
   return (
     <div
-      className={cn(
-        "rounded-2xl border border-[#ebe4f6] bg-white px-2.5 py-3 shadow-[0_10px_24px_-8px_rgba(70,40,150,0.16)]",
-        className,
-      )}
+      className={cn("rounded-2xl px-3 py-2.5", tones[tone], className)}
       title={tip}
     >
-      <div className="flex flex-col items-start gap-2">
-        {icon}
-        <div>
-          <p className="font-display text-[18px] leading-none font-bold tracking-[-0.02em] text-[#1b1730]">
+      <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/15">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <p className="font-display text-[16px] leading-none font-bold tabular-nums">
             {value.toLocaleString()}
           </p>
-          <p className="mt-1 text-[10px] font-extrabold tracking-[0.05em] text-[#8a7cb8] uppercase">
+          <p className="mt-0.5 text-[9px] font-black tracking-wide uppercase opacity-70">
             {label}
           </p>
         </div>
@@ -289,85 +302,80 @@ function WalletCard({
 
 function RankLadderRow({
   tier,
-  isLast,
+  offset,
 }: {
   tier: RankTier;
-  isLast: boolean;
+  offset?: string;
 }) {
   const current = tier.status === "current";
   const earned = tier.status === "earned";
   const locked = tier.status === "locked";
 
   return (
-    <li className="relative flex gap-3">
-      {!isLast ? (
-        <span
-          aria-hidden
-          className={cn(
-            "absolute top-10 bottom-0 left-[17px] w-px",
-            earned || current ? "bg-arc-purple-200" : "bg-[#ebe4f6]",
-          )}
-        />
-      ) : null}
-
-      <div className="relative z-[1] flex w-9 shrink-0 justify-center pt-1">
+    <li className={cn("relative mb-2.5 flex items-center gap-3 last:mb-0", offset)}>
+      <span
+        className={cn(
+          "relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl",
+          current &&
+            "bg-arc-purple-500 text-white shadow-[0_4px_0_#4b2fd6] ring-2 ring-arc-purple-500 ring-offset-2",
+          earned && "bg-[#eef9f3] text-[#16a56b]",
+          locked && "bg-[#efe9f8] text-[#b3a8d6]",
+        )}
+      >
         {current ? (
           <motion.span
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-arc-purple-500 text-white shadow-[0_4px_0_#4b2fd6]"
-            animate={{ scale: [1, 1.06, 1] }}
+            animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
             <Star className="h-4 w-4 fill-white" strokeWidth={2} />
           </motion.span>
         ) : earned ? (
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eef9f3] text-[#178a52]">
-            <Check className="h-4 w-4" strokeWidth={3} />
-          </span>
+          <Check className="h-4 w-4" strokeWidth={3} />
         ) : (
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#efe9f8] text-[#b3a8d6]">
-            <Lock className="h-3.5 w-3.5" strokeWidth={2.5} />
-          </span>
+          <Lock className="h-3.5 w-3.5" strokeWidth={2.5} />
         )}
-      </div>
+      </span>
 
-      <div className={cn("min-w-0 flex-1", isLast ? "pb-0" : "pb-3")}>
-        <div
-          className={cn(
-            "rounded-2xl border px-3.5 py-3",
-            current &&
-              "border-arc-purple-200 bg-white shadow-[0_10px_24px_rgba(107,78,255,0.1)]",
-            earned && "border-[#ebe4f6] bg-white/80",
-            locked && "border-[#ebe4f6] bg-white/60",
-          )}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <p
-              className={cn(
-                "font-display text-[15px] font-semibold",
-                current && "text-[#1b1730]",
-                earned && "text-[#4a3d78]",
-                locked && "text-[#8a7cb8]",
-              )}
-            >
-              {tier.name}
-            </p>
-            <span
-              className={cn(
-                "text-[10px] font-extrabold tracking-wide uppercase",
-                current && "text-arc-purple-500",
-                earned && "text-[#178a52]",
-                locked && "text-[#c3badb]",
-              )}
-            >
-              {current ? "You" : earned ? "Done" : `Lv ${tier.levelRequired}`}
-            </span>
-          </div>
-          {(current || tier.name === "Full Ninja") && (
-            <p className="mt-1 text-[12px] font-semibold text-[#8a7cb8]">
-              {tier.blurb}
-            </p>
-          )}
+      <div
+        className={cn(
+          "min-w-0 flex-1 rounded-[18px] border px-3.5 py-3",
+          current && "border-transparent bg-[#0f1220] text-white",
+          earned && "border-[#ebe4f6] bg-white",
+          locked && "border-[#ebe4f6] bg-white/70",
+        )}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p
+            className={cn(
+              "font-display text-[15px] font-semibold",
+              current && "text-white",
+              earned && "text-[#1b1730]",
+              locked && "text-[#8a7cb8]",
+            )}
+          >
+            {tier.name}
+          </p>
+          <span
+            className={cn(
+              "text-[10px] font-extrabold tracking-wide uppercase",
+              current && "rounded-full bg-[#ffc928] px-2 py-0.5 text-[#0f1220]",
+              earned && "text-[#16a56b]",
+              locked && "text-[#c3badb]",
+            )}
+          >
+            {current ? "You" : earned ? "Done" : `Lv ${tier.levelRequired}`}
+          </span>
         </div>
+        {(current || tier.name === "Full Ninja") && (
+          <p
+            className={cn(
+              "mt-1 text-[12px] font-semibold",
+              current ? "text-white/45" : "text-[#8a7cb8]",
+            )}
+          >
+            {tier.blurb}
+          </p>
+        )}
       </div>
     </li>
   );

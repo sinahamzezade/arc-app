@@ -1,15 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import { motion } from "motion/react";
+import { BackButton } from "@/components/BackButton";
 import { cn } from "@/lib/utils";
-import {
-  MotionBackButton,
-  MotionReveal,
-  MotionStagger,
-  OnboardingPage,
-} from "@/components/motion";
 import { assets } from "@/lib/assets";
-import { mascotEnter } from "@/lib/motion/onboarding";
 import { QuestionnaireProgress } from "./QuestionnaireProgress";
 
 type QuestionnaireLayoutProps = {
@@ -34,52 +29,69 @@ export function QuestionnaireLayout({
   className,
 }: QuestionnaireLayoutProps) {
   return (
-    <OnboardingPage
+    <div
       className={cn(
-        "mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white px-5 pt-safe-top pb-safe-bottom",
+        "relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#f3effc] font-rounded",
         className,
       )}
     >
-      <MotionBackButton className="pt-4" onClick={onBack} />
+      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+10px)] pb-12 text-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-16 right-[-36px] h-48 w-48 rounded-full bg-arc-purple-500/40 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-[-20px] h-28 w-28 rounded-full bg-[#ffc928]/18 blur-3xl"
+        />
 
-      {stepNumber !== undefined && (
-        <QuestionnaireProgress stepNumber={stepNumber} className="mt-2" />
-      )}
+        <div className="relative flex items-center gap-2">
+          <BackButton onClick={onBack} />
 
-      <MotionStagger className="flex min-h-0 flex-1 flex-col">
-        {showAvatar && (
-          <MotionReveal
-            custom={mascotEnter}
-            className="mt-6 flex justify-center"
-          >
-            <div className="relative h-16 w-16 overflow-hidden rounded-full bg-arc-purple-100 ring-4 ring-arc-purple-50">
+          {stepNumber !== undefined ? (
+            <QuestionnaireProgress
+              stepNumber={stepNumber}
+              className="min-w-0 flex-1"
+            />
+          ) : null}
+
+          {showAvatar ? (
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full ring-2 ring-[#ffc928]/40">
               <Image
                 src={assets.arlo.thinking}
                 alt="Arlo"
                 fill
                 className="object-cover object-top"
-                sizes="64px"
+                sizes="40px"
                 priority
               />
             </div>
-          </MotionReveal>
-        )}
-
-        <MotionReveal className="mt-5 text-center">
-          <h1 className="font-display text-arc-title font-bold text-arc-navy-900">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="mt-2 text-arc-body text-arc-navy-500">{subtitle}</p>
-          )}
-        </MotionReveal>
-
-        <div className="mt-6 min-h-0 flex-1 overflow-y-auto pb-4">
-          {children}
+          ) : null}
         </div>
 
-        <MotionReveal className="shrink-0 pt-2 pb-4">{footer}</MotionReveal>
-      </MotionStagger>
-    </OnboardingPage>
+        <div className="relative mt-5">
+          <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+            Intake
+          </p>
+          <h1 className="mt-1.5 font-display text-[26px] leading-[1.05] font-bold tracking-[-0.03em]">
+            {title}
+          </h1>
+          {subtitle ? (
+            <p className="mt-2 max-w-[22rem] text-[13px] leading-snug font-bold text-white/50">
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      <div className="relative z-10 -mt-6 flex min-h-0 flex-1 flex-col rounded-t-[28px] bg-[#f3effc]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-4">
+          {children}
+        </div>
+        <div className="shrink-0 border-t border-[#ebe4f6]/80 bg-[#f3effc]/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+14px)] backdrop-blur-sm">
+          {footer}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -121,5 +121,5 @@ export const weekPulseMockData: WeekPulseMockData = {
     },
   ],
   arloNudge:
-    "Five days locked. Finish Saturday and this week’s streak stays hot — no guilt if Sunday flexes.",
+    "Five days locked. Finish Saturday to lock week 8 — Sunday can flex. No guilt.",
 };

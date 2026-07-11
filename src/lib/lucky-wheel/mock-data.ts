@@ -17,9 +17,17 @@ export type LuckyWheelMockData = {
   segments: WheelSegment[];
 };
 
+/** Clay toy palette — matches prize-wheel art (purple / orange / gold). */
+const CLAY = {
+  purple: "#6B4EFF",
+  purpleDeep: "#4B2FD6",
+  orange: "#FF4D2D",
+  gold: "#FFD233",
+} as const;
+
 export const luckyWheelMockData: LuckyWheelMockData = {
   title: "Lucky Wheel",
-  subtitle: "One free spin every day. Land something good.",
+  subtitle: "Daily free spin. Land the loot.",
   spinsLeft: 1,
   spinsPerDay: 1,
   segments: [
@@ -28,7 +36,7 @@ export const luckyWheelMockData: LuckyWheelMockData = {
       label: "50 Coins",
       kind: "coins",
       amount: 50,
-      color: "#FFC928",
+      color: CLAY.gold,
       weight: 22,
     },
     {
@@ -36,15 +44,15 @@ export const luckyWheelMockData: LuckyWheelMockData = {
       label: "10 Gems",
       kind: "gems",
       amount: 10,
-      color: "#B35CFF",
-      weight: 14,
+      color: CLAY.purple,
+      weight: 16,
     },
     {
       id: "xp-25",
       label: "25 XP",
       kind: "xp",
       amount: 25,
-      color: "#3BA5FF",
+      color: CLAY.orange,
       weight: 20,
     },
     {
@@ -52,7 +60,7 @@ export const luckyWheelMockData: LuckyWheelMockData = {
       label: "100 Coins",
       kind: "coins",
       amount: 100,
-      color: "#FF8A3D",
+      color: CLAY.gold,
       weight: 12,
     },
     {
@@ -60,32 +68,16 @@ export const luckyWheelMockData: LuckyWheelMockData = {
       label: "Try Again",
       kind: "try_again",
       amount: 0,
-      color: "#8F97B8",
-      weight: 10,
-    },
-    {
-      id: "gems-25",
-      label: "25 Gems",
-      kind: "gems",
-      amount: 25,
-      color: "#6B4EFF",
-      weight: 8,
-    },
-    {
-      id: "xp-50",
-      label: "50 XP",
-      kind: "xp",
-      amount: 50,
-      color: "#62D84E",
-      weight: 10,
+      color: CLAY.purple,
+      weight: 14,
     },
     {
       id: "badge",
       label: "Lucky Badge",
       kind: "badge",
       amount: 1,
-      color: "#FF6D5A",
-      weight: 4,
+      color: CLAY.orange,
+      weight: 6,
     },
   ],
 };

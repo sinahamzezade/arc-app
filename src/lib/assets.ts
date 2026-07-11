@@ -28,6 +28,7 @@ export const assets = {
   home: {
     chest: "/assets/home/chest.svg",
     wheel: "/assets/home/wheel.svg",
+    prizeWheel: "/assets/home/prize-wheel.png",
     badges: "/assets/home/badges.svg",
     ninja: "/assets/home/ninja.svg",
   },

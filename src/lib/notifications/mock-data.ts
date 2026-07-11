@@ -1,6 +1,11 @@
 export type NotificationFilter = "all" | "unread" | "rewards" | "social";
 
-export type NotificationCategory = "streak" | "coach" | "social" | "rewards" | "system";
+export type NotificationCategory =
+  | "streak"
+  | "coach"
+  | "social"
+  | "rewards"
+  | "system";
 
 export type NotificationItem = {
   id: string;
@@ -11,11 +16,17 @@ export type NotificationItem = {
   category: NotificationCategory;
   filterTags: NotificationFilter[];
   icon:
-    | { kind: "emoji"; value: string; bg: string }
     | { kind: "arlo" }
     | {
         kind: "lucide";
-        name: "trophy" | "award" | "gift" | "user-plus" | "star" | "calendar";
+        name:
+          | "trophy"
+          | "award"
+          | "gift"
+          | "user-plus"
+          | "star"
+          | "calendar"
+          | "flame";
         bg: string;
         color: string;
       };
@@ -41,7 +52,7 @@ export const notificationFilters: {
 export const notificationSections: NotificationSection[] = [
   {
     id: "today",
-    label: "TODAY",
+    label: "Today",
     items: [
       {
         id: "streak-1",
@@ -51,7 +62,12 @@ export const notificationSections: NotificationSection[] = [
         unread: true,
         category: "streak",
         filterTags: ["unread"],
-        icon: { kind: "emoji", value: "🔥", bg: "#ffeede" },
+        icon: {
+          kind: "lucide",
+          name: "flame",
+          bg: "#ffeede",
+          color: "#ff8a3d",
+        },
       },
       {
         id: "coach-1",
@@ -66,7 +82,7 @@ export const notificationSections: NotificationSection[] = [
       },
       {
         id: "social-1",
-        title: "You moved up to 4th place! 🎉",
+        title: "You moved up to 4th place!",
         body: "Silver League · 2 spots from promotion.",
         time: "6h ago",
         unread: true,
@@ -83,7 +99,7 @@ export const notificationSections: NotificationSection[] = [
   },
   {
     id: "yesterday",
-    label: "YESTERDAY",
+    label: "Yesterday",
     items: [
       {
         id: "reward-1",
@@ -102,7 +118,7 @@ export const notificationSections: NotificationSection[] = [
       },
       {
         id: "reward-2",
-        title: "Daily bonus ready 🎁",
+        title: "Daily bonus ready",
         body: "Spin the Lucky Wheel to win up to 100 gems.",
         time: "Yesterday · 9:00 AM",
         unread: false,
@@ -134,11 +150,11 @@ export const notificationSections: NotificationSection[] = [
   },
   {
     id: "earlier",
-    label: "EARLIER",
+    label: "Earlier",
     items: [
       {
         id: "reward-3",
-        title: "Level 5 reached — Semi Ninja! 🥷",
+        title: "Level 5 reached — Semi Ninja!",
         body: "New avatar items unlocked in the store.",
         time: "Mon · 5:20 PM",
         unread: false,
