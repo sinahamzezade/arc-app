@@ -269,6 +269,17 @@
   }
 }
 
+@keyframes arc-path-pulse {
+  0%,
+  100% {
+    box-shadow: 0 7px 0 #4b2fd6, 0 0 0 0 rgb(107 78 255 / 0.4);
+  }
+
+  50% {
+    box-shadow: 0 7px 0 #4b2fd6, 0 0 0 12px rgb(107 78 255 / 0);
+  }
+}
+
 @keyframes arc-shake {
   0%,
   100% {

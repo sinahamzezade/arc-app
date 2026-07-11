@@ -76,8 +76,8 @@ export default function QuestionnaireReviewScreen() {
             type="button"
             className="mt-6 h-14 w-full rounded-arc-md bg-arc-purple-500 font-rounded text-arc-body font-bold shadow-arc-button transition-all active:translate-y-px active:shadow-arc-button-sm"
             onPress={() => {
-              // Roadmap generation — placeholder for MVP
               console.log("Generate roadmap", answers);
+              router.push("/home");
             }}
           >
             Looks Good, Generate Roadmap

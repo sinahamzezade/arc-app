@@ -1,6 +1,7 @@
 export const assets = {
   brand: {
     logo: "/assets/brand/arc-logo.svg",
+    logoMark: "/assets/brand/arc-logo-mark.png",
     icon: "/assets/brand/arc-icon.svg",
     appIcon: "/assets/brand/arc-app-icon.png",
     wordmark: "/assets/brand/arc-wordmark.svg",
@@ -17,6 +18,18 @@ export const assets = {
     boss: "/assets/arlo/arlo-boss.png",
     roast: "/assets/arlo/arlo-roast.png",
     graduation: "/assets/arlo/arlo-graduation.png",
+    /** Home hero — falls back to wave until dedicated art lands */
+    home: "/assets/arlo/arlo-wave-hand.png",
+    /** Arlo Says panel — falls back to thinking pose */
+    wand: "/assets/arlo/arlo-thinking.png",
+    /** Notifications / point pose — falls back to thumbs-up */
+    point: "/assets/arlo/arlo-thumbs-up.png",
+  },
+  home: {
+    chest: "/assets/home/chest.svg",
+    wheel: "/assets/home/wheel.svg",
+    badges: "/assets/home/badges.svg",
+    ninja: "/assets/home/ninja.svg",
   },
   backgrounds: {
     mountainWelcome: "/assets/backgrounds/mountain-welcome.png",
