@@ -73,6 +73,8 @@ export type BattleDto = {
   theirScore: number;
   youReady: boolean;
   opponentReady: boolean;
+  youAnswered?: boolean;
+  opponentAnswered?: boolean;
   youOnline?: boolean;
   opponentOnline?: boolean;
   suddenDeathCount?: number;
@@ -217,14 +219,24 @@ export const battlesApi = {
     },
     accessToken?: string | null,
   ) {
+    // Stable per battle+question for retries. Backend scopes by userId so
+    // both players never collide on the unique idempotency_key index.
     const key =
       body.idempotencyKey ??
-      idemKey(`ans:${body.battleQuestionId}`);
+      idemKey(`ans:${id}:${body.battleQuestionId}`);
     return apiFetch<BattleDto>(`/battles/${id}/answers`, {
       method: "POST",
       body: { ...body, idempotencyKey: key },
       accessToken,
       headers: { "Idempotency-Key": key },
+    });
+  },
+
+  continuePlay(id: string, accessToken?: string | null) {
+    return apiFetch<BattleDto>(`/battles/${id}/continue`, {
+      method: "POST",
+      body: {},
+      accessToken,
     });
   },
 

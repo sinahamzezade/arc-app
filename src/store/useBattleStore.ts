@@ -64,7 +64,9 @@ export const useBattleStore = create<BattlePlayState>((set, get) => ({
   applyBattle: (dto) => {
     const q = dto.currentQuestion;
     const revealed = Boolean(q?.revealedAt);
-    const myAnswer = q?.answers?.find((a) => a.selectedOptionId);
+    const myAnswer =
+      q?.answers?.find((a) => a.isYou) ??
+      q?.answers?.find((a) => a.selectedOptionId);
     set({
       activeBattleId: dto.id,
       battle: dto,
@@ -86,7 +88,9 @@ export const useBattleStore = create<BattlePlayState>((set, get) => ({
       questions: q ? [mapQuestion(q)] : get().questions,
       questionIndex: 0,
       revealed,
-      selectedOptionId: myAnswer?.selectedOptionId ?? get().selectedOptionId,
+      selectedOptionId:
+        myAnswer?.selectedOptionId ??
+        (dto.youAnswered || revealed ? get().selectedOptionId : null),
       error: null,
     });
   },

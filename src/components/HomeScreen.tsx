@@ -146,7 +146,7 @@ export default function HomeScreen({
             <HomeWeekLockVault
               weeklyProgress={data.weeklyProgress}
               weeklyStreak={data.weeklyStreak}
-              replanHref="/week"
+              replanHref={week?.replanHref ?? "/week/plan"}
               estimateMinutes={estimateMinutes}
               sealed={week?.sealed}
               sessionsLeft={week?.sessionsLeft}

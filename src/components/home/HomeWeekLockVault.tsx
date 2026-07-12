@@ -27,7 +27,7 @@ type HomeWeekLockVaultProps = {
 export function HomeWeekLockVault({
   weeklyProgress,
   weeklyStreak,
-  replanHref = "/week",
+  replanHref = "/week/plan",
   estimateMinutes = 18,
   sealed: sealedProp,
   sessionsLeft: sessionsLeftProp,
