@@ -148,8 +148,6 @@ export function messageForCode(code: string, fallback: string): string {
       return "Not enough gems";
     case "INSUFFICIENT_COINS":
       return "Not enough coins";
-    case "INSUFFICIENT_XP":
-      return "Not enough XP for that pack";
     case "ITEM_NOT_AVAILABLE":
       return "That item isn't available";
     case "ITEM_ALREADY_OWNED":

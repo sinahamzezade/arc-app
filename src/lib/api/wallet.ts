@@ -56,30 +56,6 @@ export type PurchaseResult = {
   };
 };
 
-export type CurrencyPack = {
-  sku: string;
-  title: string;
-  description: string;
-  target: "gems" | "coins";
-  amount: number;
-  xpPrice: number;
-  iapProductId: string | null;
-  paymentMethods: Array<"xp" | "iap">;
-};
-
-export type CurrencyPackPurchaseResult = {
-  alreadyPurchased: boolean;
-  transactionGroupId: string;
-  wallet: WalletBalances;
-  pack: {
-    sku: string;
-    target: "gems" | "coins";
-    amount: number;
-    xpPrice: number;
-    paymentMethod: "xp";
-  };
-};
-
 export const walletApi = {
   getWallet(accessToken?: string | null) {
     return apiFetch<WalletBalances>("/wallet", { accessToken });
@@ -90,32 +66,6 @@ export const walletApi = {
     return apiFetch<{ entries: LedgerEntry[]; nextCursor: string | null }>(
       `/wallet/ledger${qs}`,
       { accessToken },
-    );
-  },
-
-  getCurrencyPacks(
-    target?: "gems" | "coins",
-    accessToken?: string | null,
-  ) {
-    const qs = target ? `?target=${target}` : "";
-    return apiFetch<CurrencyPack[]>(`/wallet/currency-packs${qs}`, {
-      accessToken,
-    });
-  },
-
-  purchaseCurrencyPack(
-    body: { sku: string; paymentMethod: "xp" },
-    idempotencyKey: string,
-    accessToken?: string | null,
-  ) {
-    return apiFetch<CurrencyPackPurchaseResult>(
-      "/wallet/currency-packs/purchase",
-      {
-        method: "POST",
-        body,
-        accessToken,
-        headers: { "Idempotency-Key": idempotencyKey },
-      },
     );
   },
 

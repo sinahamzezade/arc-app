@@ -7,19 +7,15 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   Award,
-  Check,
   Coins,
   Flame,
   Gem,
-  Linkedin,
-  Lock,
   Pencil,
   Settings,
   Swords,
   UserPlus,
   Users,
   WandSparkles,
-  Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useSession } from "next-auth/react";
@@ -32,7 +28,6 @@ import { useRankMe } from "@/hooks/useRanks";
 import {
   profileMockData,
   type ProfileMockData,
-  type ProfileSkill,
 } from "@/lib/profile/mock-data";
 import { cn } from "@/lib/utils";
 import { useEconomyStore } from "@/store/useEconomyStore";
@@ -41,9 +36,8 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
 /**
- * Passport stage Profile — night hero family.
- * Giant identity + overlapping stats chips + skill stamps.
- * Not purple-gradient slab + equal bento.
+ * Profile — night hero family.
+ * Giant identity + overlapping stats chips.
  */
 export default function ProfileScreen({
   data = profileMockData,
@@ -298,13 +292,9 @@ export default function ProfileScreen({
           <ArrowRight className="h-4 w-4 text-[#b3a8d6]" strokeWidth={2.5} />
         </Link>
 
-        <SkillsStampRail skills={data.skills} />
-
         <ActionTwinRow coins={coins} />
 
         <BattleArenaCard />
-
-        <SharePassportButton />
 
         <UtilityList plan={data.plan} />
         </div>
@@ -359,84 +349,6 @@ function XpRing({ percent, level }: { percent: number; level: number }) {
         {level}
       </span>
     </div>
-  );
-}
-
-function SkillsStampRail({ skills }: { skills: ProfileSkill[] }) {
-  const verifiedCount = skills.filter((s) => s.status === "verified").length;
-
-  return (
-    <section>
-      <div className="mb-3 px-0.5">
-        <h2 className="font-display text-[18px] font-bold tracking-[-0.02em] text-[#1b1730]">
-          Skill passport
-        </h2>
-        <p className="text-[12px] font-bold text-[#8a7cb8]">
-          {verifiedCount} verified · keep stacking proof
-        </p>
-      </div>
-
-      <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {skills.map((skill, i) => (
-          <SkillStamp key={skill.id} skill={skill} index={i} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SkillStamp({ skill, index }: { skill: ProfileSkill; index: number }) {
-  const verified = skill.status === "verified";
-  const progress = skill.status === "in_progress";
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0, rotate: index % 2 === 0 ? -2 : 1.5 }}
-      transition={{ ...softSpring, delay: 0.08 + index * 0.04 }}
-      className={cn(
-        "relative flex h-[118px] w-[118px] shrink-0 flex-col items-center justify-center rounded-[22px] border-2 border-dashed px-2.5 text-center",
-        verified && "border-[#7ad9a8] bg-[#e8f9f0] shadow-[0_6px_0_#b7ebcf]",
-        progress && "border-arc-purple-300 bg-white shadow-[0_6px_0_#d8ccff]",
-        skill.status === "locked" &&
-          "border-[#e3dbf5] bg-[#faf8ff] opacity-70 shadow-[0_6px_0_#ebe4f6]",
-      )}
-    >
-      <span
-        className={cn(
-          "mb-2 flex h-9 w-9 items-center justify-center rounded-2xl",
-          verified && "bg-[#16a56b] text-white",
-          progress && "bg-arc-purple-500 text-white",
-          skill.status === "locked" && "bg-[#ebe4f6] text-[#8a7cb8]",
-        )}
-      >
-        {verified ? (
-          <Check className="h-4 w-4" strokeWidth={3} />
-        ) : progress ? (
-          <Zap className="h-4 w-4" strokeWidth={2.5} />
-        ) : (
-          <Lock className="h-4 w-4" strokeWidth={2.5} />
-        )}
-      </span>
-      <p
-        className={cn(
-          "line-clamp-2 text-[12px] leading-tight font-extrabold",
-          verified || progress ? "text-[#1b1730]" : "text-[#8a7cb8]",
-        )}
-      >
-        {skill.name}
-      </p>
-      <p
-        className={cn(
-          "mt-1.5 text-[9px] font-black tracking-[0.08em] uppercase",
-          verified && "text-[#16a56b]",
-          progress && "text-arc-purple-500",
-          skill.status === "locked" && "text-[#8a7cb8]",
-        )}
-      >
-        {verified ? "Verified" : progress ? "In progress" : "Locked"}
-      </p>
-    </motion.div>
   );
 }
 
@@ -563,20 +475,6 @@ function StatChip({
         {label}
       </p>
     </div>
-  );
-}
-
-function SharePassportButton() {
-  return (
-    <motion.button
-      type="button"
-      whileTap={{ scale: 0.985, y: 2 }}
-      transition={snappySpring}
-      className="flex w-full items-center justify-center gap-2.5 rounded-[18px] bg-[#0A66C2] py-[15px] font-display text-[15px] font-semibold text-white shadow-[0_5px_0_#084d92]"
-    >
-      <Linkedin className="h-5 w-5" strokeWidth={2.25} />
-      Share skill passport
-    </motion.button>
   );
 }
 

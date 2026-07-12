@@ -16,7 +16,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import {
   walletApi,
-  type CurrencyPack,
   type LedgerEntry,
   type StoreCatalogItem,
   type StreakStateDto,
@@ -27,7 +26,7 @@ import { cn } from "@/lib/utils";
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
-type WalletTab = "ledger" | "packs" | "gems" | "coins";
+type WalletTab = "ledger" | "gems" | "coins";
 
 function iconForSku(sku: string) {
   if (sku.includes("freeze") || sku.includes("shield")) return Snowflake;
@@ -80,11 +79,10 @@ export default function WalletScreen() {
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
   const hydrateFromWallet = useEconomyStore((s) => s.hydrateFromWallet);
-  const [tab, setTab] = useState<WalletTab>("packs");
+  const [tab, setTab] = useState<WalletTab>("gems");
   const [toast, setToast] = useState<string | null>(null);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [catalog, setCatalog] = useState<StoreCatalogItem[]>([]);
-  const [packs, setPacks] = useState<CurrencyPack[]>([]);
   const [streak, setStreak] = useState<StreakStateDto | null>(null);
   const [busySku, setBusySku] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,18 +90,16 @@ export default function WalletScreen() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [w, l, store, s, currencyPacks] = await Promise.all([
+      const [w, l, store, s] = await Promise.all([
         walletApi.getWallet(),
         walletApi.getLedger(),
         walletApi.getStore(),
         walletApi.getStreak(),
-        walletApi.getCurrencyPacks(),
       ]);
       hydrateFromWallet(w);
       setLedger(l.entries);
       setCatalog(store);
       setStreak(s);
-      setPacks(currencyPacks);
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -133,14 +129,6 @@ export default function WalletScreen() {
     () => catalog.filter((i) => i.currency === "coins"),
     [catalog],
   );
-  const gemPacks = useMemo(
-    () => packs.filter((p) => p.target === "gems"),
-    [packs],
-  );
-  const coinPacks = useMemo(
-    () => packs.filter((p) => p.target === "coins"),
-    [packs],
-  );
 
   const buy = async (item: StoreCatalogItem) => {
     if (busySku) return;
@@ -167,41 +155,6 @@ export default function WalletScreen() {
         err instanceof ApiError
           ? messageForCode(err.code, err.message)
           : "Purchase failed",
-      );
-    } finally {
-      setBusySku(null);
-    }
-  };
-
-  const buyPack = async (pack: CurrencyPack) => {
-    if (busySku) return;
-    if (!pack.paymentMethods.includes("xp")) {
-      setToast("Real-money packs coming soon");
-      return;
-    }
-    if (xp < pack.xpPrice) {
-      setToast("Not enough XP for that pack");
-      return;
-    }
-    setBusySku(pack.sku);
-    try {
-      const res = await walletApi.purchaseCurrencyPack(
-        { sku: pack.sku, paymentMethod: "xp" },
-        newIdempotencyKey("cp", pack.sku),
-      );
-      hydrateFromWallet(res.wallet);
-      setToast(
-        res.alreadyPurchased
-          ? "Already processed"
-          : `+${pack.amount.toLocaleString()} ${pack.target} · −${pack.xpPrice.toLocaleString()} XP`,
-      );
-      const l = await walletApi.getLedger();
-      setLedger(l.entries);
-    } catch (err) {
-      setToast(
-        err instanceof ApiError
-          ? messageForCode(err.code, err.message)
-          : "Exchange failed",
       );
     } finally {
       setBusySku(null);
@@ -267,7 +220,7 @@ export default function WalletScreen() {
               {coins.toLocaleString()}
             </motion.h1>
             <p className="mt-2 max-w-[15rem] text-[12px] font-bold text-white/45">
-              Spend XP for packs · shops spend gems &amp; coins
+              Earn on the path · spend in shops
             </p>
           </div>
 
@@ -362,7 +315,6 @@ export default function WalletScreen() {
         >
           {(
             [
-              ["packs", "Buy"],
               ["gems", "Gem shop"],
               ["coins", "Coin shop"],
               ["ledger", "Ledger"],
@@ -410,108 +362,6 @@ export default function WalletScreen() {
         ) : null}
 
         <AnimatePresence mode="wait">
-          {tab === "packs" && !loading ? (
-            <motion.section
-              key="packs"
-              className="space-y-5"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={softSpring}
-            >
-              <p className="px-0.5 text-[12px] font-bold text-[#8a7cb8]">
-                Convert lifetime XP · balance {xp.toLocaleString()} XP
-              </p>
-              <p className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-3 text-[12px] leading-relaxed font-semibold text-[#8a7cb8]">
-                Real-money packs coming later — same SKUs, IAP settlement.
-              </p>
-
-              <div>
-                <h2 className="mb-2 px-0.5 font-display text-[16px] font-bold text-[#1b1730]">
-                  Gem packs
-                </h2>
-                <ul className="space-y-3">
-                  {gemPacks.map((pack, i) => (
-                    <motion.li
-                      key={pack.sku}
-                      initial={{ opacity: 0, x: i % 2 === 0 ? -12 : 12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ ...softSpring, delay: i * 0.04 }}
-                      className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white"
-                    >
-                      <div className="flex items-center gap-3 p-3.5">
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#b35cff]/12 text-[#b35cff]">
-                          <Gem className="h-6 w-6" strokeWidth={2.25} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-display text-[14px] font-semibold text-[#1b1730]">
-                            {pack.title}
-                          </p>
-                          <p className="mt-0.5 text-[11px] font-bold text-[#8a7cb8]">
-                            +{pack.amount.toLocaleString()} gems
-                          </p>
-                        </div>
-                        <motion.button
-                          type="button"
-                          disabled={busySku === pack.sku || xp < pack.xpPrice}
-                          onClick={() => void buyPack(pack)}
-                          whileTap={{ scale: 0.96, y: 1 }}
-                          transition={snappySpring}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#6b4eff] px-3 py-2.5 text-[12px] font-extrabold text-white shadow-[0_3px_0_#4a32c4] disabled:opacity-50"
-                        >
-                          <Star className="h-3.5 w-3.5" strokeWidth={2.5} />
-                          {pack.xpPrice.toLocaleString()}
-                        </motion.button>
-                      </div>
-                    </motion.li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h2 className="mb-2 px-0.5 font-display text-[16px] font-bold text-[#1b1730]">
-                  Coin packs
-                </h2>
-                <ul className="space-y-3">
-                  {coinPacks.map((pack, i) => (
-                    <motion.li
-                      key={pack.sku}
-                      initial={{ opacity: 0, x: i % 2 === 0 ? 12 : -12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ ...softSpring, delay: i * 0.04 }}
-                      className="overflow-hidden rounded-[20px] bg-[#12141c] text-white"
-                    >
-                      <div className="flex items-center gap-3 p-3.5">
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#ffc928]/15 text-[#ffc928]">
-                          <Coins className="h-6 w-6" strokeWidth={2.25} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-display text-[14px] font-semibold">
-                            {pack.title}
-                          </p>
-                          <p className="mt-0.5 text-[11px] font-bold text-white/40">
-                            +{pack.amount.toLocaleString()} coins
-                          </p>
-                        </div>
-                        <motion.button
-                          type="button"
-                          disabled={busySku === pack.sku || xp < pack.xpPrice}
-                          onClick={() => void buyPack(pack)}
-                          whileTap={{ scale: 0.96, y: 1 }}
-                          transition={snappySpring}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#ffc928] px-3 py-2.5 text-[12px] font-extrabold text-[#12141c] shadow-[0_3px_0_#c79a2e] disabled:opacity-50"
-                        >
-                          <Star className="h-3.5 w-3.5" strokeWidth={2.5} />
-                          {pack.xpPrice.toLocaleString()}
-                        </motion.button>
-                      </div>
-                    </motion.li>
-                  ))}
-                </ul>
-              </div>
-            </motion.section>
-          ) : null}
-
           {tab === "ledger" && !loading ? (
             <motion.section
               key="ledger"
@@ -572,8 +422,7 @@ export default function WalletScreen() {
               )}
 
               <p className="mt-4 rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-3 text-[12px] leading-relaxed font-semibold text-[#8a7cb8]">
-                Spending XP lowers lifetime progress toward rank gates. Gems
-                still cannot buy Battle wins.
+                Gems buy utility. Coins buy cosmetics. Neither buys Battle wins.
               </p>
             </motion.section>
           ) : null}
