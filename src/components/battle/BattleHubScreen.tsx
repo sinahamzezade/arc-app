@@ -37,16 +37,20 @@ export default function BattleHubScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const load = async () => {
       try {
+        void socialApi.heartbeat().catch(() => undefined);
         const crew = await socialApi.friends();
         if (!cancelled) setFriends(crew.items);
       } catch {
         /* empty */
       }
-    })();
+    };
+    void load();
+    const id = setInterval(() => void load(), 30_000);
     return () => {
       cancelled = true;
+      clearInterval(id);
     };
   }, []);
 

@@ -18,7 +18,7 @@ export function LessonShell({
   lessonId,
   stepLabel,
   progress,
-  showArlo = true,
+  showArlo = false, // TEMP: hide Ask Arlo entry points
   onBack,
 }: {
   children: React.ReactNode;
@@ -68,9 +68,7 @@ export function LessonShell({
             >
               <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
             </Link>
-          ) : (
-            <span className="h-10 w-10" aria-hidden />
-          )}
+          ) : null}
         </div>
       </header>
 
@@ -109,7 +107,12 @@ export function LessonPrimaryButton({
   }
 
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className={classes}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={classes}
+    >
       {children}
     </button>
   );
@@ -153,7 +156,9 @@ export function LessonOptionCard({
           "border-[#ebe4f6] bg-white/70 text-arc-lavender-600",
       )}
     >
-      <span className="text-[14px] leading-snug whitespace-pre-wrap">{label}</span>
+      <span className="text-[14px] leading-snug whitespace-pre-wrap">
+        {label}
+      </span>
     </button>
   );
 }

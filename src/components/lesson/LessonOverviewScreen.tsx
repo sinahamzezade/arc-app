@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -9,17 +8,17 @@ import {
   BookOpen,
   Clock,
   ExternalLink,
-  MessageCircle,
   Sparkles,
   Target,
   Zap,
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
 import { assets } from "@/lib/assets";
 import { lessonsApi } from "@/lib/api/lessons";
+import type { LessonPlayDto } from "@/lib/api/types";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton } from "./LessonShell";
@@ -37,7 +36,9 @@ export default function LessonOverviewScreen({
   lessonId: string;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: session } = useSession();
+  const accessToken = session?.accessToken;
   const { lesson, isLoading, isError, error, refetch } =
     usePlayableLesson(lessonId);
   const startLesson = useLessonStore((s) => s.startLesson);
@@ -45,9 +46,14 @@ export default function LessonOverviewScreen({
   const startedRef = useRef<string | null>(null);
 
   const startMutation = useMutation({
-    mutationFn: () => lessonsApi.start(lessonId, session?.accessToken),
+    mutationFn: () => lessonsApi.start(lessonId, accessToken),
     onSuccess: (res) => {
-      if (res.attemptId) setAttemptId(res.attemptId);
+      if (!res.attemptId) return;
+      setAttemptId(res.attemptId);
+      queryClient.setQueryData<LessonPlayDto>(
+        ["lessons", "play", lessonId, accessToken ?? "anon"],
+        (old) => (old ? { ...old, attemptId: res.attemptId } : old),
+      );
     },
   });
 
@@ -96,7 +102,7 @@ export default function LessonOverviewScreen({
         />
 
         <header className="relative z-[1] flex items-center gap-3">
-          <BackButton onClick={() => router.push("/path")} />
+          <BackButton />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
               Lesson {lesson.lessonNumber}
@@ -110,13 +116,8 @@ export default function LessonOverviewScreen({
               />
             </div>
           </div>
-          <Link
-            href={`/learn/${lesson.id}/arlo`}
-            aria-label="Ask Arlo"
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]"
-          >
-            <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
-          </Link>
+          {/* TEMP: Ask Arlo hidden */}
+          {/* <span className="h-10 w-10" aria-hidden /> */}
         </header>
 
         <div className="relative z-[1] mt-6 grid grid-cols-[1fr_auto] items-end gap-3">

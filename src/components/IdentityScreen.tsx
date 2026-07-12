@@ -15,6 +15,8 @@ import { motion } from "motion/react";
 import { meApi } from "@/lib/api/auth";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import { assets } from "@/lib/assets";
+import { useArcDay } from "@/hooks/useArcDay";
+import { useRankMe } from "@/hooks/useRanks";
 import { profileMockData, type ProfileMockData } from "@/lib/profile/mock-data";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +32,10 @@ export default function IdentityScreen({
   data?: ProfileMockData;
 }) {
   const { data: session, update } = useSession();
+  const { data: rankMe } = useRankMe();
   const profile = session?.profile;
+  const level = rankMe?.current.level ?? data.level;
+  const day = useArcDay(data.day);
 
   const initialName =
     profile?.username || profile?.displayName || data.userName;
@@ -125,10 +130,10 @@ export default function IdentityScreen({
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black tracking-wide ring-1 ring-white/15">
-                LVL {data.level}
+                LVL {level}
               </span>
               <span className="rounded-full bg-[#ffc928]/20 px-3 py-1 text-[11px] font-black tracking-wide text-[#ffc928]">
-                DAY {data.day}
+                DAY {day}
               </span>
             </div>
           </div>
@@ -153,7 +158,7 @@ export default function IdentityScreen({
               />
             </div>
             <span className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#ffc928] px-2.5 py-0.5 font-display text-[11px] font-bold text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
-              {data.level}
+              {level}
             </span>
           </motion.div>
         </div>
@@ -282,7 +287,7 @@ export default function IdentityScreen({
                 {userName}
               </p>
               <p className="text-[12px] font-bold text-[#8a7cb8]">
-                Lv {data.level} · {data.becoming}
+                Lv {level} · {data.becoming}
               </p>
             </div>
             <span

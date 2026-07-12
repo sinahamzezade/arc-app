@@ -91,7 +91,11 @@ export const useLessonStore = create<LessonSessionState>((set, get) => ({
     }
     set({
       lessonId,
-      attemptId: progress.attemptId ?? null,
+      // Keep live attempt only for same lesson — stale play cache often lags start().
+      attemptId:
+        progress.attemptId ??
+        (current.lessonId === lessonId ? current.attemptId : null) ??
+        null,
       contentStep: progress.contentStep,
       practiceOptionId: progress.practiceOptionId,
       quizAnswers: progress.quizAnswers,

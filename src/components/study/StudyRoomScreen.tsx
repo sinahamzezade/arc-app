@@ -94,10 +94,7 @@ export default function StudyRoomScreen() {
     setTick(0);
   }, [session?.remainingSeconds, session?.roomVersion]);
 
-  async function run(
-    action: () => Promise<StudySessionDto>,
-    fallback: string,
-  ) {
+  async function run(action: () => Promise<StudySessionDto>, fallback: string) {
     if (!sessionId || busy) return;
     setBusy(true);
     setError(null);
@@ -154,9 +151,7 @@ export default function StudyRoomScreen() {
   }
 
   const m =
-    remaining != null
-      ? Math.floor(remaining / 60)
-      : session.durationMinutes;
+    remaining != null ? Math.floor(remaining / 60) : session.durationMinutes;
   const s = remaining != null ? remaining % 60 : 0;
   const ended = TERMINAL.has(session.status);
   const isInviteePending =
@@ -164,14 +159,13 @@ export default function StudyRoomScreen() {
   const needsReady =
     !session.you.ready &&
     ["accepted", "waiting", "active"].includes(session.status);
-  const statusLabel =
-    ended
-      ? "Session complete"
-      : session.status === "active"
-        ? "Synced timer"
-        : session.status === "invited"
-          ? "Waiting for accept"
-          : session.status;
+  const statusLabel = ended
+    ? "Session complete"
+    : session.status === "active"
+      ? "Synced timer"
+      : session.status === "invited"
+        ? "Waiting for accept"
+        : session.status;
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -181,7 +175,7 @@ export default function StudyRoomScreen() {
           className="pointer-events-none absolute -top-12 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-arc-purple-500/30 blur-3xl"
         />
         <div className="relative flex items-center gap-3">
-          <BackButton onClick={() => router.push("/friends")} />
+          <BackButton />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
               Focus room
@@ -264,10 +258,7 @@ export default function StudyRoomScreen() {
               busy={busy}
               label="Accept invite"
               onClick={() =>
-                void run(
-                  () => studyApi.accept(sessionId),
-                  "Accept failed",
-                )
+                void run(() => studyApi.accept(sessionId), "Accept failed")
               }
             />
           ) : null}
@@ -318,10 +309,7 @@ export default function StudyRoomScreen() {
               type="button"
               disabled={busy}
               onClick={() =>
-                void run(
-                  () => studyApi.decline(sessionId),
-                  "Decline failed",
-                )
+                void run(() => studyApi.decline(sessionId), "Decline failed")
               }
               className="w-full rounded-[20px] py-3 text-[13px] font-extrabold text-[#8a7cb8] disabled:opacity-50"
             >
@@ -335,10 +323,7 @@ export default function StudyRoomScreen() {
               type="button"
               disabled={busy}
               onClick={() =>
-                void run(
-                  () => studyApi.cancel(sessionId),
-                  "Cancel failed",
-                )
+                void run(() => studyApi.cancel(sessionId), "Cancel failed")
               }
               className="w-full rounded-[20px] py-3 text-[13px] font-extrabold text-[#8a7cb8] disabled:opacity-50"
             >

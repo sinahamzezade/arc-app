@@ -127,10 +127,7 @@ export default function FollowersScreen() {
     <div className="mx-auto min-h-dvh w-full max-w-md bg-[#f3effc] font-rounded">
       <div className="px-[18px] pt-[calc(env(safe-area-inset-top)+14px)] pb-[calc(env(safe-area-inset-bottom)+28px)]">
         <header className="mb-5 flex items-center gap-3">
-          <BackButton
-            tone="light"
-            onClick={() => router.push("/profile")}
-          />
+          <BackButton tone="light" />
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-[22px] leading-none font-bold text-[#1b1730]">
               Followers

@@ -310,7 +310,13 @@ export type NotificationPreferencesResponse = {
   }>;
 };
 
-export type WeekDayStatusDto = "done" | "empty" | "today" | "current" | "completed";
+export type WeekDayStatusDto =
+  | "done"
+  | "empty"
+  | "today"
+  | "current"
+  | "completed"
+  | "inactive";
 
 export type WeekTaskStatusDto =
   | "upcoming"

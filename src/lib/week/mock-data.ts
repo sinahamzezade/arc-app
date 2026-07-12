@@ -33,7 +33,7 @@ export type WeekPulseMockData = {
   days: {
     label: string;
     full: string;
-    status: HomeDayStatus | "today";
+    status: HomeDayStatus | "today" | "inactive";
     minutesPlanned: number;
     minutesDone: number;
   }[];

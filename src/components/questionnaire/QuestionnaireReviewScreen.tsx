@@ -28,9 +28,7 @@ export default function QuestionnaireReviewScreen() {
   const [error, setError] = useState<string | null>(null);
   const reviewItems = getReviewItems(schema, answers);
   const visibleLast =
-    reviewItems[reviewItems.length - 1]?.stepNumber ??
-    schema?.totalSteps ??
-    10;
+    reviewItems[reviewItems.length - 1]?.stepNumber ?? schema?.totalSteps ?? 10;
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -115,7 +113,7 @@ export default function QuestionnaireReviewScreen() {
           className="pointer-events-none absolute bottom-0 left-[-20px] h-28 w-28 rounded-full bg-[#ffc928]/18 blur-3xl"
         />
 
-        <BackButton onClick={() => router.push(`/questionnaire/${visibleLast}`)} />
+        <BackButton />
 
         <div className="relative mt-4">
           <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
@@ -141,7 +139,9 @@ export default function QuestionnaireReviewScreen() {
               <li key={item.key}>
                 <button
                   type="button"
-                  onClick={() => router.push(`/questionnaire/${item.stepNumber}`)}
+                  onClick={() =>
+                    router.push(`/questionnaire/${item.stepNumber}`)
+                  }
                   className="flex w-full items-start gap-3 rounded-[16px] border-2 border-[#ebe4f6] bg-white px-3.5 py-3.5 text-left shadow-[0_3px_0_#ebe4f6]"
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-arc-purple-500/10 text-arc-purple-500">

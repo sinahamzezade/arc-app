@@ -48,7 +48,7 @@ export function messageForCode(code: string, fallback: string): string {
       return "Goal not found";
     case "ROLE_RECIPE_MISSING":
     case "CONTENT_ROLE_RECIPE_MISSING":
-      return "No learning recipe for that goal yet";
+      return "No learning recipe for that goal yet — pick Front End or Marketing, then redraw";
     case "CATALOG_EMPTY":
       return "Skill catalog is empty for this path";
     case "CONTENT_VERSION_NOT_PUBLISHED":
@@ -144,6 +144,32 @@ export function messageForCode(code: string, fallback: string): string {
       return "This profile is private";
     case "SOCIAL_RATE_LIMITED":
       return "Too many social actions — try later";
+    case "INSUFFICIENT_GEMS":
+      return "Not enough gems";
+    case "INSUFFICIENT_COINS":
+      return "Not enough coins";
+    case "INSUFFICIENT_XP":
+      return "Not enough XP for that pack";
+    case "ITEM_NOT_AVAILABLE":
+      return "That item isn't available";
+    case "ITEM_ALREADY_OWNED":
+      return "You already own that";
+    case "PURCHASE_LIMIT_REACHED":
+      return "Purchase limit reached";
+    case "STREAK_NOT_RECOVERABLE":
+      return "Streak can't be restored right now";
+    case "STREAK_FREEZE_LIMIT_REACHED":
+      return "Freeze inventory is full";
+    case "BADGE_NOT_FOUND":
+      return "Badge not found";
+    case "BADGE_NOT_EARNED":
+      return "Earn that badge before featuring it";
+    case "BADGE_FEATURED_LIMIT":
+      return "You can feature up to 4 badges";
+    case "BADGE_PROFILE_HIDDEN":
+      return "This badge collection is private";
+    case "BADGE_ALREADY_EARNED":
+      return "Badge already earned";
     case "ROADMAP_NOT_READY":
       return "Your roadmap is still generating";
     case "ROADMAP_NOT_FOUND":

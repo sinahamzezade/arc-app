@@ -7,6 +7,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { lessonsApi } from "@/lib/api/lessons";
+import { InlineMarkdown } from "@/lib/lesson/inline-markdown";
+import { useEnsureLessonAttempt } from "@/hooks/useEnsureLessonAttempt";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import {
@@ -27,15 +29,16 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
   const setQuizIndex = useLessonStore((s) => s.setQuizIndex);
   const quizReveal = useLessonStore((s) => s.quizReveal);
   const setQuizReveal = useLessonStore((s) => s.setQuizReveal);
-  const attemptId = useLessonStore((s) => s.attemptId);
+  const attemptId = useEnsureLessonAttempt(lessonId);
   const [localRevealed, setLocalRevealed] = useState(false);
 
   const checkMutation = useMutation({
     mutationFn: (payload: { questionId: string; optionId: string }) => {
-      if (!attemptId) throw new Error("Start the lesson first");
+      const id = useLessonStore.getState().attemptId;
+      if (!id) throw new Error("Start the lesson first");
       return lessonsApi.checkQuiz(
         lessonId,
-        { ...payload, attemptId },
+        { ...payload, attemptId: id },
         session?.accessToken,
       );
     },
@@ -95,7 +98,7 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
         className="flex flex-1 flex-col"
       >
         <h1 className="font-display text-[24px] leading-tight font-bold tracking-[-0.03em] text-[#2b1b57]">
-          {question.prompt}
+          <InlineMarkdown text={question.prompt} />
         </h1>
 
         <div className="mt-5 space-y-2.5">
@@ -116,7 +119,7 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
 
         {revealed && reveal?.explanation ? (
           <p className="mt-4 text-[14px] font-semibold text-[#4a3d78]">
-            {reveal.explanation}
+            <InlineMarkdown text={reveal.explanation} />
           </p>
         ) : null}
 
@@ -129,7 +132,7 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
         <div className="mt-auto space-y-2 pt-8">
           {!revealed ? (
             <LessonPrimaryButton
-              disabled={!selected || checkMutation.isPending}
+              disabled={!selected || !attemptId || checkMutation.isPending}
               onClick={() => {
                 if (!selected) return;
                 checkMutation.mutate({
@@ -138,7 +141,11 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
                 });
               }}
             >
-              {checkMutation.isPending ? "Checking…" : "Check"}
+              {!attemptId
+                ? "Starting…"
+                : checkMutation.isPending
+                  ? "Checking…"
+                  : "Check"}
             </LessonPrimaryButton>
           ) : isLast ? (
             <LessonPrimaryButton href={`/learn/${lesson.id}/reward`}>

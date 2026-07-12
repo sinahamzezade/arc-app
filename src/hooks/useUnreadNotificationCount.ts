@@ -15,6 +15,6 @@ export function useUnreadNotificationCount() {
       const res = await notificationsApi.unreadCount(accessToken);
       return res.unreadCount;
     },
-    refetchInterval: 60_000,
+    refetchInterval: 20_000,
   });
 }

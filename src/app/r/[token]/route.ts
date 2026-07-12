@@ -9,7 +9,7 @@ const BACKEND = (
 
 type Ctx = { params: Promise<{ token: string }> };
 
-/** First-party referral landing: record click, set arc_ref cookie, go signup. */
+/** First-party referral landing: record click, set arc_ref cookie, go register. */
 export async function GET(_req: NextRequest, ctx: Ctx) {
   const { token } = await ctx.params;
   let cookieToken: string | null = null;
@@ -29,10 +29,10 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       if (body.cookieMaxAgeSec) maxAge = body.cookieMaxAgeSec;
     }
   } catch {
-    /* still send user to signup */
+    /* still send user to register */
   }
 
-  const res = NextResponse.redirect(new URL("/signup", _req.url), 302);
+  const res = NextResponse.redirect(new URL("/register", _req.url), 302);
   if (cookieToken) {
     res.cookies.set("arc_ref", cookieToken, {
       httpOnly: true,

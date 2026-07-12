@@ -41,7 +41,14 @@ function mapWeekToPulse(week: WeekCurrentResponse): WeekPulseMockData {
     days: week.days.map((d) => ({
       label: d.label,
       full: d.full,
-      status: d.status === "current" || d.status === "today" ? "today" : d.status === "completed" ? "done" : d.status,
+      status:
+        d.status === "inactive"
+          ? "inactive"
+          : d.status === "current" || d.status === "today"
+            ? "today"
+            : d.status === "completed"
+              ? "done"
+              : d.status,
       minutesPlanned: d.minutesPlanned,
       minutesDone: d.minutesDone,
     })),
@@ -423,17 +430,24 @@ function DayRail({ days }: { days: WeekPulseMockData["days"] }) {
       {days.map((day, i) => {
         const isToday = day.status === "today";
         const isDone = day.status === "done";
+        const isInactive = day.status === "inactive";
 
         return (
           <div
             key={day.label}
+            title={
+              isInactive
+                ? "Before you joined — not counted"
+                : day.full
+            }
             className={cn(
               "flex min-w-0 flex-1 flex-col items-center rounded-xl px-0.5 py-2",
               isToday &&
                 "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]",
               isDone && "bg-[#eef9f3]",
-              !isToday && !isDone && "bg-[#faf8ff]",
-              i === 5 && !isToday && "ring-1 ring-arc-purple-200",
+              isInactive && "bg-transparent opacity-40",
+              !isToday && !isDone && !isInactive && "bg-[#faf8ff]",
+              i === 5 && !isToday && !isInactive && "ring-1 ring-arc-purple-200",
             )}
           >
             <span
@@ -443,7 +457,9 @@ function DayRail({ days }: { days: WeekPulseMockData["days"] }) {
                   ? "text-white/75"
                   : isDone
                     ? "text-[#16a56b]"
-                    : "text-[#8a7cb8]",
+                    : isInactive
+                      ? "text-[#c6bce0]"
+                      : "text-[#8a7cb8]",
               )}
             >
               {day.label}
@@ -455,11 +471,15 @@ function DayRail({ days }: { days: WeekPulseMockData["days"] }) {
                   ? "text-white"
                   : isDone
                     ? "text-[#16a56b]"
-                    : "text-[#b3a8d6]",
+                    : isInactive
+                      ? "text-[#d8ccff]"
+                      : "text-[#b3a8d6]",
               )}
             >
               {isDone ? (
                 <Check className="h-3.5 w-3.5" strokeWidth={3} />
+              ) : isInactive ? (
+                "—"
               ) : (
                 day.minutesPlanned
               )}

@@ -41,7 +41,15 @@ const prizeIcon: Record<WheelPrizeKind, typeof Coins> = {
 
 const RIM = "#6B4EFF";
 const RIM_DEEP = "#4B2FD6";
-const GOLD = "#FFD233";
+const GOLD = "#FFC928";
+
+const KIND_COLORS: Record<WheelPrizeKind, string> = {
+  coins: "#FFC928",
+  gems: "#B35CFF",
+  xp: "#2D8CFF",
+  badge: "#FF8A3D",
+  try_again: "#3A415C",
+};
 
 function toKind(raw: string): WheelPrizeKind {
   if (raw === "lifetime_xp" || raw === "xp") return "xp";
@@ -52,13 +60,51 @@ function toKind(raw: string): WheelPrizeKind {
 }
 
 function mapSegments(rows: WheelSegmentDto[]): UiSegment[] {
-  return rows.map((s) => ({
-    id: s.id,
-    label: s.label,
-    kind: toKind(s.kind),
-    amount: s.amount,
-    color: s.color || RIM,
-  }));
+  return rows.map((s) => {
+    const kind = toKind(s.kind);
+    return {
+      id: s.id,
+      label: s.label,
+      kind,
+      amount: s.amount,
+      color: KIND_COLORS[kind],
+    };
+  });
+}
+
+function shortPrizeLabel(s: UiSegment): string {
+  if (s.kind === "try_again") return "AGAIN";
+  if (s.kind === "badge") return "BADGE";
+  if (s.kind === "xp") return `${s.amount} XP`;
+  if (s.kind === "gems") return `${s.amount}`;
+  if (s.kind === "coins") return `${s.amount}`;
+  return s.label.slice(0, 8);
+}
+
+function labelInk(kind: WheelPrizeKind): string {
+  return kind === "coins" || kind === "badge" ? "#0f1220" : "#ffffff";
+}
+
+/** Degrees CW from top → SVG point (y-down). */
+function polar(cx: number, cy: number, degFromTopCw: number, radius: number) {
+  const rad = (degFromTopCw * Math.PI) / 180;
+  return {
+    x: cx + radius * Math.sin(rad),
+    y: cy - radius * Math.cos(rad),
+  };
+}
+
+function wedgePath(
+  cx: number,
+  cy: number,
+  r: number,
+  startDeg: number,
+  endDeg: number,
+) {
+  const a = polar(cx, cy, startDeg, r);
+  const b = polar(cx, cy, endDeg, r);
+  const large = endDeg - startDeg > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${a.x} ${a.y} A ${r} ${r} 0 ${large} 1 ${b.x} ${b.y} Z`;
 }
 
 function newIdemKey() {
@@ -82,6 +128,7 @@ export default function LuckyWheelScreen() {
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const spinningRef = useRef(false);
+  const bootedRef = useRef(false);
 
   const segments = useMemo(
     () => (wheel ? mapSegments(wheel.segments) : []),
@@ -93,7 +140,15 @@ export default function LuckyWheelScreen() {
     wheel?.nextSpinAt ?? wheel?.resetsAt,
     wheel?.serverNow,
   );
-  const canSpin = spinsLeft > 0 && phase !== "spinning" && !busy && segments.length > 0;
+  const canSpin =
+    spinsLeft > 0 && phase !== "spinning" && !busy && segments.length > 0;
+
+  // Idle: sit on center of slice 0 — not on the seam
+  useEffect(() => {
+    if (bootedRef.current || segments.length === 0) return;
+    bootedRef.current = true;
+    setRotation(-(360 / segments.length) / 2);
+  }, [segments.length]);
 
   useEffect(() => {
     if (!toast) return;
@@ -126,23 +181,28 @@ export default function LuckyWheelScreen() {
       });
 
       const n = segments.length || 6;
-      const winnerIndex = Math.max(0, Math.min(n - 1, res.landingIndex));
+      const byId = segments.findIndex((s) => s.id === res.winningSegmentId);
+      const winnerIndex =
+        byId >= 0
+          ? byId
+          : Math.max(0, Math.min(n - 1, res.landingIndex));
       const slice = 360 / n;
-      const targetCenter = winnerIndex * slice + slice / 2;
-      const extraTurns = 5 + Math.floor(Math.random() * 3);
-      const nextRotation =
-        rotation + extraTurns * 360 + (360 - targetCenter) - (rotation % 360);
-      setRotation(nextRotation);
+      const centerFromTop = winnerIndex * slice + slice / 2;
+      const finalMod = (360 - centerFromTop) % 360;
+      const currentMod = ((rotation % 360) + 360) % 360;
+      const delta = (finalMod - currentMod + 360) % 360;
+      const turns = 5 + Math.floor(Math.random() * 3);
+      setRotation(rotation + turns * 360 + delta);
 
       const winnerSeg =
-        segments.find((s) => s.id === res.winningSegmentId) ??
         segments[winnerIndex] ??
+        segments.find((s) => s.id === res.winningSegmentId) ??
         {
           id: res.winningSegmentId,
           label: res.reward.label,
           kind: toKind(res.reward.type),
           amount: res.reward.amount,
-          color: GOLD,
+          color: KIND_COLORS[toKind(res.reward.type)],
         };
 
       window.setTimeout(() => {
@@ -151,6 +211,7 @@ export default function LuckyWheelScreen() {
           label: res.reward.label || winnerSeg.label,
           kind: toKind(res.reward.type),
           amount: res.reward.amount,
+          color: KIND_COLORS[toKind(res.reward.type)],
         });
         setPhase("result");
         spinningRef.current = false;
@@ -227,8 +288,8 @@ export default function LuckyWheelScreen() {
   }
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-md flex flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-28 text-white">
+    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#0f1220] font-rounded">
+      <section className="relative flex flex-1 flex-col overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+24px)] text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
@@ -302,27 +363,46 @@ export default function LuckyWheelScreen() {
           </p>
         ) : null}
 
-        <div className="relative z-[1] mx-auto mt-7 flex w-full max-w-[300px] flex-col items-center">
-          <div className="relative z-20 mb-[-6px]">
+        <div className="relative z-[1] mx-auto mt-auto flex w-full max-w-[320px] flex-col items-center pt-8 pb-2">
+          {/* Pointer */}
+          <div className="relative z-20 mb-[-10px] flex flex-col items-center">
             <div
-              className="h-0 w-0 border-x-[14px] border-t-[26px] border-x-transparent"
+              className="h-0 w-0 border-x-[12px] border-t-[22px] border-x-transparent"
               style={{
                 borderTopColor: GOLD,
                 filter: "drop-shadow(0 3px 0 #c79a2e)",
               }}
             />
+            <div className="mt-[-2px] h-2.5 w-2.5 rounded-full bg-[#0f1220] ring-2 ring-[#ffc928]" />
           </div>
 
           <div className="relative">
+            {/* Clay rim */}
             <div
-              className="relative rounded-full p-[16px]"
+              className="relative rounded-full p-[14px]"
               style={{
-                background: `linear-gradient(145deg, #8b6fff 0%, ${RIM} 42%, ${RIM_DEEP} 100%)`,
-                boxShadow: `0 18px 36px rgba(15,18,32,0.55), inset 0 3px 6px rgba(255,255,255,0.35)`,
+                background: `linear-gradient(160deg, #9b7bff 0%, ${RIM} 45%, ${RIM_DEEP} 100%)`,
+                boxShadow:
+                  "0 16px 36px rgba(15,18,32,0.55), inset 0 2px 0 rgba(255,255,255,0.35), inset 0 -4px 0 rgba(0,0,0,0.2)",
               }}
             >
+              {/* Rim studs */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-[6px] rounded-full"
+                style={{
+                  backgroundImage:
+                    "repeating-conic-gradient(from 0deg, #ffc928 0deg 6deg, transparent 6deg 30deg)",
+                  opacity: 0.55,
+                  maskImage:
+                    "radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 7px))",
+                  WebkitMaskImage:
+                    "radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 7px))",
+                }}
+              />
+
               <motion.div
-                className="relative h-[248px] w-[248px] overflow-hidden rounded-full"
+                className="relative h-[260px] w-[260px] overflow-hidden rounded-full bg-[#0f1220] shadow-[inset_0_0_0_3px_rgba(255,255,255,0.12)]"
                 animate={{ rotate: rotation }}
                 transition={
                   phase === "spinning"
@@ -338,10 +418,14 @@ export default function LuckyWheelScreen() {
                   </div>
                 )}
               </motion.div>
+
+              {/* Hub */}
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div
-                  className="flex h-[58px] w-[58px] items-center justify-center rounded-full bg-white"
-                  style={{ boxShadow: `0 6px 0 #d4c8ef, 0 0 0 4px ${GOLD}` }}
+                  className="flex h-[64px] w-[64px] items-center justify-center rounded-full bg-white"
+                  style={{
+                    boxShadow: `0 6px 0 #d4c8ef, 0 0 0 5px ${GOLD}, 0 0 0 8px ${RIM_DEEP}`,
+                  }}
                 >
                   <Star
                     className="h-7 w-7"
@@ -387,10 +471,6 @@ export default function LuckyWheelScreen() {
         </div>
       </section>
 
-      <div className="relative z-10 -mt-12 flex-1 rounded-t-[28px] bg-[#f3effc] px-4 pt-6 pb-[calc(env(safe-area-inset-bottom)+24px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
-        <PrizeBoard segments={segments} />
-      </div>
-
       <AnimatePresence>
         {phase === "result" && result ? (
           <ResultOverlay
@@ -406,93 +486,80 @@ export default function LuckyWheelScreen() {
   );
 }
 
-function PrizeBoard({ segments }: { segments: UiSegment[] }) {
-  return (
-    <section>
-      <div className="relative overflow-hidden rounded-[22px] bg-[#0f1220] p-4 text-white shadow-[0_14px_32px_rgba(15,18,32,0.28)]">
-        <p className="text-[10px] font-extrabold tracking-[0.12em] text-[#ffc928] uppercase">
-          Today&apos;s loot
-        </p>
-        <h2 className="mt-1 font-display text-[22px] leading-none font-bold">
-          Prize vault
-        </h2>
-        <p className="mt-2 text-[12px] font-bold text-white/55">
-          {segments.length} slices · odds server-side
-        </p>
-      </div>
-      <ul className="mt-3.5 grid grid-cols-2 gap-2.5">
-        {segments.map((segment, i) => {
-          const Icon = prizeIcon[segment.kind];
-          return (
-            <li
-              key={segment.id}
-              className={cn(
-                "relative overflow-hidden rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]",
-                i === 0 && "col-span-2",
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white"
-                  style={{ backgroundColor: segment.color }}
-                >
-                  <Icon className="h-5 w-5" strokeWidth={2.5} />
-                </span>
-                <p className="font-display text-[16px] font-bold text-[#0f1220]">
-                  {segment.label}
-                </p>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
 function ClayWheelDisc({ segments }: { segments: UiSegment[] }) {
   const n = segments.length;
   const slice = 360 / n;
-  const gradient = segments
-    .map((s, i) => {
-      const start = i * slice;
-      const end = (i + 1) * slice;
-      return `${s.color} ${start}deg ${end}deg`;
-    })
-    .join(", ");
+  const size = 260;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2;
 
   return (
-    <div
-      className="relative h-full w-full overflow-hidden rounded-full"
-      style={{ background: `conic-gradient(from -90deg, ${gradient})` }}
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      className="h-full w-full"
+      aria-hidden
     >
       {segments.map((segment, i) => {
-        const angle = -90 + i * slice + slice / 2;
+        const start = i * slice;
+        const end = (i + 1) * slice;
+        const mid = start + slice / 2;
         const Icon = prizeIcon[segment.kind];
-        const darkLabel = segment.color === GOLD || segment.color === "#FFD233";
+        const ink = labelInk(segment.kind);
+        const labelPos = polar(cx, cy, mid, r * 0.62);
+        const tickOuter = polar(cx, cy, start, r - 1);
+        const tickInner = polar(cx, cy, start, r * 0.38);
+
         return (
-          <div
-            key={segment.id}
-            className="absolute top-1/2 left-1/2"
-            style={{
-              transform: `rotate(${angle}deg) translateY(-78px) rotate(${-angle}deg)`,
-            }}
-          >
-            <span
-              className={cn(
-                "flex w-[72px] -translate-x-1/2 flex-col items-center gap-0.5 text-center",
-                darkLabel ? "text-[#5c3d00]" : "text-white",
-              )}
+          <g key={segment.id}>
+            <path
+              d={wedgePath(cx, cy, r, start, end)}
+              fill={segment.color}
+            />
+            {/* Seam tick */}
+            <line
+              x1={tickInner.x}
+              y1={tickInner.y}
+              x2={tickOuter.x}
+              y2={tickOuter.y}
+              stroke="rgba(15,18,32,0.35)"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+            />
+            {/* Prize stamp — upright at slice center */}
+            <foreignObject
+              x={labelPos.x - 36}
+              y={labelPos.y - 28}
+              width={72}
+              height={56}
             >
-              <Icon className="h-3.5 w-3.5" strokeWidth={2.75} />
-              <span className="text-[8px] leading-tight font-black tracking-wide uppercase">
-                {segment.label}
-              </span>
-            </span>
-          </div>
+              <div
+                className="flex h-full w-full flex-col items-center justify-center gap-0.5"
+                style={{ color: ink }}
+              >
+                <span
+                  className="flex h-7 w-7 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: "rgba(15,18,32,0.18)" }}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={2.75} />
+                </span>
+                <span className="max-w-[68px] truncate text-center font-display text-[10px] leading-none font-bold tracking-wide uppercase">
+                  {shortPrizeLabel(segment)}
+                </span>
+              </div>
+            </foreignObject>
+          </g>
         );
       })}
-    </div>
+      {/* Inner ring so hub area stays clean */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r * 0.28}
+        fill="#0f1220"
+        opacity={0.12}
+      />
+    </svg>
   );
 }
 

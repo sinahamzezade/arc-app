@@ -37,10 +37,14 @@ Never trust the client for:
 
 | Currency | Purpose | Spendable | Reset |
 |---|---|---:|---:|
-| Lifetime XP | Permanent progress and rank evaluation | no | never |
+| Lifetime XP | Permanent progress and rank evaluation | yes — currency packs only | never |
 | Qualified League XP | Weekly competitive score | no | each league season |
 | Gems | Utility: streak, hints, recovery, optional convenience | yes | never |
 | Coins | Cosmetics and Battle stakes | yes | never |
+
+Lifetime XP may be spent **only** on gem/coin currency packs (`POST /wallet/currency-packs/purchase` with `paymentMethod: xp`). Spending lowers `lifetime_xp` and therefore rank-gate progress; already unlocked ranks stay. League XP is never spendable.
+
+Same pack SKUs reserve `iapProductId` for future real-money IAP (`paymentMethod: iap` not enabled yet).
 
 Referral, Lucky Wheel, and cosmetic purchases never create League XP.
 
@@ -58,6 +62,8 @@ gamification/
   gamification.service.ts
   reward-calculator.service.ts
   reward-ledger.service.ts
+  currency-packs.constants.ts
+  currency-exchange.service.ts
   store.service.ts
   inventory.service.ts
   streak.service.ts
@@ -516,6 +522,8 @@ Unique `(user_id, local_date)`:
 |---|---|
 | `GET` | `/wallet` |
 | `GET` | `/wallet/ledger?cursor=` |
+| `GET` | `/wallet/currency-packs?target=` |
+| `POST` | `/wallet/currency-packs/purchase` |
 | `GET` | `/store?currency=&type=` |
 | `POST` | `/store/purchases` |
 | `GET` | `/inventory` |
@@ -523,6 +531,8 @@ Unique `(user_id, local_date)`:
 | `GET` | `/streaks` |
 | `POST` | `/streaks/restore` |
 | `GET` | `/rewards/:transactionGroupId` |
+
+Currency pack purchase body: `{ sku, paymentMethod: "xp" }` + `Idempotency-Key`. Debits lifetime XP and credits gems or coins in one ledger group. Error `INSUFFICIENT_XP` when balance too low.
 
 Internal:
 

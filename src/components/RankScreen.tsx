@@ -67,8 +67,21 @@ export default function RankScreen({
       <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-20 text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_70%_0%,rgba(255,201,40,0.18),transparent_55%)]"
+          className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-[#ffc928]/20 blur-3xl"
         />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-[-30px] h-40 w-40 rounded-full bg-arc-purple-500/35 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-30"
+          style={{
+            backgroundImage:
+              "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1.5px at 55% 60%, #fff, transparent)",
+          }}
+        />
+
         <div className="relative flex items-center justify-between">
           <BackButton className="border-white/15 bg-white/10 text-white hover:bg-white/15" />
           <p className="text-[11px] font-black tracking-[0.14em] text-white/45 uppercase">
@@ -136,10 +149,11 @@ export default function RankScreen({
         </div>
       </section>
 
-      <div className="relative z-[1] -mt-8 px-4">
-        <div className="relative h-[88px]">
+      {/* LIGHT SHEET — currency stamps on seam */}
+      <div className="relative z-10 -mt-8 rounded-t-[28px] bg-[#f3effc] px-4 pt-[52px] pb-[calc(env(safe-area-inset-bottom)+100px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
+        <div className="absolute top-0 right-4 left-4 z-20 flex -translate-y-1/2 gap-2">
           <CurrencyChip
-            className="absolute top-0 left-0 z-[3] w-[38%] -rotate-2"
+            className="min-w-0 flex-1"
             label="XP"
             value={me?.current.lifetimeXp ?? xp}
             tip={data.walletTips[0].tip}
@@ -147,7 +161,7 @@ export default function RankScreen({
             icon={<Star className="h-4 w-4 fill-white text-white" />}
           />
           <CurrencyChip
-            className="absolute top-3 left-[31%] z-[2] w-[38%]"
+            className="min-w-0 flex-1"
             label="Gems"
             value={gems}
             tip={data.walletTips[1].tip}
@@ -155,7 +169,7 @@ export default function RankScreen({
             icon={<Gem className="h-4 w-4 text-white" strokeWidth={2.5} />}
           />
           <CurrencyChip
-            className="absolute top-1 right-0 z-[1] w-[36%]"
+            className="min-w-0 flex-1"
             label="Coins"
             value={coins}
             tip={data.walletTips[2].tip}
@@ -165,130 +179,132 @@ export default function RankScreen({
             }
           />
         </div>
-      </div>
 
-      <div className="relative space-y-5 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+100px)]">
-        {requirements.length > 0 && (
+        <div className="relative space-y-5 pt-2">
+          {requirements.length > 0 && (
+            <section>
+              <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
+                <h3 className="font-display text-[18px] font-bold text-[#1b1730]">
+                  To unlock {nextTitle}
+                </h3>
+                <span className="text-[11px] font-extrabold text-[#8a7cb8]">
+                  {requirements.filter((r) => r.complete).length}/
+                  {requirements.length}
+                </span>
+              </div>
+              <ul className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white shadow-[0_10px_24px_rgba(70,40,150,0.06)]">
+                {requirements.map((req, i) => (
+                  <li
+                    key={req.key}
+                    className={cn(
+                      "flex items-center justify-between gap-3 px-4 py-3.5",
+                      i < requirements.length - 1 &&
+                        "border-b border-[#f0ecf7]",
+                    )}
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className={cn(
+                          "flex h-7 w-7 shrink-0 items-center justify-center rounded-xl",
+                          req.complete
+                            ? "bg-[#eef9f3] text-[#16a56b]"
+                            : "bg-[#efe9f8] text-[#8a7cb8]",
+                        )}
+                      >
+                        {req.complete ? (
+                          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                        ) : (
+                          <Lock className="h-3 w-3" strokeWidth={2.5} />
+                        )}
+                      </span>
+                      <span className="truncate text-[14px] font-semibold text-[#1b1730]">
+                        {formatRequirementLabel(req.key)}
+                      </span>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 font-display text-[12px] font-bold tabular-nums",
+                        req.complete ? "text-[#16a56b]" : "text-arc-purple-500",
+                      )}
+                    >
+                      {req.current}/{req.required}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <section>
             <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
               <h3 className="font-display text-[18px] font-bold text-[#1b1730]">
-                To unlock {nextTitle}
+                How XP drops
               </h3>
-              <span className="text-[11px] font-extrabold text-[#8a7cb8]">
-                {requirements.filter((r) => r.complete).length}/
-                {requirements.length}
-              </span>
+              <Zap className="h-4 w-4 text-arc-purple-500" strokeWidth={2.5} />
             </div>
             <ul className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white shadow-[0_10px_24px_rgba(70,40,150,0.06)]">
-              {requirements.map((req, i) => (
+              {data.howToEarn.map((row, i) => (
                 <li
-                  key={req.key}
+                  key={row.label}
                   className={cn(
-                    "flex items-center justify-between gap-3 px-4 py-3.5",
-                    i < requirements.length - 1 && "border-b border-[#f0ecf7]",
+                    "relative flex items-center justify-between gap-3 px-4 py-3.5",
+                    i < data.howToEarn.length - 1 &&
+                      "border-b border-[#f0ecf7]",
+                    i === 1 && "bg-[#faf8ff]",
                   )}
                 >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <span
-                      className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-xl",
-                        req.complete
-                          ? "bg-[#eef9f3] text-[#16a56b]"
-                          : "bg-[#efe9f8] text-[#8a7cb8]",
-                      )}
-                    >
-                      {req.complete ? (
-                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                      ) : (
-                        <Lock className="h-3 w-3" strokeWidth={2.5} />
-                      )}
-                    </span>
-                    <span className="truncate text-[14px] font-semibold text-[#1b1730]">
-                      {formatRequirementLabel(req.key)}
-                    </span>
-                  </div>
                   <span
-                    className={cn(
-                      "shrink-0 font-display text-[12px] font-bold tabular-nums",
-                      req.complete ? "text-[#16a56b]" : "text-arc-purple-500",
-                    )}
-                  >
-                    {req.current}/{req.required}
+                    aria-hidden
+                    className="absolute top-3 bottom-3 left-0 w-1 rounded-r-full bg-arc-purple-500"
+                    style={{ opacity: 0.35 + i * 0.15 }}
+                  />
+                  <span className="pl-2 text-[14px] font-semibold text-[#1b1730]">
+                    {row.label}
+                  </span>
+                  <span className="shrink-0 font-display text-[12px] font-bold text-arc-purple-500">
+                    {row.xp}
                   </span>
                 </li>
               ))}
             </ul>
           </section>
-        )}
 
-        <section>
-          <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
-            <h3 className="font-display text-[18px] font-bold text-[#1b1730]">
-              How XP drops
-            </h3>
-            <Zap className="h-4 w-4 text-arc-purple-500" strokeWidth={2.5} />
-          </div>
-          <ul className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white shadow-[0_10px_24px_rgba(70,40,150,0.06)]">
-            {data.howToEarn.map((row, i) => (
-              <li
-                key={row.label}
-                className={cn(
-                  "relative flex items-center justify-between gap-3 px-4 py-3.5",
-                  i < data.howToEarn.length - 1 && "border-b border-[#f0ecf7]",
-                  i === 1 && "bg-[#faf8ff]",
-                )}
-              >
-                <span
-                  aria-hidden
-                  className="absolute top-3 bottom-3 left-0 w-1 rounded-r-full bg-arc-purple-500"
-                  style={{ opacity: 0.35 + i * 0.15 }}
-                />
-                <span className="pl-2 text-[14px] font-semibold text-[#1b1730]">
-                  {row.label}
-                </span>
-                <span className="shrink-0 font-display text-[12px] font-bold text-arc-purple-500">
-                  {row.xp}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+          <section>
+            <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
+              <h3 className="font-display text-[18px] font-bold text-[#1b1730]">
+                Rank ladder
+              </h3>
+              <span className="text-[11px] font-extrabold text-[#8a7cb8]">
+                XP + milestones
+              </span>
+            </div>
 
-        <section>
-          <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
-            <h3 className="font-display text-[18px] font-bold text-[#1b1730]">
-              Rank ladder
-            </h3>
-            <span className="text-[11px] font-extrabold text-[#8a7cb8]">
-              XP + milestones
-            </span>
-          </div>
-
-          <ol className="relative space-y-0 pl-1">
-            <div
-              aria-hidden
-              className="absolute top-5 bottom-5 left-[21px] w-0.5 bg-[#ebe4f6]"
-            />
-            {tiers.map((tier, i) => (
-              <RankLadderRow
-                key={tier.id}
-                tier={tier}
-                offset={i % 3 === 1 ? "ml-3" : i % 3 === 2 ? "ml-1" : ""}
+            <ol className="relative space-y-0 pl-1">
+              <div
+                aria-hidden
+                className="absolute top-5 bottom-5 left-[21px] w-0.5 bg-[#ebe4f6]"
               />
-            ))}
-          </ol>
-        </section>
+              {tiers.map((tier, i) => (
+                <RankLadderRow
+                  key={tier.id}
+                  tier={tier}
+                  offset={i % 3 === 1 ? "ml-3" : i % 3 === 2 ? "ml-1" : ""}
+                />
+              ))}
+            </ol>
+          </section>
 
-        <div className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-3.5">
-          <div className="flex items-start gap-2.5">
-            <Sparkles
-              className="mt-0.5 h-4 w-4 shrink-0 text-arc-purple-500"
-              strokeWidth={2.5}
-            />
-            <p className="text-[13px] leading-snug font-semibold text-[#4a3d78]">
-              Ranks unlock from XP plus milestone clears — grinding XP alone
-              won&apos;t fake Job-Ready Eagle.
-            </p>
+          <div className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-3.5">
+            <div className="flex items-start gap-2.5">
+              <Sparkles
+                className="mt-0.5 h-4 w-4 shrink-0 text-arc-purple-500"
+                strokeWidth={2.5}
+              />
+              <p className="text-[13px] leading-snug font-semibold text-[#4a3d78]">
+                Ranks unlock from XP plus milestone clears — grinding XP alone
+                won&apos;t fake Job-Ready Eagle.
+              </p>
+            </div>
           </div>
         </div>
       </div>

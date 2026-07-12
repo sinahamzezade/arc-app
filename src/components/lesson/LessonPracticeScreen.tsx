@@ -7,6 +7,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { lessonsApi } from "@/lib/api/lessons";
+import { InlineMarkdown } from "@/lib/lesson/inline-markdown";
+import { useEnsureLessonAttempt } from "@/hooks/useEnsureLessonAttempt";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import {
@@ -29,7 +31,7 @@ export default function LessonPracticeScreen({
   const setPracticeOption = useLessonStore((s) => s.setPracticeOption);
   const practiceReveal = useLessonStore((s) => s.practiceReveal);
   const setPracticeReveal = useLessonStore((s) => s.setPracticeReveal);
-  const attemptId = useLessonStore((s) => s.attemptId);
+  const attemptId = useEnsureLessonAttempt(lessonId);
   const practiceHintUsed = useLessonStore((s) => s.practiceHintUsed);
   const setPracticeHintUsed = useLessonStore((s) => s.setPracticeHintUsed);
   const [checking, setChecking] = useState(false);
@@ -38,13 +40,14 @@ export default function LessonPracticeScreen({
 
   const checkMutation = useMutation({
     mutationFn: (optionId: string) => {
-      if (!attemptId) throw new Error("Start the lesson first");
+      const id = useLessonStore.getState().attemptId;
+      if (!id) throw new Error("Start the lesson first");
       return lessonsApi.checkPractice(
         lessonId,
         {
           optionId,
-          attemptId,
-                hintUsed: practiceHintUsed,
+          attemptId: id,
+          hintUsed: practiceHintUsed,
         },
         session?.accessToken,
       );
@@ -95,7 +98,7 @@ export default function LessonPracticeScreen({
           Hands-on
         </p>
         <h1 className="mt-1 font-display text-[24px] leading-tight font-bold tracking-[-0.03em] text-[#2b1b57]">
-          {practice.prompt}
+          <InlineMarkdown text={practice.prompt} />
         </h1>
 
         <div className="mt-5 space-y-2.5">
@@ -120,14 +123,14 @@ export default function LessonPracticeScreen({
           onClick={() => setPracticeHintUsed(true)}
         >
           <Lightbulb className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.25} />
-          {practice.hint}
+          <InlineMarkdown text={practice.hint} />
         </button>
 
         {revealed && practiceReveal.feedback ? (
           <p
             className={`mt-4 text-[14px] font-bold ${isCorrect ? "text-[#1f6b2e]" : "text-[#9a4a12]"}`}
           >
-            {practiceReveal.feedback}
+            <InlineMarkdown text={practiceReveal.feedback} />
           </p>
         ) : null}
 
@@ -140,14 +143,20 @@ export default function LessonPracticeScreen({
         <div className="mt-auto space-y-2 pt-8">
           {!revealed ? (
             <LessonPrimaryButton
-              disabled={!selected || checking || checkMutation.isPending}
+              disabled={
+                !selected || !attemptId || checking || checkMutation.isPending
+              }
               onClick={() => {
                 if (!selected) return;
                 setChecking(true);
                 checkMutation.mutate(selected);
               }}
             >
-              {checkMutation.isPending ? "Checking…" : "Check answer"}
+              {!attemptId
+                ? "Starting…"
+                : checkMutation.isPending
+                  ? "Checking…"
+                  : "Check answer"}
             </LessonPrimaryButton>
           ) : (
             <LessonPrimaryButton href={`/learn/${lesson.id}/quiz`}>

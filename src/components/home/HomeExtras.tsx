@@ -3,13 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import {
-  Award,
-  ChevronRight,
-  FerrisWheel,
-  Medal,
-  Trophy,
-} from "lucide-react";
+import { Award, ChevronRight, FerrisWheel, Medal, Trophy } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useHomeLeagueCard } from "@/hooks/useLeagueHistory";
 import { useLuckyWheel } from "@/hooks/useLuckyWheel";
@@ -57,7 +51,7 @@ export function HomeExtras({
     <>
       <motion.div
         variants={sectionVariants}
-        className="grid grid-cols-2 gap-2"
+        className="relative grid grid-cols-[1.2fr_0.95fr] items-end gap-2.5"
       >
         <RankInfo
           title={rankTitle}
@@ -128,32 +122,32 @@ function RankInfo({
   pct: number;
 }) {
   const reduceMotion = useReducedMotion();
-  const r = 14;
+  const r = 18;
   const c = 2 * Math.PI * r;
 
   return (
     <Link
       href="/rank"
       aria-label="Rank"
-      className="flex items-center gap-2.5 rounded-[16px] bg-white px-3 py-2.5 text-[#1b1730] shadow-[0_6px_16px_rgba(70,40,150,0.06)] ring-1 ring-[#ebe4f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+      className="flex items-center gap-3 rounded-[20px] bg-white px-3 py-3 text-[#1b1730] shadow-[0_5px_0_#d9d0ef,0_12px_24px_rgba(70,40,150,0.08)] ring-1 ring-[#ebe4f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
     >
-      <div className="relative h-9 w-9 shrink-0">
-        <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90" aria-hidden>
+      <div className="relative h-12 w-12 shrink-0">
+        <svg viewBox="0 0 44 44" className="h-12 w-12 -rotate-90" aria-hidden>
           <circle
-            cx="18"
-            cy="18"
+            cx="22"
+            cy="22"
             r={r}
             fill="none"
             stroke="#ebe4f6"
-            strokeWidth="4"
+            strokeWidth="5"
           />
           <motion.circle
-            cx="18"
-            cy="18"
+            cx="22"
+            cy="22"
             r={r}
             fill="none"
             stroke="#ffc928"
-            strokeWidth="4"
+            strokeWidth="5"
             strokeLinecap="round"
             strokeDasharray={c}
             initial={
@@ -165,15 +159,15 @@ function RankInfo({
             transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-[#1b1730]">
+        <span className="absolute inset-0 flex items-center justify-center font-display text-[11px] font-bold text-[#1b1730]">
           {pct}%
         </span>
       </div>
       <span className="min-w-0">
-        <span className="block text-[9px] font-black tracking-[0.1em] text-[#8a7cb8] uppercase">
+        <span className="block text-[9px] font-black tracking-[0.12em] text-arc-purple-500 uppercase">
           Rank
         </span>
-        <span className="block truncate font-display text-[13px] leading-tight font-bold">
+        <span className="mt-0.5 block truncate font-display text-[15px] leading-tight font-bold tracking-[-0.02em]">
           {title}
         </span>
         <span className="mt-0.5 block truncate text-[10px] font-bold text-[#8a7cb8]">
@@ -197,19 +191,19 @@ function WheelInfo({
     <Link
       href="/lucky-wheel"
       aria-label="Lucky wheel"
-      className="flex items-center gap-2.5 rounded-[16px] bg-[#ffc928] px-3 py-2.5 text-[#0f1220] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c79a2e]"
+      className="relative flex items-center gap-2.5 rounded-[20px] bg-[#ffc928] px-3 py-3 text-[#0f1220] shadow-[0_5px_0_#c79a2e,0_12px_24px_rgba(199,154,46,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c79a2e]"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0f1220] text-[#ffc928]">
-        <FerrisWheel className="h-[18px] w-[18px]" strokeWidth={2.25} />
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0f1220] text-[#ffc928] shadow-[0_3px_0_#000]">
+        <FerrisWheel className="h-5 w-5" strokeWidth={2.25} />
       </span>
       <span className="min-w-0">
         <span className="block text-[9px] font-black tracking-[0.1em] text-[#0f1220]/55 uppercase">
           Bonus · {hoursLeft}
         </span>
-        <span className="block truncate font-display text-[13px] leading-tight font-bold">
+        <span className="mt-0.5 block truncate font-display text-[15px] leading-tight font-bold tracking-[-0.02em]">
           Lucky Wheel
         </span>
-        <span className="mt-0.5 block truncate text-[10px] font-bold text-[#0f1220]/50">
+        <span className="mt-0.5 block truncate text-[10px] font-bold text-[#0f1220]/55">
           {spins} spin · ≤{maxGems} gems
         </span>
       </span>

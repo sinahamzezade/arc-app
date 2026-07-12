@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import type { LessonContentBlock } from "@/lib/lesson/mock-data";
+import { InlineMarkdown } from "@/lib/lesson/inline-markdown";
 import { lessonsApi } from "@/lib/api/lessons";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
@@ -40,7 +41,12 @@ export default function LessonContentScreen({
 
   if (isLoading) {
     return (
-      <LessonShell lessonId={lessonId} stepLabel="Loading" progress={0} showArlo={false}>
+      <LessonShell
+        lessonId={lessonId}
+        stepLabel="Loading"
+        progress={0}
+        showArlo={false}
+      >
         <p className="text-arc-lavender-600">Loading content…</p>
       </LessonShell>
     );
@@ -131,9 +137,11 @@ export default function LessonContentScreen({
 function ContentBlock({ block }: { block: LessonContentBlock }) {
   if (block.type === "text") {
     return (
-      <p className="max-w-[22rem] text-[15px] leading-relaxed font-bold text-arc-lavender-700 text-pretty">
-        {block.body}
-      </p>
+      <InlineMarkdown
+        as="p"
+        text={block.body}
+        className="max-w-[28rem] text-[15px] leading-relaxed font-bold text-arc-lavender-700 text-pretty"
+      />
     );
   }
 
@@ -150,9 +158,11 @@ function ContentBlock({ block }: { block: LessonContentBlock }) {
             {block.title}
           </p>
         </div>
-        <p className="relative z-[1] mt-2 text-[14px] leading-snug font-bold text-white/85 text-pretty">
-          {block.body}
-        </p>
+        <InlineMarkdown
+          as="p"
+          text={block.body}
+          className="relative z-[1] mt-2 text-[14px] leading-snug font-bold text-white/85 text-pretty [&_code]:bg-white/15"
+        />
       </aside>
     );
   }

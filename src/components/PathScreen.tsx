@@ -236,7 +236,7 @@ export default function PathScreen({
 }: {
   data?: PathMockData;
 }) {
-  const { data, isLoading, isError, error, refetch } = useCurrentRoadmap();
+  const { data, isLoading, isError, error, retry } = useCurrentRoadmap();
 
   if (dataProp) {
     return <RoadMap data={dataProp} />;
@@ -250,9 +250,10 @@ export default function PathScreen({
   const roadmap = data?.roadmap;
 
   if (
-    job &&
-    (job.status === "queued" || job.status === "processing") &&
-    !roadmap
+    (retry.isPending ||
+      (job &&
+        (job.status === "queued" || job.status === "processing") &&
+        !roadmap))
   ) {
     return <PathGateScreen kind="building" />;
   }
@@ -261,11 +262,22 @@ export default function PathScreen({
     const codeMsg = job.errorCode
       ? messageForCode(job.errorCode, job.errorMessage || "")
       : "";
+    const recipeMissing =
+      job.errorCode === "ROLE_RECIPE_MISSING" ||
+      job.errorCode === "CONTENT_ROLE_RECIPE_MISSING";
     return (
       <PathGateScreen
         kind="failed"
         message={codeMsg || job.errorMessage || undefined}
-        onRetry={() => void refetch()}
+        recipeMissing={recipeMissing}
+        onRetry={() => retry.mutate()}
+        retryError={
+          retry.isError
+            ? retry.error instanceof Error
+              ? retry.error.message
+              : "Redraw failed"
+            : undefined
+        }
       />
     );
   }

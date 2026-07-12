@@ -108,7 +108,7 @@ export default function BattleCreateScreen() {
           name: "Rival",
           initial: "R",
         }
-      : friends[0] ?? fallbackOpponent);
+      : (friends[0] ?? fallbackOpponent));
   const topics = battleTopics[setup.subject] ?? [];
   const effectiveStake = Math.min(setup.stake, maxStake);
   const canStake = coins >= effectiveStake && effectiveStake > 0;

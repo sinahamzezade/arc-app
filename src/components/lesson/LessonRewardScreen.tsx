@@ -11,6 +11,7 @@ import { assets } from "@/lib/assets";
 import type { LessonCompleteResponse } from "@/lib/api/types";
 import { lessonsApi } from "@/lib/api/lessons";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
+import { useEnsureLessonAttempt } from "@/hooks/useEnsureLessonAttempt";
 import { useLessonStore } from "@/store/useLessonStore";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { fireLessonConfetti } from "@/components/ui/confetti";
@@ -25,8 +26,7 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
     usePlayableLesson(lessonId);
   const quizAnswers = useLessonStore((s) => s.quizAnswers);
   const practiceOptionId = useLessonStore((s) => s.practiceOptionId);
-  const attemptId = useLessonStore((s) => s.attemptId);
-  const setAttemptId = useLessonStore((s) => s.setAttemptId);
+  const attemptId = useEnsureLessonAttempt(lessonId);
   const setCompleted = useLessonStore((s) => s.setCompleted);
   const hydrateFromProfile = useEconomyStore((s) => s.hydrateFromProfile);
   const [result, setResult] = useState<LessonCompleteResponse | null>(null);
@@ -36,7 +36,8 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
 
   const completeMutation = useMutation({
     mutationFn: () => {
-      if (!attemptId) throw new Error("Start the lesson first");
+      const id = useLessonStore.getState().attemptId;
+      if (!id) throw new Error("Start the lesson first");
       if (!idempotencyKeyRef.current) {
         idempotencyKeyRef.current =
           typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -48,7 +49,7 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
         {
           quizAnswers,
           practiceOptionId: practiceOptionId ?? undefined,
-          attemptId,
+          attemptId: id,
         },
         session?.accessToken,
         idempotencyKeyRef.current,
@@ -80,14 +81,6 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
     completeMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson?.id, session?.accessToken, attemptId]);
-
-  // Deep-link to reward without overview — ensure attempt exists.
-  useEffect(() => {
-    if (!lesson || attemptId || !session?.accessToken) return;
-    void lessonsApi.start(lessonId, session.accessToken).then((res) => {
-      if (res.attemptId) setAttemptId(res.attemptId);
-    });
-  }, [lesson, attemptId, session?.accessToken, lessonId, setAttemptId]);
 
   // Confetti once after successful claim.
   useEffect(() => {
@@ -272,7 +265,6 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
           </LessonPrimaryButton>
           <button
             type="button"
-            onClick={() => router.push("/home")}
             className="w-full py-3 text-center font-display text-[14px] font-semibold text-white/50"
           >
             Go Home

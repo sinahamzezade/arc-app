@@ -152,7 +152,7 @@ GET /r/4Tx8kPzQ...
   → validate active link
   → record eligible click
   → set signed referral cookie
-  → 302 /signup
+  → 302 /register
 ```
 
 Recommended signed cookie:
@@ -611,7 +611,7 @@ Normal account inactivity or later account deletion does not automatically claw 
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/r/:publicToken` | Record click, set attribution cookie, redirect to signup |
+| `GET` | `/r/:publicToken` | Record click, set attribution cookie, redirect to register |
 
 Security:
 

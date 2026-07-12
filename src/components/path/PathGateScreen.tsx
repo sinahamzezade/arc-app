@@ -28,6 +28,9 @@ type PathGateScreenProps = {
   kind: PathGateKind;
   message?: string;
   onRetry?: () => void;
+  /** Goal role has no learning recipe — offer change-goal path. */
+  recipeMissing?: boolean;
+  retryError?: string;
 };
 
 const copy: Record<
@@ -123,6 +126,8 @@ export default function PathGateScreen({
   kind,
   message,
   onRetry,
+  recipeMissing = false,
+  retryError,
 }: PathGateScreenProps) {
   const c = copy[kind];
   const detail =
@@ -267,6 +272,17 @@ export default function PathGateScreen({
                   Redraw map
                 </Button>
               </motion.div>
+              {recipeMissing ? (
+                <motion.div whileTap={{ scale: 0.98 }}>
+                  <Link
+                    href="/questionnaire"
+                    className={`${authCtaClassName} inline-flex items-center justify-center gap-2 !bg-white !text-[#0f1220] border border-[#d9d0f0]`}
+                  >
+                    <ClipboardList className="size-5" aria-hidden />
+                    Change goal
+                  </Link>
+                </motion.div>
+              ) : null}
               <SecondaryLink href="/home" icon={Home} label="Back home" />
             </>
           ) : null}
@@ -290,7 +306,13 @@ export default function PathGateScreen({
         {kind === "failed" ? (
           <p className="mt-5 flex items-start gap-2 rounded-[16px] border border-[#f5d0c8] bg-[#fff5f2] px-3.5 py-3 text-[12px] font-bold text-[#a65a4a]">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>{message || "Try again from home."}</span>
+            <span>
+              {retryError ||
+                message ||
+                (recipeMissing
+                  ? "That goal isn’t in the learning catalog yet — pick Front End or Marketing."
+                  : "Try again from home.")}
+            </span>
           </p>
         ) : null}
 

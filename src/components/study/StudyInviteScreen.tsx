@@ -10,8 +10,9 @@ import {
   Clock,
   MessageSquare,
   Users,
+  X,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import { socialApi, type SocialFriendDto } from "@/lib/api/social";
 import {
@@ -20,6 +21,8 @@ import {
   type StudyStartModeDto,
 } from "@/lib/api/study";
 import { cn } from "@/lib/utils";
+
+const softSpring = { type: "spring" as const, stiffness: 420, damping: 32 };
 
 /** Matches backend StudySubject enum values. */
 const SUBJECTS: { value: string; label: string }[] = [
@@ -121,11 +124,13 @@ export default function StudyInviteScreen() {
       });
       router.push(`/study/room?id=${session.id}`);
     } catch (err) {
-      setError(
+      const msg =
         err instanceof ApiError
           ? messageForCode(err.code, err.message)
-          : "Could not send study invite",
-      );
+          : err instanceof Error
+            ? err.message
+            : "Could not send study invite";
+      setError(msg);
     } finally {
       setBusy(false);
     }
@@ -134,7 +139,7 @@ export default function StudyInviteScreen() {
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
       {/* HERO — shared desk face-off */}
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-14 text-white">
+      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-10 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-arc-purple-500/35 blur-3xl"
@@ -192,27 +197,32 @@ export default function StudyInviteScreen() {
           />
         </div>
 
-        {/* Partner picker */}
-        <div className="relative mt-6">
-          <p className="mb-2 text-[10px] font-black tracking-[0.1em] text-white/45 uppercase">
-            Study with
-          </p>
+        <p className="relative mt-6 text-[10px] font-black tracking-[0.1em] text-white/45 uppercase">
+          Study with
+        </p>
+      </section>
+
+      {/* LIGHT SHEET — crew rail half-over night */}
+      <div className="relative z-10 -mt-8 rounded-t-[28px] bg-[#f3effc] px-4 pt-[48px] pb-[calc(env(safe-area-inset-bottom)+110px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
+        <div className="absolute top-0 right-4 left-4 z-20 -translate-y-1/2">
           {loading ? (
-            <p className="text-[12px] font-bold text-white/50">Loading crew…</p>
+            <p className="rounded-[20px] border border-[#ebe4f6] bg-white px-3 py-3 text-[12px] font-bold text-[#8a7cb8] shadow-[0_10px_24px_rgba(70,40,150,0.1)]">
+              Loading crew…
+            </p>
           ) : friends.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 px-3 py-3">
-              <p className="text-[12px] font-bold text-white/60">
+            <div className="rounded-[20px] border border-dashed border-[#d5ccec] bg-white px-3 py-3 shadow-[0_10px_24px_rgba(70,40,150,0.1)]">
+              <p className="text-[12px] font-bold text-[#8a7cb8]">
                 No friends yet — add crew on Social first.
               </p>
               <Link
                 href="/friends"
-                className="mt-2 inline-flex text-[12px] font-black text-[#ffc928]"
+                className="mt-2 inline-flex text-[12px] font-black text-arc-purple-500"
               >
                 Open friends →
               </Link>
             </div>
           ) : (
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {friends.map((f) => {
                 const active = partnerId === f.userId;
                 return (
@@ -223,10 +233,10 @@ export default function StudyInviteScreen() {
                     aria-pressed={active}
                     onClick={() => setPartnerId(f.userId)}
                     className={cn(
-                      "flex shrink-0 items-center gap-2 rounded-2xl border px-2.5 py-2 transition-transform",
+                      "flex shrink-0 items-center gap-2 rounded-[18px] border px-2.5 py-2 transition-transform",
                       active
-                        ? "scale-[1.02] border-[#ffc928] bg-white/15 ring-2 ring-[#ffc928]/40"
-                        : "border-white/10 bg-white/5 opacity-70",
+                        ? "scale-[1.02] border-[#ffc928] bg-white shadow-[0_5px_0_#c79a2e]"
+                        : "border-[#ebe4f6] bg-white/95 opacity-85 shadow-[0_4px_0_#d9d0ef]",
                     )}
                   >
                     <span
@@ -236,16 +246,21 @@ export default function StudyInviteScreen() {
                       {f.initial}
                     </span>
                     <span className="min-w-0 text-left">
-                      <span className="block max-w-[88px] truncate font-display text-[13px] font-bold">
+                      <span className="block max-w-[88px] truncate font-display text-[13px] font-bold text-[#1b1730]">
                         {f.name.split(" ")[0]}
                       </span>
-                      <span className="block text-[10px] font-bold text-white/45">
+                      <span
+                        className={cn(
+                          "block text-[10px] font-bold",
+                          f.online ? "text-arc-green-500" : "text-[#8a7cb8]",
+                        )}
+                      >
                         {f.online ? "Online" : "Offline"}
                       </span>
                     </span>
                     {active ? (
                       <Check
-                        className="h-3.5 w-3.5 shrink-0 text-[#ffc928]"
+                        className="h-3.5 w-3.5 shrink-0 text-[#c79a2e]"
                         strokeWidth={3}
                       />
                     ) : null}
@@ -255,12 +270,11 @@ export default function StudyInviteScreen() {
             </div>
           )}
         </div>
-      </section>
 
-      <div className="relative -mt-6 px-4 pb-[calc(env(safe-area-inset-bottom)+110px)]">
+        <div className="relative space-y-3 pt-2">
         {/* Open invites */}
         {(incoming.length > 0 || outgoing.length > 0) && (
-          <div className="mb-3 space-y-2">
+          <div className="space-y-2">
             {incoming.map((s) => (
               <Link
                 key={s.id}
@@ -278,7 +292,7 @@ export default function StudyInviteScreen() {
                     {s.durationMinutes}m · {s.status}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-xl bg-arc-purple-500 px-3 py-2 text-[12px] font-extrabold text-white">
+                <span className="shrink-0 rounded-xl bg-arc-purple-500 px-3 py-2 text-[12px] font-extrabold text-white shadow-[0_3px_0_#4b2fd6]">
                   Open
                 </span>
               </Link>
@@ -332,7 +346,7 @@ export default function StudyInviteScreen() {
         </div>
 
         {/* Start window */}
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {START_OPTIONS.map((opt) => {
             const active = startMode === opt.mode;
             return (
@@ -350,7 +364,7 @@ export default function StudyInviteScreen() {
                 <p className="font-display text-[14px] font-bold">{opt.label}</p>
                 <p
                   className={cn(
-                    "mt-1 text-[10px] font-bold leading-snug",
+                    "mt-1 text-[10px] leading-snug font-bold",
                     active ? "text-white/75" : "text-[#8a7cb8]",
                   )}
                 >
@@ -362,7 +376,7 @@ export default function StudyInviteScreen() {
         </div>
 
         {/* Duration */}
-        <div className="mt-3 overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white">
+        <div className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white">
           <div className="flex items-center justify-between gap-2 border-b border-[#f0ecf7] px-3 py-2.5">
             <span className="inline-flex items-center gap-1.5 text-[12px] font-extrabold text-[#8a7cb8]">
               <Clock className="h-4 w-4 text-arc-purple-500" strokeWidth={2.5} />
@@ -392,7 +406,7 @@ export default function StudyInviteScreen() {
         </div>
 
         {/* Message */}
-        <div className="mt-3 rounded-[20px] border border-[#ebe4f6] bg-white px-3 py-3">
+        <div className="rounded-[20px] border border-[#ebe4f6] bg-white px-3 py-3">
           <label className="mb-2 inline-flex items-center gap-1.5 text-[12px] font-extrabold text-[#8a7cb8]">
             <MessageSquare
               className="h-4 w-4 text-arc-purple-500"
@@ -414,20 +428,53 @@ export default function StudyInviteScreen() {
           </p>
         </div>
 
-        <p className="mt-3 flex items-center gap-1.5 text-[12px] font-bold text-[#8a7cb8]">
+        <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#8a7cb8]">
           <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
           Shared timer · own lessons · no camera required
         </p>
-
-        {error ? (
-          <p className="mt-3 rounded-2xl bg-[#fdecef] px-3.5 py-2.5 text-[12px] font-bold text-[#c0392b]">
-            {error}
-          </p>
-        ) : null}
+        </div>
       </div>
 
-      {/* Dock */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
+      {/* Dock + floating error toast (always above CTA) */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
+        <AnimatePresence>
+          {error ? (
+            <motion.div
+              key={error}
+              role="alert"
+              aria-live="assertive"
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.96 }}
+              transition={softSpring}
+              className="pointer-events-auto mb-3 overflow-hidden rounded-[20px] border border-[#f5c6cb] bg-white shadow-[0_5px_0_#e8a0a8,0_14px_32px_rgba(192,57,43,0.18)]"
+            >
+              <div className="flex items-start gap-2.5 px-3.5 py-3">
+                <span
+                  aria-hidden
+                  className="mt-0.5 h-8 w-1 shrink-0 rounded-full bg-[#e5484d]"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black tracking-[0.12em] text-[#e5484d] uppercase">
+                    Invite blocked
+                  </p>
+                  <p className="mt-0.5 text-[13px] font-bold leading-snug text-[#1b1730]">
+                    {error}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Dismiss error"
+                  onClick={() => setError(null)}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#fdecef] text-[#c0392b]"
+                >
+                  <X className="h-4 w-4" strokeWidth={2.5} />
+                </button>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+
         <motion.button
           type="button"
           disabled={!partnerOk || busy}
