@@ -16,6 +16,7 @@ import {
   UserPlus,
   Users,
   WandSparkles,
+  Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useSession } from "next-auth/react";
