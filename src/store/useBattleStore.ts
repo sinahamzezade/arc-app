@@ -67,6 +67,10 @@ export const useBattleStore = create<BattlePlayState>((set, get) => ({
     const myAnswer =
       q?.answers?.find((a) => a.isYou) ??
       q?.answers?.find((a) => a.selectedOptionId);
+    const prevQId =
+      get().questions[0]?.id ?? get().battle?.currentQuestion?.id ?? null;
+    // New round → clear pick. Same question poll must keep local selection.
+    const questionChanged = Boolean(q?.id) && q!.id !== prevQId;
     set({
       activeBattleId: dto.id,
       battle: dto,
@@ -90,7 +94,7 @@ export const useBattleStore = create<BattlePlayState>((set, get) => ({
       revealed,
       selectedOptionId:
         myAnswer?.selectedOptionId ??
-        (dto.youAnswered || revealed ? get().selectedOptionId : null),
+        (questionChanged ? null : get().selectedOptionId),
       error: null,
     });
   },

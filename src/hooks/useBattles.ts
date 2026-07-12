@@ -2,7 +2,54 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { battlesApi } from "@/lib/api/battles";
+import {
+  battlesApi,
+  type BattleDto,
+  type BattleStatusDto,
+} from "@/lib/api/battles";
+
+const LIVE_STATUSES: BattleStatusDto[] = [
+  "accepted",
+  "funding",
+  "ready",
+  "in_progress",
+  "sudden_death",
+];
+
+export function battleHref(b: BattleDto): string {
+  if (b.status === "invited") {
+    return b.role === "challenger"
+      ? `/battle/invite/${b.id}?sent=1`
+      : `/battle/invite/${b.id}`;
+  }
+  if (
+    b.status === "completed" ||
+    b.status === "forfeited" ||
+    b.status === "voided" ||
+    b.status === "refunded"
+  ) {
+    return `/battle/result/${b.id}`;
+  }
+  return `/battle/play/${b.id}`;
+}
+
+export function battleStatusLabel(status: BattleStatusDto): string {
+  switch (status) {
+    case "invited":
+      return "Invite";
+    case "accepted":
+    case "funding":
+      return "Funding";
+    case "ready":
+      return "Waiting room";
+    case "in_progress":
+      return "Live";
+    case "sudden_death":
+      return "Sudden death";
+    default:
+      return status;
+  }
+}
 
 export function useBattleHub() {
   const { data: session, status } = useSession();
@@ -28,7 +75,7 @@ export function useBattleHub() {
     queryKey: ["battles", "invites", accessToken ?? "anon"],
     queryFn: () => battlesApi.invites(accessToken),
     enabled,
-    refetchInterval: 8_000,
+    refetchInterval: 5_000,
   });
 
   const loadMore = useMutation({
@@ -52,19 +99,26 @@ export function useBattleHub() {
     },
   });
 
-  const incoming = (invites.data?.items ?? []).filter(
+  const openItems = invites.data?.items ?? [];
+
+  const live = openItems.filter((b) => LIVE_STATUSES.includes(b.status));
+  const incoming = openItems.filter(
     (b) => b.status === "invited" && b.role === "opponent",
   );
-  const outgoing = (invites.data?.items ?? []).filter(
+  const outgoing = openItems.filter(
     (b) => b.status === "invited" && b.role === "challenger",
   );
+  const blocking = openItems[0] ?? null;
 
   return {
     stats,
     history,
     invites,
+    live,
     incoming,
     outgoing,
+    blocking,
+    openItems,
     loadMore,
     invalidate: () => void qc.invalidateQueries({ queryKey: ["battles"] }),
   };

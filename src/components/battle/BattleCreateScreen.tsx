@@ -148,6 +148,11 @@ export default function BattleCreateScreen() {
       resetPlay();
       router.push(`/battle/invite/${battle.id}?sent=1`);
     } catch (err) {
+      if (err instanceof ApiError && err.code === "BATTLE_ALREADY_PENDING") {
+        // Redirect to hub — it will show the blocking battle.
+        router.replace("/battle?blocked=1");
+        return;
+      }
       setError(
         err instanceof ApiError
           ? messageForCode(err.code, err.message)
