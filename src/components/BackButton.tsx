@@ -39,8 +39,7 @@ export function BackButton({
       transition={tapSpring}
       className={cn(
         "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-        tone === "dark" &&
-          "bg-white/10 text-white ring-1 ring-white/15",
+        tone === "dark" && "bg-white/10 text-white ring-1 ring-white/15",
         tone === "light" &&
           "border border-[#ebe4f6] bg-white text-[#1b1730] shadow-[0_4px_12px_rgba(70,40,150,0.06)]",
         className,

@@ -74,13 +74,13 @@ export const homeMockData: HomeMockData = {
   userName: "Soheil",
   notificationCount: 3,
   mission: {
-    title: "Your first webpage",
-    track: "Frontend · Unit 1",
+    title: "Make a page mobile-friendly",
+    track: "Front-end Developer Path",
     type: "Lesson",
-    minutes: 18,
+    minutes: 40,
     xp: 35,
     gems: 5,
-    progressPercent: 8,
+    progressPercent: 12.5,
     href: "/learn/lesson-1",
   },
   weeklyProgress: {

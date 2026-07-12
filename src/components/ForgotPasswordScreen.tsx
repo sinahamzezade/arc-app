@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "motion/react";
@@ -13,6 +14,8 @@ import {
   authGhostLinkClassName,
 } from "@/components/onboarding/AuthShell";
 import { Button } from "@/components/ui";
+import { authApi } from "@/lib/api/auth";
+import { ApiError, messageForCode } from "@/lib/api/errors";
 import { assets } from "@/lib/assets";
 import {
   forgotPasswordSchema,
@@ -21,6 +24,7 @@ import {
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -30,10 +34,20 @@ export default function ForgotPasswordScreen() {
     defaultValues: { email: "" },
   });
 
-  const onSubmit = (data: ForgotPasswordFormData) => {
-    router.push(
-      `/forgot-password/check-email?email=${encodeURIComponent(data.email)}`,
-    );
+  const onSubmit = async (data: ForgotPasswordFormData) => {
+    setFormError(null);
+    try {
+      await authApi.forgotPassword(data.email);
+      router.push(
+        `/forgot-password/check-email?email=${encodeURIComponent(data.email)}&purpose=reset`,
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFormError(messageForCode(err.code, err.message));
+      } else {
+        setFormError("Could not send reset code");
+      }
+    }
   };
 
   return (
@@ -76,6 +90,10 @@ export default function ForgotPasswordScreen() {
           error={errors.email?.message}
           {...register("email")}
         />
+
+        {formError ? (
+          <p className="text-[12px] font-bold text-arc-error">{formError}</p>
+        ) : null}
 
         <motion.div whileTap={{ scale: 0.98 }} className="mt-2">
           <Button

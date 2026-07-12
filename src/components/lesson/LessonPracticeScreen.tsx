@@ -3,14 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Lightbulb } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
-import { getLesson } from "@/lib/lesson/mock-data";
+import { lessonsApi } from "@/lib/api/lessons";
+import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import {
   LessonOptionCard,
   LessonPrimaryButton,
   LessonShell,
 } from "./LessonShell";
+import { LessonLoadState } from "./LessonLoadState";
 
 export default function LessonPracticeScreen({
   lessonId,
@@ -18,22 +22,49 @@ export default function LessonPracticeScreen({
   lessonId: string;
 }) {
   const router = useRouter();
-  const lesson = getLesson(lessonId);
+  const { data: session } = useSession();
+  const { lesson, isLoading, isError, error, refetch } =
+    usePlayableLesson(lessonId);
   const selected = useLessonStore((s) => s.practiceOptionId);
   const setPracticeOption = useLessonStore((s) => s.setPracticeOption);
-  const [revealed, setRevealed] = useState(false);
+  const practiceReveal = useLessonStore((s) => s.practiceReveal);
+  const setPracticeReveal = useLessonStore((s) => s.setPracticeReveal);
+  const [checking, setChecking] = useState(false);
 
-  if (!lesson) {
+  const revealed = practiceReveal.correctOptionId != null;
+
+  const checkMutation = useMutation({
+    mutationFn: (optionId: string) =>
+      lessonsApi.checkPractice(lessonId, optionId, session?.accessToken),
+    onSuccess: (res) => {
+      setPracticeReveal({
+        correctOptionId: res.correctOptionId,
+        feedback: res.feedback,
+        correct: res.correct,
+      });
+    },
+    onSettled: () => setChecking(false),
+  });
+
+  if (isLoading) {
     return (
-      <LessonShell lessonId={lessonId} stepLabel="Missing" progress={0} showArlo={false}>
-        <LessonPrimaryButton href="/path">Back to Path</LessonPrimaryButton>
+      <LessonShell lessonId={lessonId} stepLabel="Loading" progress={0} showArlo={false}>
+        <p className="text-arc-lavender-600">Loading practice…</p>
       </LessonShell>
     );
   }
 
+  if (isError || !lesson) {
+    return (
+      <LessonLoadState
+        message={error?.message ?? "Lesson not found."}
+        onRetry={isError ? () => refetch() : undefined}
+      />
+    );
+  }
+
   const practice = lesson.practice;
-  const correct = practice.options.find((o) => o.correct);
-  const isCorrect = selected === correct?.id;
+  const isCorrect = practiceReveal.correct === true;
 
   return (
     <LessonShell
@@ -60,7 +91,7 @@ export default function LessonPracticeScreen({
               key={option.id}
               label={option.label}
               selected={selected === option.id}
-              correct={option.correct}
+              correct={option.id === practiceReveal.correctOptionId}
               revealed={revealed}
               onSelect={() => {
                 if (revealed) return;
@@ -75,23 +106,31 @@ export default function LessonPracticeScreen({
           {practice.hint}
         </div>
 
-        {revealed ? (
+        {revealed && practiceReveal.feedback ? (
           <p
             className={`mt-4 text-[14px] font-bold ${isCorrect ? "text-[#1f6b2e]" : "text-[#9a4a12]"}`}
           >
-            {isCorrect
-              ? "Nailed it — tags closed clean."
-              : "Close! Opening + text + closing slash is the move."}
+            {practiceReveal.feedback}
+          </p>
+        ) : null}
+
+        {checkMutation.isError ? (
+          <p className="mt-3 text-[13px] font-bold text-[#9a4a12]">
+            {(checkMutation.error as Error)?.message ?? "Check failed. Retry."}
           </p>
         ) : null}
 
         <div className="mt-auto space-y-2 pt-8">
           {!revealed ? (
             <LessonPrimaryButton
-              disabled={!selected}
-              onClick={() => setRevealed(true)}
+              disabled={!selected || checking || checkMutation.isPending}
+              onClick={() => {
+                if (!selected) return;
+                setChecking(true);
+                checkMutation.mutate(selected);
+              }}
             >
-              Check answer
+              {checkMutation.isPending ? "Checking…" : "Check answer"}
             </LessonPrimaryButton>
           ) : (
             <LessonPrimaryButton href={`/learn/${lesson.id}/quiz`}>

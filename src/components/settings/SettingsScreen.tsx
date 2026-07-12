@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { BackButton } from "@/components/BackButton";
 import {
   Bell,
@@ -14,6 +16,7 @@ import {
   User,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { signOutArc } from "@/lib/auth/session";
 import {
   settingsMockData,
   type SettingsToggle,
@@ -33,13 +36,32 @@ export default function SettingsScreen({
 }: {
   data?: typeof settingsMockData;
 }) {
+  const router = useRouter();
+  const { data: session } = useSession();
   const [tab, setTab] = useState<SettingsTab>("account");
   const [toggles, setToggles] = useState(data.toggles);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const email = session?.user?.email || data.email;
+  const language =
+    session?.profile?.language === "en"
+      ? "English"
+      : session?.profile?.language || data.language;
 
   const setToggle = (id: SettingsToggleId) => {
     setToggles((prev) =>
       prev.map((t) => (t.id === id ? { ...t, on: !t.on } : t)),
     );
+  };
+
+  const signOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOutArc();
+      router.push("/login");
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   return (
@@ -76,7 +98,7 @@ export default function SettingsScreen({
 
         <div className="relative mt-6">
           <p className="text-[12px] font-bold text-white/45">Signed in as</p>
-          <p className="mt-1 font-display text-[18px] font-bold">{data.email}</p>
+          <p className="mt-1 font-display text-[18px] font-bold">{email}</p>
         </div>
       </section>
 
@@ -129,12 +151,12 @@ export default function SettingsScreen({
               <SettingsRow
                 icon={User}
                 title="Account"
-                detail={data.email}
+                detail={email}
               />
               <SettingsRow
                 icon={Globe}
                 title="Language"
-                detail={data.language}
+                detail={language}
               />
               <Link href="/plan" className="block">
                 <SettingsRow
@@ -146,10 +168,12 @@ export default function SettingsScreen({
               </Link>
               <button
                 type="button"
-                className="flex w-full items-center justify-center gap-2 rounded-[18px] border border-dashed border-[#f5c4c6] bg-[#fff5f6] py-3.5 text-[13px] font-extrabold text-[#e5484d]"
+                onClick={() => void signOut()}
+                disabled={signingOut}
+                className="flex w-full items-center justify-center gap-2 rounded-[18px] border border-dashed border-[#f5c4c6] bg-[#fff5f6] py-3.5 text-[13px] font-extrabold text-[#e5484d] disabled:opacity-60"
               >
                 <LogOut className="h-4 w-4" strokeWidth={2.5} />
-                Sign out
+                {signingOut ? "Signing out…" : "Sign out"}
               </button>
             </motion.div>
           ) : null}

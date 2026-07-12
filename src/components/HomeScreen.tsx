@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   greetingForHour,
   homeMockData,
@@ -13,75 +14,78 @@ import { HomePortraitStage } from "@/components/home/HomePortraitStage";
 import { HomeWeekLockVault } from "@/components/home/HomeWeekLockVault";
 
 /**
- * Home — night-hero coach desk.
- * Night masthead (Arlo + Talk) → sheet: night mission vault, week seal, extras.
- * No decorative rotate.
+ * Home — night dispatch hero + light sheet.
+ * Header + Arlo → route ticket, seal week, rank/wheel, quiet rows.
  */
 export default function HomeScreen({
   data = homeMockData,
 }: {
   data?: HomeMockData;
 }) {
+  const reduceMotion = useReducedMotion();
   const greeting = useMemo(() => greetingForHour(new Date().getHours()), []);
   const askArloHref = `${data.mission.href}/arlo`;
 
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
-      {/* NIGHT HERO */}
-      <section className="relative overflow-hidden bg-[#0f1220] pb-20 text-white">
+    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-8 text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
+          className="pointer-events-none absolute -top-14 -right-8 h-44 w-44 rounded-full bg-arc-purple-500/45 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute bottom-8 left-[-30px] h-40 w-40 rounded-full bg-[#ffc928]/18 blur-3xl"
+          className="pointer-events-none absolute top-16 -left-12 h-32 w-32 rounded-full bg-[#ffc928]/10 blur-3xl"
         />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-30"
           style={{
             backgroundImage:
-              "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1px at 55% 60%, #fff, transparent)",
+              "radial-gradient(1.5px 1.5px at 14% 22%, #fff, transparent), radial-gradient(1px 1px at 78% 12%, #fff, transparent), radial-gradient(1.5px 1.5px at 58% 48%, #fff, transparent), radial-gradient(1px 1px at 32% 70%, #fff, transparent)",
           }}
         />
 
-        <HomeHeader
-          xp={data.stats.xp}
-          gems={data.stats.gems}
-          notificationCount={data.notificationCount}
-          tone="night"
-        />
+        <div className="relative">
+          <HomeHeader
+            streakWeeks={data.weeklyStreak.weeks}
+            gems={data.stats.gems}
+            notificationCount={data.notificationCount}
+          />
+          <HomePortraitStage
+            greeting={greeting}
+            userName={data.userName}
+            askArloHref={askArloHref}
+          />
+        </div>
+      </header>
 
-        <HomePortraitStage
-          greeting={greeting}
-          userName={data.userName}
-          quote={data.arloSays.quote}
-          weeks={data.weeklyStreak.weeks}
-          askArloHref={askArloHref}
-        />
-      </section>
-
-      {/* LIGHT SHEET */}
-      <div className="relative z-10 -mt-12 rounded-t-[28px] bg-[#f3effc] pt-1 shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
-        <HomeMissionStage mission={data.mission} />
-
+      <motion.main
+        className="relative -mt-8 space-y-4 px-4 pb-6"
+        initial={reduceMotion ? false : "hidden"}
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: {
+            transition: { staggerChildren: 0.07, delayChildren: 0.1 },
+          },
+        }}
+      >
+        <HomeMissionStage mission={data.mission} unit={1} />
         <HomeWeekLockVault
           weeklyProgress={data.weeklyProgress}
           weeklyStreak={data.weeklyStreak}
-          replanHref={askArloHref}
+          replanHref="/week"
           estimateMinutes={data.mission.minutes}
         />
-
         <HomeExtras
           stats={data.stats}
           dailyBonus={data.dailyBonus}
           milestone={data.milestone}
           leaderboard={data.leaderboard}
-          missionHref={data.mission.href}
           badges={data.badges}
         />
-      </div>
+      </motion.main>
     </div>
   );
 }

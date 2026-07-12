@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
-import { getLesson } from "@/lib/lesson/mock-data";
+import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
+import { mapRoadmapToPathData } from "@/lib/path/map-roadmap";
 import {
   pathMockData,
   type PathMockData,
@@ -24,14 +25,15 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Learn desk — night-hero family.
- * Up-next mission + unit lesson queue. Replaces bare redirect.
+ * Up-next mission + unit lesson queue from current roadmap.
  */
-export default function LearnScreen({
-  data = pathMockData,
-}: {
-  data?: PathMockData;
-}) {
-  const lesson = getLesson("lesson-1");
+export default function LearnScreen() {
+  const { data: roadmapRes, isLoading } = useCurrentRoadmap();
+  const data: PathMockData =
+    roadmapRes?.roadmap != null
+      ? mapRoadmapToPathData(roadmapRes.roadmap)
+      : pathMockData;
+
   const progress =
     data.lessonsTotal > 0
       ? Math.round((data.lessonsDone / data.lessonsTotal) * 100)
@@ -42,6 +44,10 @@ export default function LearnScreen({
   const milestone = data.nodes.find(
     (n) => n.unit === 1 && n.kind === "milestone",
   );
+
+  const firstUnit = data.nodes.find((n) => n.unit === 1 && n.kind === "lesson");
+  const unitTitle =
+    data.rank.title || firstUnit?.title || "Foundations";
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -70,7 +76,9 @@ export default function LearnScreen({
               Learn desk
             </p>
             <p className="mt-0.5 truncate text-[13px] font-bold text-white/45">
-              {data.trackTitle} · {data.rank.unitLabel}
+              {isLoading
+                ? "Loading path…"
+                : `${data.trackTitle} · ${data.rank.unitLabel}`}
             </p>
           </div>
           <Link
@@ -90,8 +98,7 @@ export default function LearnScreen({
             {data.upNext.title}
           </h1>
           <p className="mt-3 max-w-[18rem] text-[13px] leading-snug font-bold text-white/60 text-pretty">
-            {lesson?.objective ??
-              "Open the lesson, learn the bits, practice, then cash the reward."}
+            Open the lesson, learn the bits, practice, then cash the reward.
           </p>
         </div>
 
@@ -100,17 +107,16 @@ export default function LearnScreen({
             <Clock className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
             {data.upNext.minutes} min
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#ffc928]/15 px-3 py-1.5 text-[11px] font-extrabold text-[#ffc928]">
-            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />+
-            {lesson?.xpReward ?? 35} XP
-          </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-extrabold text-white/70 ring-1 ring-white/15">
             <BookOpen className="h-3.5 w-3.5" strokeWidth={2.5} />
             {data.rank.title}
           </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#ffc928]/15 px-3 py-1.5 text-[11px] font-extrabold text-[#ffc928]">
+            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
+            Track {progress}%
+          </span>
         </div>
 
-        {/* Track fill */}
         <div className="relative z-[1] mt-6">
           <div className="mb-1.5 flex items-center justify-between text-[10px] font-extrabold tracking-wide text-white/40 uppercase">
             <span>Track</span>
@@ -154,7 +160,7 @@ export default function LearnScreen({
               Unit 1 queue
             </p>
             <h2 className="font-display text-[20px] font-bold tracking-[-0.02em] text-[#0f1220]">
-              Foundations
+              {unitTitle}
             </h2>
           </div>
           <span className="rounded-full bg-[#0f1220] px-2.5 py-1 text-[10px] font-black tracking-wide text-[#ffc928] uppercase">
@@ -168,7 +174,9 @@ export default function LearnScreen({
               key={node.id}
               node={node}
               index={i + 1}
-              href={node.status === "current" ? data.upNext.href : undefined}
+              href={
+                node.status === "current" ? `/learn/${node.id}` : undefined
+              }
               minutes={
                 node.status === "current" ? data.upNext.minutes : undefined
               }
@@ -197,8 +205,8 @@ export default function LearnScreen({
           href="/path"
           className="mt-5 flex h-12 items-center justify-center gap-2 rounded-[16px] text-[13px] font-extrabold text-arc-lavender-700"
         >
-          <Map className="h-4 w-4" strokeWidth={2.5} />
-          Open full path map
+          Open full path
+          <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </Link>
       </div>
     </div>
@@ -216,61 +224,36 @@ function LessonQueueRow({
   href?: string;
   minutes?: number;
 }) {
-  const locked = node.status === "locked";
-  const current = node.status === "current";
-
+  const live = node.status === "current" && href;
   const inner = (
     <>
       <span
         className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-display text-[15px] font-bold",
-          current &&
-            "bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]",
-          locked && "bg-[#f3effc] text-arc-lavender-500",
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl font-display text-[14px] font-bold",
+          live
+            ? "bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]"
+            : "bg-[#efe9f8] text-arc-lavender-500",
         )}
       >
-        {locked ? (
-          <Lock className="h-4 w-4" strokeWidth={2.5} />
-        ) : (
-          index
-        )}
+        {index}
       </span>
-
       <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-extrabold tracking-wide text-arc-lavender-500 uppercase">
-          {node.subtitle}
-        </span>
-        <span
-          className={cn(
-            "mt-0.5 block font-display text-[15px] leading-tight font-bold",
-            locked ? "text-arc-lavender-600" : "text-[#0f1220]",
-          )}
-        >
+        <span className="block font-display text-[15px] font-bold text-[#0f1220]">
           {node.title}
         </span>
-        {current && minutes != null ? (
-          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-arc-lavender-700">
-            <Clock className="h-3 w-3" strokeWidth={2.5} />
-            {minutes} min · ready
-          </span>
-        ) : null}
-        {locked ? (
-          <span className="mt-1 block text-[11px] font-bold text-arc-lavender-500">
-            Finish previous to unlock
-          </span>
-        ) : null}
+        <span className="mt-0.5 block text-[12px] font-bold text-arc-lavender-600">
+          {minutes != null ? `${minutes} min · ready` : node.subtitle}
+        </span>
       </span>
-
-      {current ? (
-        <ArrowRight
-          className="h-5 w-5 shrink-0 text-arc-purple-500"
-          strokeWidth={2.5}
-        />
-      ) : null}
+      {live ? (
+        <ArrowRight className="h-4 w-4 text-arc-purple-500" strokeWidth={2.5} />
+      ) : (
+        <Lock className="h-4 w-4 text-arc-lavender-400" strokeWidth={2.5} />
+      )}
     </>
   );
 
-  if (href && current) {
+  if (live) {
     return (
       <li>
         <Link
@@ -284,10 +267,8 @@ function LessonQueueRow({
   }
 
   return (
-    <li>
-      <div className="flex items-center gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white/70 p-3">
-        {inner}
-      </div>
+    <li className="flex items-center gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white/70 p-3 opacity-70">
+      {inner}
     </li>
   );
 }

@@ -3,10 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { ArcField } from "@/components/ArcField";
+import { SocialButton } from "@/components/auth/SocialButton";
 import { AppleIcon, GoogleIcon } from "@/components/icons";
 import {
   AuthShell,
@@ -14,11 +17,22 @@ import {
   authGhostLinkClassName,
 } from "@/components/onboarding/AuthShell";
 import { Button, Checkbox, Link as ArcLink } from "@/components/ui";
+import { getAppleIdToken, getGoogleIdToken } from "@/lib/auth/oauth";
+import {
+  authErrorMessage,
+  signInWithOAuth,
+  signUpWithPassword,
+} from "@/lib/auth/session";
+import { resolvePostAuthPath } from "@/lib/auth/post-auth-route";
 import { assets } from "@/lib/assets";
 import { registerSchema, type RegisterFormData } from "@/schemas/register";
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { update } = useSession();
+  const [formError, setFormError] = useState<string | null>(null);
+  const [oauthBusy, setOauthBusy] = useState(false);
+
   const {
     register,
     control,
@@ -27,6 +41,7 @@ export default function RegisterScreen() {
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      name: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -34,8 +49,73 @@ export default function RegisterScreen() {
     },
   });
 
-  const onSubmit = () => {
-    router.push("/questionnaire");
+  const goVerify = async () => {
+    const session = await update();
+    const email = session?.user?.email;
+    if (email) {
+      router.push(
+        `/verify-email?email=${encodeURIComponent(email)}&purpose=verify`,
+      );
+    } else {
+      router.push("/onboarding");
+    }
+  };
+
+  const onSubmit = async (data: RegisterFormData) => {
+    setFormError(null);
+    try {
+      await signUpWithPassword({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        agreeToTerms: data.agreeToTerms,
+      });
+      await goVerify();
+    } catch (err) {
+      setFormError(authErrorMessage(err, "Could not create account"));
+    }
+  };
+
+  const onGoogle = async () => {
+    setFormError(null);
+    setOauthBusy(true);
+    try {
+      const idToken = await getGoogleIdToken();
+      await signInWithOAuth("google", idToken);
+      const session = await update();
+      router.push(
+        resolvePostAuthPath({
+          emailVerified: Boolean(session?.user?.emailVerified),
+          email: session?.user?.email,
+          profile: session?.profile,
+        }),
+      );
+    } catch (err) {
+      setFormError(authErrorMessage(err, "Google sign-in failed"));
+    } finally {
+      setOauthBusy(false);
+    }
+  };
+
+  const onApple = async () => {
+    setFormError(null);
+    setOauthBusy(true);
+    try {
+      const idToken = await getAppleIdToken();
+      await signInWithOAuth("apple", idToken);
+      const session = await update();
+      router.push(
+        resolvePostAuthPath({
+          emailVerified: Boolean(session?.user?.emailVerified),
+          email: session?.user?.email,
+          profile: session?.profile,
+        }),
+      );
+    } catch (err) {
+      setFormError(authErrorMessage(err, "Apple sign-in failed"));
+    } finally {
+      setOauthBusy(false);
+    }
   };
 
   return (
@@ -74,6 +154,15 @@ export default function RegisterScreen() {
         className="flex flex-col gap-3.5"
         onSubmit={handleSubmit(onSubmit)}
       >
+        <ArcField
+          id="name"
+          label="Name"
+          type="text"
+          autoComplete="name"
+          placeholder="Your name"
+          error={errors.name?.message}
+          {...register("name")}
+        />
         <ArcField
           id="email"
           label="Email"
@@ -142,12 +231,16 @@ export default function RegisterScreen() {
           </p>
         ) : null}
 
+        {formError ? (
+          <p className="text-[12px] font-bold text-arc-error">{formError}</p>
+        ) : null}
+
         <motion.div whileTap={{ scale: 0.98 }} className="mt-1">
           <Button
             type="submit"
             fullWidth
             variant="primary"
-            isDisabled={isSubmitting}
+            isDisabled={isSubmitting || oauthBusy}
             className={authCtaClassName}
           >
             Create account
@@ -163,33 +256,14 @@ export default function RegisterScreen() {
         </div>
 
         <div className="flex gap-2.5">
-          <SocialButton label="Apple">
+          <SocialButton label="Apple" onPress={onApple} disabled={oauthBusy}>
             <AppleIcon />
           </SocialButton>
-          <SocialButton label="Google">
+          <SocialButton label="Google" onPress={onGoogle} disabled={oauthBusy}>
             <GoogleIcon />
           </SocialButton>
         </div>
       </form>
     </AuthShell>
-  );
-}
-
-function SocialButton({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.button
-      type="button"
-      whileTap={{ scale: 0.97 }}
-      className="flex h-14 flex-1 items-center justify-center gap-2 rounded-[16px] border-2 border-[#ebe4f6] bg-white text-[14px] font-bold text-[#0f1220] shadow-[0_3px_0_#ebe4f6]"
-    >
-      {children}
-      {label}
-    </motion.button>
   );
 }

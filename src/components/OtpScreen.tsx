@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import {
@@ -11,23 +12,39 @@ import {
   authGhostLinkClassName,
 } from "@/components/onboarding/AuthShell";
 import { Button, InputOTP, REGEXP_ONLY_DIGITS } from "@/components/ui";
+import { authApi } from "@/lib/api/auth";
+import { ApiError, messageForCode } from "@/lib/api/errors";
+import { resolvePostAuthPath } from "@/lib/auth/post-auth-route";
 import { assets } from "@/lib/assets";
+import { useAuthStore } from "@/store/useAuthStore";
 
 const OTP_LENGTH = 6;
 
+type Purpose = "reset" | "verify";
+
 export default function OtpScreen() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
+  const purposeParam = searchParams.get("purpose") as Purpose | null;
+  const purpose: Purpose =
+    purposeParam ??
+    (pathname?.includes("verify-email") ? "verify" : "reset");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(30);
+  const setResetToken = useAuthStore((s) => s.setResetToken);
+  const { update } = useSession();
 
   useEffect(() => {
     if (!email) {
-      router.replace("/forgot-password");
+      router.replace(
+        purpose === "verify" ? "/register" : "/forgot-password",
+      );
     }
-  }, [email, router]);
+  }, [email, purpose, router]);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -36,20 +53,55 @@ export default function OtpScreen() {
   }, [countdown]);
 
   const handleVerify = async () => {
-    if (otp.length !== OTP_LENGTH) return;
+    if (!email || otp.length !== OTP_LENGTH) return;
     setIsLoading(true);
+    setFormError(null);
     try {
-      console.log({ email, otp });
-      router.push(`/reset-password?email=${encodeURIComponent(email!)}`);
+      if (purpose === "verify") {
+        const res = await authApi.confirmVerifyEmail(email, otp);
+        await update({
+          user: { emailVerified: true },
+          profile: res.profile ?? undefined,
+        });
+        router.push(
+          resolvePostAuthPath({
+            emailVerified: true,
+            email,
+            profile: res.profile,
+          }),
+        );      } else {
+        const res = await authApi.verifyForgotOtp(email, otp);
+        setResetToken(res.resetToken);
+        router.push("/reset-password");
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFormError(messageForCode(err.code, err.message));
+      } else {
+        setFormError("Could not verify code");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (!email || countdown > 0) return;
-    console.log("resend to", email);
-    setCountdown(30);
+    setFormError(null);
+    try {
+      if (purpose === "verify") {
+        await authApi.requestVerifyEmail(email);
+      } else {
+        await authApi.forgotPassword(email);
+      }
+      setCountdown(30);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFormError(messageForCode(err.code, err.message));
+      } else {
+        setFormError("Could not resend code");
+      }
+    }
   };
 
   if (!email) return null;
@@ -68,8 +120,7 @@ export default function OtpScreen() {
       }
       subtitle={
         <>
-          Sent to{" "}
-          <span className="text-white/80">{email}</span>
+          Sent to <span className="text-white/80">{email}</span>
         </>
       }
       onBack={() => router.back()}
@@ -114,6 +165,12 @@ export default function OtpScreen() {
             </InputOTP.Group>
           </InputOTP>
         </motion.div>
+
+        {formError ? (
+          <p className="mt-4 text-center text-[12px] font-bold text-arc-error">
+            {formError}
+          </p>
+        ) : null}
 
         <motion.div whileTap={{ scale: 0.98 }} className="mt-8">
           <Button

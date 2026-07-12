@@ -2,16 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowRight, Lightbulb, Terminal } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
-import { getLesson, type LessonContentBlock } from "@/lib/lesson/mock-data";
+import type { LessonContentBlock } from "@/lib/lesson/mock-data";
+import { lessonsApi } from "@/lib/api/lessons";
+import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton, LessonShell } from "./LessonShell";
+import { LessonLoadState } from "./LessonLoadState";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Lesson content pager — night chrome + clay study sheet.
- * Text / Arlo vault / code terminal. No decorative rotate.
  */
 export default function LessonContentScreen({
   lessonId,
@@ -19,20 +23,35 @@ export default function LessonContentScreen({
   lessonId: string;
 }) {
   const router = useRouter();
-  const lesson = getLesson(lessonId);
+  const { data: session } = useSession();
+  const { lesson, isLoading, isError, error, refetch } =
+    usePlayableLesson(lessonId);
   const contentStep = useLessonStore((s) => s.contentStep);
   const setContentStep = useLessonStore((s) => s.setContentStep);
 
-  if (!lesson) {
+  const progressMutation = useMutation({
+    mutationFn: (step: number) =>
+      lessonsApi.saveProgress(
+        lessonId,
+        { contentStep: step },
+        session?.accessToken,
+      ),
+  });
+
+  if (isLoading) {
     return (
-      <LessonShell
-        lessonId={lessonId}
-        stepLabel="Missing"
-        progress={0}
-        showArlo={false}
-      >
-        <LessonPrimaryButton href="/learn">Back to Learn</LessonPrimaryButton>
+      <LessonShell lessonId={lessonId} stepLabel="Loading" progress={0} showArlo={false}>
+        <p className="text-arc-lavender-600">Loading content…</p>
       </LessonShell>
+    );
+  }
+
+  if (isError || !lesson) {
+    return (
+      <LessonLoadState
+        message={error?.message ?? "Lesson not found."}
+        onRetry={isError ? () => refetch() : undefined}
+      />
     );
   }
 
@@ -41,14 +60,25 @@ export default function LessonContentScreen({
   const isLast = contentStep >= total - 1;
   const progress = 15 + ((contentStep + 1) / total) * 35;
 
+  const goNext = () => {
+    const next = contentStep + 1;
+    setContentStep(next);
+    progressMutation.mutate(next);
+  };
+
   return (
     <LessonShell
       lessonId={lesson.id}
       stepLabel={`Learn · ${contentStep + 1}/${total}`}
       progress={progress}
       onBack={() => {
-        if (contentStep > 0) setContentStep(contentStep - 1);
-        else router.push(`/learn/${lesson.id}`);
+        if (contentStep > 0) {
+          const prev = contentStep - 1;
+          setContentStep(prev);
+          progressMutation.mutate(prev);
+        } else {
+          router.push(`/learn/${lesson.id}`);
+        }
       }}
     >
       <motion.div
@@ -58,7 +88,6 @@ export default function LessonContentScreen({
         transition={softSpring}
         className="flex flex-1 flex-col"
       >
-        {/* Step notch + asymmetric title */}
         <div className="grid grid-cols-[auto_1fr] items-start gap-3">
           <span className="mt-1 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0f1220] font-display text-[15px] font-bold text-[#ffc928] shadow-[0_3px_0_#2a2f45]">
             {contentStep + 1}
@@ -87,9 +116,7 @@ export default function LessonContentScreen({
                 <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
               </LessonPrimaryButton>
             ) : (
-              <LessonPrimaryButton
-                onClick={() => setContentStep(contentStep + 1)}
-              >
+              <LessonPrimaryButton onClick={goNext}>
                 Continue
                 <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
               </LessonPrimaryButton>

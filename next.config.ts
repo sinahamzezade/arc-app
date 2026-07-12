@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  // /api/v1/* proxied by src/app/api/v1/[...path]/route.ts (forwards Set-Cookie).
 };
 
 export default nextConfig;

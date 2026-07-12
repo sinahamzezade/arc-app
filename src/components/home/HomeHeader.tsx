@@ -1,82 +1,56 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { Bell, Gem, Star } from "lucide-react";
-import { assets } from "@/lib/assets";
+import { Bell, Flame, Gem } from "lucide-react";
 import type { HomeMockData } from "@/lib/home/mock-data";
-import { cn } from "@/lib/utils";
 
 type HomeHeaderProps = {
-  xp: HomeMockData["stats"]["xp"];
+  streakWeeks: HomeMockData["weeklyStreak"]["weeks"];
   gems: HomeMockData["stats"]["gems"];
   notificationCount: HomeMockData["notificationCount"];
-  tone?: "day" | "night";
 };
 
+/**
+ * Compact clay stamps — streak · gems · bell.
+ */
 export function HomeHeader({
-  xp,
+  streakWeeks,
   gems,
   notificationCount,
-  tone = "day",
 }: HomeHeaderProps) {
-  const night = tone === "night";
-
   return (
-    <header className="relative z-20 flex items-center gap-2.5 px-5 pt-[calc(env(safe-area-inset-top)+14px)]">
-      <Link href="/home" aria-label="Arc">
-        <Image
-          src={assets.brand.logoMark}
-          alt="Arc"
-          width={40}
-          height={40}
-          className="h-10 w-10 rounded-2xl object-cover shadow-[0_3px_0_rgba(0,0,0,0.35)]"
-          priority
-        />
-      </Link>
-
+    <div className="flex items-center gap-2">
       <Link
-        href="/wallet"
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-2xl py-1.5 pr-3 pl-1.5",
-          night
-            ? "bg-white/10 ring-1 ring-white/15"
-            : "bg-white shadow-[0_3px_0_#e4dbff]",
-        )}
-        aria-label={`${xp} XP`}
+        href="/week"
+        aria-label={`${streakWeeks} week streak`}
+        className="inline-flex items-center gap-1 rounded-xl bg-arc-orange-400 py-1 pr-2.5 pl-1 text-white shadow-[0_2px_0_#d46520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 active:translate-y-px active:shadow-[0_1px_0_#d46520]"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-arc-blue-500">
-          <Star className="h-3.5 w-3.5 fill-white text-white" />
+        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#0f1220]/15">
+          <Flame
+            className="h-3 w-3"
+            fill="currentColor"
+            strokeWidth={1.5}
+          />
         </span>
-        <span
-          className={cn(
-            "text-[13px] font-extrabold tabular-nums",
-            night ? "text-white" : "text-[#101923]",
-          )}
-        >
-          {xp.toLocaleString()}
+        <span className="flex items-baseline gap-0.5">
+          <span className="font-display text-[14px] leading-none font-bold tabular-nums">
+            {streakWeeks}
+          </span>
+          <span className="text-[8px] font-extrabold tracking-[0.1em] uppercase opacity-80">
+            wks
+          </span>
         </span>
       </Link>
 
       <Link
         href="/wallet"
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-2xl py-1.5 pr-3 pl-1.5",
-          night
-            ? "bg-white/10 ring-1 ring-white/15"
-            : "bg-white shadow-[0_3px_0_#e4dbff]",
-        )}
         aria-label={`${gems} gems`}
+        className="inline-flex items-center gap-1 rounded-xl bg-arc-purple-500 py-1 pr-2.5 pl-1 text-white shadow-[0_2px_0_var(--color-arc-purple-700)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] active:translate-y-px active:shadow-[0_1px_0_var(--color-arc-purple-700)]"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-arc-gem-100">
-          <Gem className="h-3.5 w-3.5 text-[#b35cff]" strokeWidth={2.5} />
+        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/15">
+          <Gem className="h-3 w-3" strokeWidth={2.5} />
         </span>
-        <span
-          className={cn(
-            "text-[13px] font-extrabold tabular-nums",
-            night ? "text-white" : "text-[#101923]",
-          )}
-        >
+        <span className="font-display text-[14px] leading-none font-bold tabular-nums">
           {gems.toLocaleString()}
         </span>
       </Link>
@@ -85,21 +59,20 @@ export function HomeHeader({
 
       <Link
         href="/notifications"
-        aria-label={`Notifications, ${notificationCount} unread`}
-        className={cn(
-          "relative flex h-11 w-11 items-center justify-center rounded-2xl",
-          night
-            ? "bg-white/10 text-white ring-1 ring-white/15"
-            : "bg-white text-[#101923] shadow-[0_3px_0_#e4dbff]",
-        )}
+        aria-label={
+          notificationCount > 0
+            ? `Notifications, ${notificationCount} unread`
+            : "Notifications"
+        }
+        className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
       >
-        <Bell className="h-5 w-5" strokeWidth={2.25} />
+        <Bell className="h-4 w-4" strokeWidth={2.25} />
         {notificationCount > 0 ? (
-          <span className="absolute -top-0.5 -right-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-arc-orange-400 px-[3px] text-[10px] font-extrabold text-white">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-arc-orange-400 px-[3px] text-[9px] font-extrabold text-white">
             {notificationCount}
           </span>
         ) : null}
       </Link>
-    </header>
+    </div>
   );
 }

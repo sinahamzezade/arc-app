@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import QuestionnaireStepScreen from "@/components/questionnaire/QuestionnaireStepScreen";
 
 type PageProps = {
@@ -8,10 +7,7 @@ type PageProps = {
 export default async function QuestionnaireStepPage({ params }: PageProps) {
   const { step } = await params;
   const stepNumber = Number.parseInt(step, 10);
+  const safeStep = Number.isNaN(stepNumber) ? 1 : stepNumber;
 
-  if (Number.isNaN(stepNumber) || stepNumber < 1 || stepNumber > 10) {
-    redirect("/questionnaire");
-  }
-
-  return <QuestionnaireStepScreen stepNumber={stepNumber} />;
+  return <QuestionnaireStepScreen stepNumber={safeStep} />;
 }

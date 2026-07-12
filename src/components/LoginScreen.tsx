@@ -3,10 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { ArcField } from "@/components/ArcField";
+import { SocialButton } from "@/components/auth/SocialButton";
 import { AppleIcon, GoogleIcon } from "@/components/icons";
 import {
   AuthShell,
@@ -14,11 +17,22 @@ import {
   authGhostLinkClassName,
 } from "@/components/onboarding/AuthShell";
 import { Button, Link as ArcLink } from "@/components/ui";
+import { getAppleIdToken, getGoogleIdToken } from "@/lib/auth/oauth";
+import {
+  authErrorMessage,
+  signInWithOAuth,
+  signInWithPassword,
+} from "@/lib/auth/session";
+import { resolvePostAuthPath } from "@/lib/auth/post-auth-route";
 import { assets } from "@/lib/assets";
 import { loginSchema, type LoginFormData } from "@/schemas/login";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { update } = useSession();
+  const [formError, setFormError] = useState<string | null>(null);
+  const [oauthBusy, setOauthBusy] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -28,8 +42,52 @@ export default function LoginScreen() {
     defaultValues: { email: "", password: "" },
   });
 
-  const onSubmit = (data: LoginFormData) => {
-    console.log(data);
+  const afterSignIn = async () => {
+    const session = await update();
+    const dest = resolvePostAuthPath({
+      emailVerified: Boolean(session?.user?.emailVerified),
+      email: session?.user?.email,
+      profile: session?.profile,
+    });
+    router.push(dest);
+  };
+
+  const onSubmit = async (data: LoginFormData) => {
+    setFormError(null);
+    try {
+      await signInWithPassword(data);
+      await afterSignIn();
+    } catch (err) {
+      setFormError(authErrorMessage(err, "Could not log in"));
+    }
+  };
+
+  const onGoogle = async () => {
+    setFormError(null);
+    setOauthBusy(true);
+    try {
+      const idToken = await getGoogleIdToken();
+      await signInWithOAuth("google", idToken);
+      await afterSignIn();
+    } catch (err) {
+      setFormError(authErrorMessage(err, "Google sign-in failed"));
+    } finally {
+      setOauthBusy(false);
+    }
+  };
+
+  const onApple = async () => {
+    setFormError(null);
+    setOauthBusy(true);
+    try {
+      const idToken = await getAppleIdToken();
+      await signInWithOAuth("apple", idToken);
+      await afterSignIn();
+    } catch (err) {
+      setFormError(authErrorMessage(err, "Apple sign-in failed"));
+    } finally {
+      setOauthBusy(false);
+    }
   };
 
   return (
@@ -63,10 +121,7 @@ export default function LoginScreen() {
         </p>
       }
     >
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={handleSubmit(onSubmit)}
-      >
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
         <ArcField
           id="email"
           label="Email"
@@ -94,12 +149,16 @@ export default function LoginScreen() {
           </ArcLink>
         </div>
 
+        {formError ? (
+          <p className="text-[12px] font-bold text-arc-error">{formError}</p>
+        ) : null}
+
         <motion.div whileTap={{ scale: 0.98 }} className="mt-2">
           <Button
             type="submit"
             fullWidth
             variant="primary"
-            isDisabled={isSubmitting}
+            isDisabled={isSubmitting || oauthBusy}
             className={authCtaClassName}
           >
             Log in
@@ -115,33 +174,14 @@ export default function LoginScreen() {
         </div>
 
         <div className="flex gap-2.5">
-          <SocialButton label="Apple">
+          <SocialButton label="Apple" onPress={onApple} disabled={oauthBusy}>
             <AppleIcon />
           </SocialButton>
-          <SocialButton label="Google">
+          <SocialButton label="Google" onPress={onGoogle} disabled={oauthBusy}>
             <GoogleIcon />
           </SocialButton>
         </div>
       </form>
     </AuthShell>
-  );
-}
-
-function SocialButton({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.button
-      type="button"
-      whileTap={{ scale: 0.97 }}
-      className="flex h-14 flex-1 items-center justify-center gap-2 rounded-[16px] border-2 border-[#ebe4f6] bg-white text-[14px] font-bold text-[#0f1220] shadow-[0_3px_0_#ebe4f6]"
-    >
-      {children}
-      {label}
-    </motion.button>
   );
 }

@@ -9,6 +9,7 @@ import { QuestionnaireProgress } from "./QuestionnaireProgress";
 
 type QuestionnaireLayoutProps = {
   stepNumber?: number;
+  totalSteps?: number;
   onBack: () => void;
   title: string;
   subtitle?: string;
@@ -20,6 +21,7 @@ type QuestionnaireLayoutProps = {
 
 export function QuestionnaireLayout({
   stepNumber,
+  totalSteps = 10,
   onBack,
   title,
   subtitle,
@@ -51,6 +53,7 @@ export function QuestionnaireLayout({
           {stepNumber !== undefined ? (
             <QuestionnaireProgress
               stepNumber={stepNumber}
+              totalSteps={totalSteps}
               className="min-w-0 flex-1"
             />
           ) : null}

@@ -1,33 +1,89 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Coins, Gem, Star } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { assets } from "@/lib/assets";
-import { getLesson } from "@/lib/lesson/mock-data";
+import type { LessonCompleteResponse } from "@/lib/api/types";
+import { lessonsApi } from "@/lib/api/lessons";
+import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton } from "./LessonShell";
+import { LessonLoadState } from "./LessonLoadState";
 
 export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
   const router = useRouter();
-  const lesson = getLesson(lessonId);
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const { lesson, isLoading, isError, error, refetch } =
+    usePlayableLesson(lessonId);
+  const quizAnswers = useLessonStore((s) => s.quizAnswers);
+  const practiceOptionId = useLessonStore((s) => s.practiceOptionId);
   const markCompleted = useLessonStore((s) => s.markCompleted);
+  const [result, setResult] = useState<LessonCompleteResponse | null>(null);
+  const claimedRef = useRef(false);
+
+  const completeMutation = useMutation({
+    mutationFn: () =>
+      lessonsApi.complete(
+        lessonId,
+        {
+          quizAnswers,
+          practiceOptionId: practiceOptionId ?? undefined,
+        },
+        session?.accessToken,
+      ),
+    onSuccess: (data) => {
+      setResult(data);
+      markCompleted();
+      void queryClient.invalidateQueries({ queryKey: ["roadmaps", "current"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["lessons", "play", lessonId],
+      });
+    },
+  });
 
   useEffect(() => {
-    markCompleted();
-  }, [markCompleted]);
+    if (!lesson || claimedRef.current) return;
+    if (!session?.accessToken) return;
+    claimedRef.current = true;
+    completeMutation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?.id, session?.accessToken]);
 
-  if (!lesson) {
+  if (isLoading || (lesson && !result && completeMutation.isPending)) {
+    return <LessonLoadState message="Claiming reward…" />;
+  }
+
+  if (isError || !lesson) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-md items-center px-4">
-        <LessonPrimaryButton href="/path">Back to Path</LessonPrimaryButton>
-      </div>
+      <LessonLoadState
+        message={error?.message ?? "Lesson not found."}
+        onRetry={isError ? () => refetch() : undefined}
+      />
     );
   }
 
-  const { reward } = lesson;
+  if (completeMutation.isError && !result) {
+    return (
+      <LessonLoadState
+        message={
+          (completeMutation.error as Error)?.message ??
+          "Could not claim reward."
+        }
+        onRetry={() => {
+          claimedRef.current = false;
+          completeMutation.mutate();
+        }}
+      />
+    );
+  }
+
+  const reward = result?.reward ?? lesson.reward;
   const badgeSrc =
     reward.badgeId === "first-step" ? assets.badges.firstStep : null;
 

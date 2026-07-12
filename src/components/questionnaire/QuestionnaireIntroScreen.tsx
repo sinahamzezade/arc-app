@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
@@ -8,7 +9,10 @@ import { Clock, MessageCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui";
 import { authCtaClassName } from "@/components/onboarding/AuthShell";
 import { assets } from "@/lib/assets";
-import { QUESTIONNAIRE_TOTAL_STEPS } from "@/lib/questionnaire/steps";
+import { mapSchemaSteps } from "@/lib/questionnaire/steps";
+import { useHydrateQuestionnaire } from "@/lib/questionnaire/api-sync";
+import { useQuestionnaireStore } from "@/store/useQuestionnaireStore";
+import { isStepComplete } from "@/lib/questionnaire/format-answers";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
@@ -18,6 +22,31 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
  */
 export default function QuestionnaireIntroScreen() {
   const router = useRouter();
+  const { loading, schema, error } = useHydrateQuestionnaire();
+  const answers = useQuestionnaireStore((s) => s.answers);
+  const hydrated = useQuestionnaireStore((s) => s.hydrated);
+  const steps = mapSchemaSteps(schema);
+  const totalSteps = schema?.totalSteps ?? steps.length;
+
+  useEffect(() => {
+    if (!loading && error === "Sign in to continue") {
+      router.replace("/login");
+    }
+  }, [loading, error, router]);
+
+  const resumeStep =
+    hydrated &&
+    steps.find((step) => !isStepComplete(step.id, answers))?.stepNumber;
+
+  const hasProgress =
+    hydrated && steps.some((step) => isStepComplete(step.id, answers));
+
+  const ctaLabel = hasProgress ? "Continue intake" : "Start intake";
+  const ctaPath = resumeStep
+    ? `/questionnaire/${resumeStep}`
+    : hasProgress
+      ? "/questionnaire/review"
+      : "/questionnaire/1";
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#f3effc] font-rounded">
@@ -55,7 +84,7 @@ export default function QuestionnaireIntroScreen() {
               your future
             </h1>
             <p className="mt-3 max-w-[16rem] text-[13px] leading-snug font-bold text-white/50">
-              A few answers → Arlo builds your personalized roadmap.
+              Answer a few questions — Arlo builds your path from the skill graph.
             </p>
           </div>
 
@@ -161,7 +190,7 @@ export default function QuestionnaireIntroScreen() {
           </div>
 
           <p className="mt-8 max-w-[18rem] text-[12px] leading-relaxed font-bold text-[#b3a8d6]">
-            {QUESTIONNAIRE_TOTAL_STEPS} short steps. Built for working adults —
+            {totalSteps || "…"} short steps. Built for working adults —
             not a homework trap.
           </p>
         </div>
@@ -172,16 +201,22 @@ export default function QuestionnaireIntroScreen() {
               <div className="h-full w-[6%] rounded-full bg-[#ffc928]" />
             </div>
             <span className="text-[11px] font-black tracking-wide text-[#7a6fa3] uppercase">
-              Ready
+              {loading ? "Loading" : error ? "Error" : hasProgress ? "Resume" : "Ready"}
             </span>
           </div>
+          {error && error !== "Sign in to continue" ? (
+            <p className="mb-2 text-center text-[12px] font-bold text-red-500">
+              {error}
+            </p>
+          ) : null}
           <motion.div whileTap={{ scale: 0.98 }}>
             <Button
               type="button"
               className={authCtaClassName}
-              onPress={() => router.push("/questionnaire/1")}
+              isDisabled={loading || !schema}
+              onPress={() => router.push(ctaPath)}
             >
-              Start intake
+              {loading ? "Loading…" : ctaLabel}
             </Button>
           </motion.div>
         </div>

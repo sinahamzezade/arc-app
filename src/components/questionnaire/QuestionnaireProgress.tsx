@@ -1,20 +1,21 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { QUESTIONNAIRE_TOTAL_STEPS } from "@/lib/questionnaire/steps";
 
 type QuestionnaireProgressProps = {
   stepNumber: number;
+  totalSteps: number;
   className?: string;
 };
 
 export function QuestionnaireProgress({
   stepNumber,
+  totalSteps,
   className,
 }: QuestionnaireProgressProps) {
   const progress = Math.min(
     100,
-    Math.round((stepNumber / QUESTIONNAIRE_TOTAL_STEPS) * 100),
+    Math.round((stepNumber / Math.max(totalSteps, 1)) * 100),
   );
 
   return (
@@ -26,7 +27,7 @@ export function QuestionnaireProgress({
         />
       </div>
       <span className="shrink-0 text-[11px] font-black tracking-wide text-white/60 uppercase">
-        {stepNumber}/{QUESTIONNAIRE_TOTAL_STEPS}
+        {stepNumber}/{totalSteps}
       </span>
     </div>
   );

@@ -22,6 +22,7 @@ import {
   type RankTier,
 } from "@/lib/rank/mock-data";
 import { cn } from "@/lib/utils";
+import { useEconomyStore } from "@/store/useEconomyStore";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
@@ -36,6 +37,9 @@ export default function RankScreen({
   data?: RankMockData;
 }) {
   const { stats } = data;
+  const xp = useEconomyStore((s) => s.xp);
+  const gems = useEconomyStore((s) => s.gems);
+  const coins = useEconomyStore((s) => s.coins);
   const levelPct = Math.round((stats.xpIntoLevel / stats.xpForLevel) * 100);
 
   return (
@@ -137,7 +141,7 @@ export default function RankScreen({
           <CurrencyChip
             className="absolute top-0 left-0 z-[3] w-[38%] -rotate-2"
             label="XP"
-            value={stats.xp}
+            value={xp}
             tip={data.walletTips[0].tip}
             tone="xp"
             icon={<Star className="h-4 w-4 fill-white text-white" />}
@@ -145,7 +149,7 @@ export default function RankScreen({
           <CurrencyChip
             className="absolute top-3 left-[31%] z-[2] w-[38%]"
             label="Gems"
-            value={stats.gems}
+            value={gems}
             tip={data.walletTips[1].tip}
             tone="gem"
             icon={<Gem className="h-4 w-4 text-white" strokeWidth={2.5} />}
@@ -153,7 +157,7 @@ export default function RankScreen({
           <CurrencyChip
             className="absolute top-1 right-0 z-[1] w-[36%]"
             label="Coins"
-            value={stats.coins}
+            value={coins}
             tip={data.walletTips[2].tip}
             tone="coin"
             icon={

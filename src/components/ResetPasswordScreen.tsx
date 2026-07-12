@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "motion/react";
@@ -12,15 +13,22 @@ import {
   authCtaClassName,
 } from "@/components/onboarding/AuthShell";
 import { Button } from "@/components/ui";
+import { authApi } from "@/lib/api/auth";
+import { ApiError, messageForCode } from "@/lib/api/errors";
 import { assets } from "@/lib/assets";
 import {
   passwordRequirements,
   resetPasswordSchema,
   type ResetPasswordFormData,
 } from "@/schemas/reset-password";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
+  const resetToken = useAuthStore((s) => s.resetToken);
+  const setResetToken = useAuthStore((s) => s.setResetToken);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -33,10 +41,33 @@ export default function ResetPasswordScreen() {
 
   const password = watch("password");
 
-  const onSubmit = (data: ResetPasswordFormData) => {
-    console.log(data);
-    router.push("/login");
+  useEffect(() => {
+    if (!resetToken) {
+      router.replace("/forgot-password");
+    }
+  }, [resetToken, router]);
+
+  const onSubmit = async (data: ResetPasswordFormData) => {
+    if (!resetToken) return;
+    setFormError(null);
+    try {
+      await authApi.resetPassword({
+        resetToken,
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+      });
+      setResetToken(null);
+      router.push("/login");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFormError(messageForCode(err.code, err.message));
+      } else {
+        setFormError("Could not reset password");
+      }
+    }
   };
+
+  if (!resetToken) return null;
 
   return (
     <AuthShell
@@ -119,6 +150,10 @@ export default function ResetPasswordScreen() {
             );
           })}
         </ul>
+
+        {formError ? (
+          <p className="text-[12px] font-bold text-arc-error">{formError}</p>
+        ) : null}
 
         <motion.div whileTap={{ scale: 0.98 }} className="mt-3">
           <Button

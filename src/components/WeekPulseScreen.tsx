@@ -12,28 +12,66 @@ import {
 } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { motion } from "motion/react";
+import { useCurrentWeek } from "@/hooks/useCurrentWeek";
+import type { WeekCurrentResponse } from "@/lib/api/types";
 import {
   weekPulseMockData,
   type WeekPulseMockData,
   type WeekTask,
+  type WeekTaskStatus,
 } from "@/lib/week/mock-data";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
+function mapWeekToPulse(week: WeekCurrentResponse): WeekPulseMockData {
+  return {
+    weekLabel: week.weekLabel,
+    rangeLabel: week.rangeLabel,
+    goalHours: week.progress.hoursPlanned,
+    progress: week.progress,
+    streak: week.streak,
+    days: week.days.map((d) => ({
+      label: d.label,
+      full: d.full,
+      status: d.status,
+      minutesPlanned: d.minutesPlanned,
+      minutesDone: d.minutesDone,
+    })),
+    tasks: week.tasks.map((t) => ({
+      id: t.id,
+      dayLabel: t.dayLabel,
+      title: t.title,
+      track: t.track,
+      minutes: t.minutes,
+      xp: t.xp,
+      status: t.status as WeekTaskStatus,
+      href: t.href,
+    })),
+    arloNudge: week.arloNudge,
+  };
+}
+
 /**
  * Week commitment stage — night hero family (Home).
  * Sessions-left first. Today ticket. Plan list. Replan dock.
+ * Live data from GET /weeks/current.
  */
 export default function WeekPulseScreen({
-  data = weekPulseMockData,
+  data: dataProp,
 }: {
   data?: WeekPulseMockData;
 }) {
+  const { week, replan } = useCurrentWeek();
+  const data = week ? mapWeekToPulse(week) : (dataProp ?? weekPulseMockData);
+
   const todayTask = data.tasks.find((t) => t.status === "today");
   const sessionsLeft =
-    data.progress.sessionsPlanned - data.progress.sessionsDone;
+    week?.sessionsLeft ??
+    Math.max(0, data.progress.sessionsPlanned - data.progress.sessionsDone);
+  const targetWeek =
+    week?.targetWeek ?? data.streak.weeks + (sessionsLeft > 0 ? 1 : 0);
   const doneDays = data.days.filter((d) => d.status === "done").length;
 
   return (
@@ -90,7 +128,7 @@ export default function WeekPulseScreen({
                 </p>
                 <p className="mt-2 text-[14px] font-bold text-white/70">
                   session{sessionsLeft === 1 ? "" : "s"} to lock week{" "}
-                  {data.streak.weeks + 1}
+                  {targetWeek}
                 </p>
               </>
             ) : (
@@ -219,7 +257,14 @@ export default function WeekPulseScreen({
         </div>
       </div>
 
-      <ReplanDock todayHref={todayTask?.href} />
+      <ReplanDock
+        todayHref={todayTask?.href}
+        onReplan={
+          week ? () => replan.mutate({ mode: "catch_up" }) : undefined
+        }
+        replanning={replan.isPending}
+        sealed={week?.sealed}
+      />
     </div>
   );
 }
@@ -372,7 +417,17 @@ function TaskRow({ task, last }: { task: WeekTask; last?: boolean }) {
   return <li>{inner}</li>;
 }
 
-function ReplanDock({ todayHref }: { todayHref?: string }) {
+function ReplanDock({
+  todayHref,
+  onReplan,
+  replanning,
+  sealed,
+}: {
+  todayHref?: string;
+  onReplan?: () => void;
+  replanning?: boolean;
+  sealed?: boolean;
+}) {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
       <motion.div
@@ -383,9 +438,14 @@ function ReplanDock({ todayHref }: { todayHref?: string }) {
       >
         <button
           type="button"
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#ebe4f6] bg-[#f6f2ff] py-3.5 font-display text-[13px] font-semibold text-[#1b1730]"
+          onClick={onReplan}
+          disabled={!onReplan || replanning || sealed}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#ebe4f6] bg-[#f6f2ff] py-3.5 font-display text-[13px] font-semibold text-[#1b1730] disabled:opacity-40"
         >
-          <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
+          <RefreshCw
+            className={cn("h-4 w-4", replanning && "animate-spin")}
+            strokeWidth={2.5}
+          />
           Replan
         </button>
         <motion.div

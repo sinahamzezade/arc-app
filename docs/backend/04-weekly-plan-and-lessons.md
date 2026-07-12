@@ -4,7 +4,7 @@
 **Consumers:** Arc Next.js PWA — Home Seal Week vault (`HomeWeekLockVault`), `/week` pulse, lesson flow  
 **Product source:** `Arc_MVP_Full_Technical_Roadmap.md` §6 Weekly Planner, §6.9, §13.4 `generate_weekly_plan`; `Arc_Battle_XP_Gems_Coins_Referral_Spec.md` §3.1 Weekly Commitment Streak  
 **Depends on:** [01 — User Model & Authentication](./01-user-model-and-authentication.md), [03 — Skill Graph, Roadmap Generator & AI Coach](./03-goals-and-roadmap.md)  
-**Feeds:** [05 — Rewards](./05-rewards.md) (planned), [06 — Notifications](./06-notifications.md)
+**Feeds:** [05 — Learn / Lesson Play](./05-Learn_Lesson_Play_API.md), [06 — Notifications](./06-notifications.md)
 
 ---
 

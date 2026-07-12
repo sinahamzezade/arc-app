@@ -6,54 +6,79 @@ import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 import { motion } from "motion/react";
 import { assets } from "@/lib/assets";
-import { getLesson } from "@/lib/lesson/mock-data";
+import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { LessonShell } from "./LessonShell";
+import { LessonLoadState } from "./LessonLoadState";
 
 type ChatMsg = { role: "user" | "arlo"; text: string };
 
-function arloReply(input: string): string {
+function arloReply(input: string, lessonTitle: string): string {
   const q = input.toLowerCase();
-  if (q.includes("head") || q.includes("body")) {
-    return "Head = backstage (title, meta). Body = the show humans see. Keep props in head, actors in body.";
+  if (q.includes("explain") || q.includes("what")) {
+    return `In one line: this stop is about “${lessonTitle}”. Say it back, then practice.`;
   }
-  if (q.includes("</") || q.includes("close") || q.includes("slash")) {
-    return "Closing tags wear a slash cape: </p>. Open the door, say the line, close the door. Drama avoided.";
+  if (q.includes("hint") || q.includes("stuck")) {
+    return `Break “${lessonTitle}” into: what it is → why it matters → one tiny example.`;
   }
-  if (q.includes("h1") || q.includes("heading")) {
-    return "h1 is your billboard — one main headline. p is the fine print under it.";
+  if (q.includes("quiz") || q.includes("practice")) {
+    return "Do practice first, then quiz. Wrong answers teach faster than perfect reading.";
   }
-  return "Solid question. For this lesson: tags open, content goes in, tags close with a slash. Try the practice again if it feels fuzzy.";
+  return `Solid question. Keep it tied to “${lessonTitle}” — ask for a recap, a hint, or a mini quiz.`;
 }
 
 export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
   const router = useRouter();
-  const lesson = getLesson(lessonId);
+  const { lesson, isLoading, isError, error, refetch } =
+    usePlayableLesson(lessonId);
   const [input, setInput] = useState("");
-  const [msgs, setMsgs] = useState<ChatMsg[]>([
-    {
-      role: "arlo",
-      text: lesson
-        ? `I'm locked on "${lesson.title}". Ask anything about tags, head/body, or the quiz.`
-        : "Lesson context missing — still happy to help with HTML basics.",
-    },
-  ]);
+  const [msgs, setMsgs] = useState<ChatMsg[]>([]);
 
-  if (!lesson) {
+  if (isLoading) {
     return (
       <LessonShell lessonId={lessonId} stepLabel="Arlo" progress={0} showArlo={false}>
-        <p className="text-[#8a7cb8]">No lesson loaded.</p>
+        <p className="text-[#8a7cb8]">Loading Arlo…</p>
       </LessonShell>
     );
   }
 
+  if (isError || !lesson) {
+    return (
+      <LessonLoadState
+        message={error?.message ?? "No lesson loaded."}
+        onRetry={isError ? () => refetch() : undefined}
+      />
+    );
+  }
+
+  const thread =
+    msgs.length > 0
+      ? msgs
+      : [
+          {
+            role: "arlo" as const,
+            text: `I'm locked on “${lesson.title}”. Ask for a recap, a hint, or a mini quiz.`,
+          },
+        ];
+
   const send = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    setMsgs((prev) => [
-      ...prev,
-      { role: "user", text: trimmed },
-      { role: "arlo", text: arloReply(trimmed) },
-    ]);
+    setMsgs((prev) => {
+      const base =
+        prev.length > 0
+          ? prev
+          : [
+              {
+                role: "arlo" as const,
+                text: `I'm locked on “${lesson.title}”. Ask for a recap, a hint, or a mini quiz.`,
+              },
+            ];
+      return [
+        ...base,
+        { role: "user", text: trimmed },
+        { role: "arlo", text: arloReply(trimmed, lesson.title) },
+      ];
+    });
     setInput("");
   };
 
@@ -79,7 +104,7 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
               Arlo
             </p>
             <p className="text-[12px] font-semibold text-[#8a7cb8]">
-              Lesson coach · mock replies
+              Lesson coach · local replies
             </p>
           </div>
         </div>
@@ -98,7 +123,7 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto pb-3">
-          {msgs.map((msg, i) => (
+          {thread.map((msg, i) => (
             <motion.div
               key={`${msg.role}-${i}`}
               initial={{ opacity: 0, y: 8 }}

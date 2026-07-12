@@ -4,7 +4,7 @@ import {
   type HomeMockData,
 } from "@/lib/home/mock-data";
 
-export type WeekTaskStatus = "done" | "today" | "upcoming" | "missed";
+export type WeekTaskStatus = "done" | "today" | "upcoming" | "missed" | "skipped";
 
 export type WeekTask = {
   id: string;

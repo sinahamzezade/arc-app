@@ -3,36 +3,67 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
-import { getLesson } from "@/lib/lesson/mock-data";
+import { lessonsApi } from "@/lib/api/lessons";
+import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import {
   LessonOptionCard,
   LessonPrimaryButton,
   LessonShell,
 } from "./LessonShell";
+import { LessonLoadState } from "./LessonLoadState";
 
 export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
   const router = useRouter();
-  const lesson = getLesson(lessonId);
+  const { data: session } = useSession();
+  const { lesson, isLoading, isError, error, refetch } =
+    usePlayableLesson(lessonId);
   const quizIndex = useLessonStore((s) => s.quizIndex);
   const quizAnswers = useLessonStore((s) => s.quizAnswers);
   const setQuizAnswer = useLessonStore((s) => s.setQuizAnswer);
   const setQuizIndex = useLessonStore((s) => s.setQuizIndex);
-  const [revealed, setRevealed] = useState(false);
+  const quizReveal = useLessonStore((s) => s.quizReveal);
+  const setQuizReveal = useLessonStore((s) => s.setQuizReveal);
+  const [localRevealed, setLocalRevealed] = useState(false);
 
-  if (!lesson) {
+  const checkMutation = useMutation({
+    mutationFn: (payload: { questionId: string; optionId: string }) =>
+      lessonsApi.checkQuiz(lessonId, payload, session?.accessToken),
+    onSuccess: (res, vars) => {
+      setQuizReveal(vars.questionId, {
+        correctOptionId: res.correctOptionId,
+        explanation: res.explanation,
+        correct: res.correct,
+      });
+      setLocalRevealed(true);
+    },
+  });
+
+  if (isLoading) {
     return (
-      <LessonShell lessonId={lessonId} stepLabel="Missing" progress={0} showArlo={false}>
-        <LessonPrimaryButton href="/path">Back to Path</LessonPrimaryButton>
+      <LessonShell lessonId={lessonId} stepLabel="Loading" progress={0} showArlo={false}>
+        <p className="text-arc-lavender-600">Loading quiz…</p>
       </LessonShell>
+    );
+  }
+
+  if (isError || !lesson) {
+    return (
+      <LessonLoadState
+        message={error?.message ?? "Lesson not found."}
+        onRetry={isError ? () => refetch() : undefined}
+      />
     );
   }
 
   const question = lesson.quiz[quizIndex];
   const total = lesson.quiz.length;
   const selected = quizAnswers[question.id] ?? null;
-  const isCorrect = selected === question.correctOptionId;
+  const reveal = quizReveal[question.id];
+  const revealed = localRevealed && Boolean(reveal);
   const isLast = quizIndex >= total - 1;
   const progress = 65 + ((quizIndex + 1) / total) * 25;
 
@@ -43,7 +74,7 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
       progress={progress}
       onBack={() => {
         if (quizIndex > 0) {
-          setRevealed(false);
+          setLocalRevealed(Boolean(quizReveal[lesson.quiz[quizIndex - 1]?.id]));
           setQuizIndex(quizIndex - 1);
         } else {
           router.push(`/learn/${lesson.id}/practice`);
@@ -66,7 +97,7 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
               key={option.id}
               label={option.label}
               selected={selected === option.id}
-              correct={option.id === question.correctOptionId}
+              correct={option.id === reveal?.correctOptionId}
               revealed={revealed}
               onSelect={() => {
                 if (revealed) return;
@@ -76,19 +107,31 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
           ))}
         </div>
 
-        {revealed ? (
+        {revealed && reveal?.explanation ? (
           <p className="mt-4 text-[14px] font-semibold text-[#4a3d78]">
-            {question.explanation}
+            {reveal.explanation}
+          </p>
+        ) : null}
+
+        {checkMutation.isError ? (
+          <p className="mt-3 text-[13px] font-bold text-[#9a4a12]">
+            {(checkMutation.error as Error)?.message ?? "Check failed. Retry."}
           </p>
         ) : null}
 
         <div className="mt-auto space-y-2 pt-8">
           {!revealed ? (
             <LessonPrimaryButton
-              disabled={!selected}
-              onClick={() => setRevealed(true)}
+              disabled={!selected || checkMutation.isPending}
+              onClick={() => {
+                if (!selected) return;
+                checkMutation.mutate({
+                  questionId: question.id,
+                  optionId: selected,
+                });
+              }}
             >
-              Check
+              {checkMutation.isPending ? "Checking…" : "Check"}
             </LessonPrimaryButton>
           ) : isLast ? (
             <LessonPrimaryButton href={`/learn/${lesson.id}/reward`}>
@@ -98,7 +141,7 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
           ) : (
             <LessonPrimaryButton
               onClick={() => {
-                setRevealed(false);
+                setLocalRevealed(false);
                 setQuizIndex(quizIndex + 1);
               }}
             >

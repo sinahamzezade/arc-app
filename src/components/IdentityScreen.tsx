@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { BackButton } from "@/components/BackButton";
 import {
   Check,
@@ -11,6 +12,8 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { meApi } from "@/lib/api/auth";
+import { ApiError, messageForCode } from "@/lib/api/errors";
 import { assets } from "@/lib/assets";
 import { profileMockData, type ProfileMockData } from "@/lib/profile/mock-data";
 import { cn } from "@/lib/utils";
@@ -26,18 +29,53 @@ export default function IdentityScreen({
 }: {
   data?: ProfileMockData;
 }) {
-  const [userName, setUserName] = useState(data.userName);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(data.userName);
-  const [savedFlash, setSavedFlash] = useState(false);
+  const { data: session, update } = useSession();
+  const profile = session?.profile;
 
-  const saveName = () => {
-    const next = draft.trim() || data.userName;
+  const initialName =
+    profile?.username || profile?.displayName || data.userName;
+
+  const [userName, setUserName] = useState(initialName);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(initialName);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const next =
+      profile?.username || profile?.displayName || data.userName;
     setUserName(next);
     setDraft(next);
-    setEditing(false);
-    setSavedFlash(true);
-    window.setTimeout(() => setSavedFlash(false), 1400);
+  }, [profile?.username, profile?.displayName, data.userName]);
+
+  const fromRole = profile?.currentRole || data.fromRole;
+  const becoming = profile?.targetRole || data.becoming;
+
+  const saveName = async () => {
+    const next = draft.trim() || data.userName;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await meApi.updateProfile({
+        username: next,
+        displayName: next,
+      });
+      await update({ profile: res.profile });
+      setUserName(res.profile.username || res.profile.displayName || next);
+      setDraft(res.profile.username || res.profile.displayName || next);
+      setEditing(false);
+      setSavedFlash(true);
+      window.setTimeout(() => setSavedFlash(false), 1400);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setSaveError(messageForCode(err.code, err.message));
+      } else {
+        setSaveError("Could not save username");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -81,9 +119,9 @@ export default function IdentityScreen({
               {userName}
             </h1>
             <p className="mt-3 max-w-[14rem] text-[13px] leading-snug font-bold text-white/50">
-              <span>{data.fromRole}</span>
+              <span>{fromRole}</span>
               <span className="mx-1.5 text-[#ffc928]">→</span>
-              <span className="text-white">{data.becoming}</span>
+              <span className="text-white">{becoming}</span>
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black tracking-wide ring-1 ring-white/15">
@@ -146,17 +184,19 @@ export default function IdentityScreen({
                 aria-label="Edit username"
                 className="h-12 min-w-0 flex-1 rounded-[14px] border-2 border-arc-purple-500 bg-[#f3effc] px-3.5 font-display text-[18px] font-bold text-[#0f1220] outline-none"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") saveName();
+                  if (e.key === "Enter" && !saving) void saveName();
                   if (e.key === "Escape") {
                     setDraft(userName);
                     setEditing(false);
+                    setSaveError(null);
                   }
                 }}
               />
               <button
                 type="button"
-                onClick={saveName}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
+                onClick={() => void saveName()}
+                disabled={saving}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6] disabled:opacity-60"
                 aria-label="Save username"
               >
                 <Check className="h-5 w-5" strokeWidth={2.75} />
@@ -168,6 +208,7 @@ export default function IdentityScreen({
               onClick={() => {
                 setDraft(userName);
                 setEditing(true);
+                setSaveError(null);
               }}
               className="mt-2 flex w-full items-center gap-3 rounded-[14px] bg-[#f3effc] px-3.5 py-3 text-left active:bg-[#ebe4f6]"
             >
@@ -179,6 +220,11 @@ export default function IdentityScreen({
               </span>
             </button>
           )}
+          {saveError ? (
+            <p className="mt-2 text-[12px] font-bold text-arc-error">
+              {saveError}
+            </p>
+          ) : null}
           <p className="mt-2 text-[12px] font-bold text-[#8a7cb8]">
             Visible on league, battles & invites.
           </p>

@@ -1,16 +1,25 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import { authCtaClassName } from "@/components/onboarding/AuthShell";
+import { ApiError, messageForCode } from "@/lib/api/errors";
 import { isStepComplete } from "@/lib/questionnaire/format-answers";
 import {
+  saveQuestionnaireDraft,
+  useHydrateQuestionnaire,
+} from "@/lib/questionnaire/api-sync";
+import {
+  getAdjacentVisibleStep,
+  getVisibleProgress,
+  isStepVisible,
+} from "@/lib/questionnaire/branching";
+import {
   getStepByNumber,
-  scheduleDays,
-  scheduleTimes,
   type QuestionnaireStepConfig,
 } from "@/lib/questionnaire/steps";
 import type { QuestionnaireAnswers } from "@/schemas/questionnaire";
@@ -26,43 +35,162 @@ export default function QuestionnaireStepScreen({
   stepNumber,
 }: QuestionnaireStepScreenProps) {
   const router = useRouter();
-  const step = getStepByNumber(stepNumber);
-  const { answers, setAnswers } = useQuestionnaireStore();
+  const { data: session } = useSession();
+  const { answers, setAnswers, schema } = useQuestionnaireStore();
+  const { loading: hydrating, error: hydrateError } = useHydrateQuestionnaire();
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  if (!step) return null;
+  const step = getStepByNumber(schema, stepNumber);
+  const catalogTotal = schema?.totalSteps ?? 10;
+  const progress = getVisibleProgress(schema, answers, stepNumber);
+  const progressTotal = progress.total || catalogTotal;
+  const progressStep = progress.total ? progress.index + 1 : stepNumber;
+
+  useEffect(() => {
+    if (hydrating) return;
+    if (hydrateError === "Sign in to continue") {
+      router.replace("/login");
+      return;
+    }
+    if (!schema) return;
+    if (stepNumber < 1 || stepNumber > catalogTotal || !step) {
+      router.replace("/questionnaire");
+      return;
+    }
+    // Question Engine branching: skip hidden steps
+    if (!isStepVisible(step, answers)) {
+      const next = getAdjacentVisibleStep(schema, answers, stepNumber, "next");
+      const prev = getAdjacentVisibleStep(schema, answers, stepNumber, "prev");
+      if (next !== null) {
+        router.replace(`/questionnaire/${next}`);
+      } else if (prev !== null) {
+        router.replace(`/questionnaire/${prev}`);
+      } else {
+        router.replace("/questionnaire/review");
+      }
+    }
+  }, [
+    schema,
+    step,
+    stepNumber,
+    catalogTotal,
+    answers,
+    router,
+    hydrating,
+    hydrateError,
+  ]);
+
+  if (hydrating && !step) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-[#f3effc] text-[13px] font-bold text-[#7a6fa3]">
+        Loading questions…
+      </div>
+    );
+  }
+
+  if (!step) {
+    return (
+      <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-[#f3effc] px-6 text-center">
+        <p className="text-[14px] font-bold text-[#7a6fa3]">
+          {hydrateError || "Could not load this step"}
+        </p>
+        <Button
+          type="button"
+          className={authCtaClassName}
+          onPress={() =>
+            router.replace(
+              hydrateError === "Sign in to continue"
+                ? "/login"
+                : "/questionnaire",
+            )
+          }
+        >
+          {hydrateError === "Sign in to continue" ? "Sign in" : "Back"}
+        </Button>
+      </div>
+    );
+  }
 
   const canProceed = isStepComplete(step.id, answers);
+  const nextVisible = getAdjacentVisibleStep(
+    schema,
+    answers,
+    stepNumber,
+    "next",
+  );
+  const prevVisible = getAdjacentVisibleStep(
+    schema,
+    answers,
+    stepNumber,
+    "prev",
+  );
   const nextPath =
-    stepNumber >= 10
+    nextVisible === null
       ? "/questionnaire/review"
-      : `/questionnaire/${stepNumber + 1}`;
+      : `/questionnaire/${nextVisible}`;
 
   const handleBack = () => {
-    if (stepNumber === 1) router.push("/questionnaire");
-    else router.push(`/questionnaire/${stepNumber - 1}`);
+    if (prevVisible === null) router.push("/questionnaire");
+    else router.push(`/questionnaire/${prevVisible}`);
+  };
+
+  const handleNext = async () => {
+    if (!canProceed || saving) return;
+    setSaveError(null);
+    setSaving(true);
+    try {
+      await saveQuestionnaireDraft(answers, session?.accessToken);
+      router.push(nextPath);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setSaveError(messageForCode(err.code, err.message));
+      } else {
+        setSaveError("Could not save progress");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <QuestionnaireLayout
-      stepNumber={stepNumber}
+      stepNumber={progressStep}
+      totalSteps={progressTotal}
       onBack={handleBack}
       title={step.title}
       subtitle={step.subtitle}
       footer={
-        <motion.div whileTap={{ scale: 0.98 }}>
-          <Button
-            type="button"
-            className={cn(authCtaClassName, !canProceed && "opacity-45")}
-            isDisabled={!canProceed}
-            onPress={() => router.push(nextPath)}
-          >
-            Next
-          </Button>
-        </motion.div>
+        <div className="space-y-2">
+          {saveError ? (
+            <p className="text-center text-[12px] font-bold text-red-500">
+              {saveError}
+            </p>
+          ) : null}
+          <motion.div whileTap={{ scale: 0.98 }}>
+            <Button
+              type="button"
+              className={cn(
+                authCtaClassName,
+                (!canProceed || hydrating) && "opacity-45",
+              )}
+              isDisabled={!canProceed || saving || hydrating}
+              onPress={() => {
+                void handleNext();
+              }}
+            >
+              {saving ? "Saving…" : "Next"}
+            </Button>
+          </motion.div>
+        </div>
       }
     >
-      {step.id === "schedule" ? (
-        <ScheduleStep answers={answers} setAnswers={setAnswers} />
+      {step.uiKind === "schedule" ? (
+        <ScheduleStep
+          step={step}
+          answers={answers}
+          setAnswers={setAnswers}
+        />
       ) : (
         <StandardStep step={step} answers={answers} setAnswers={setAnswers} />
       )}
@@ -83,7 +211,7 @@ function StandardStep({
   const otherValue = (answers[otherKey] as string | undefined) ?? "";
 
   const selectedValues = useMemo(() => {
-    const value = answers[step.id];
+    const value = answers[step.id as keyof QuestionnaireAnswers];
     if (step.selection === "multi" && Array.isArray(value)) return value;
     if (step.selection === "single" && typeof value === "string" && value)
       return [value];
@@ -96,14 +224,15 @@ function StandardStep({
       return;
     }
 
-    const current = (answers[step.id] as string[]) ?? [];
+    const current =
+      (answers[step.id as keyof QuestionnaireAnswers] as string[]) ?? [];
     const next = current.includes(optionValue)
       ? current.filter((v) => v !== optionValue)
       : [...current, optionValue];
     setAnswers({ [step.id]: next } as Partial<QuestionnaireAnswers>);
   };
 
-  const showIcons = step.id === "goal";
+  const showIcons = step.options.some((o) => o.icon && o.iconClassName);
 
   return (
     <div className="space-y-2.5">
@@ -130,9 +259,11 @@ function StandardStep({
 }
 
 function ScheduleStep({
+  step,
   answers,
   setAnswers,
 }: {
+  step: QuestionnaireStepConfig;
   answers: QuestionnaireAnswers;
   setAnswers: (patch: Partial<QuestionnaireAnswers>) => void;
 }) {
@@ -159,7 +290,7 @@ function ScheduleStep({
           Days
         </h2>
         <div className="flex flex-wrap gap-2">
-          {scheduleDays.map((day) => {
+          {step.scheduleDays.map((day) => {
             const selected = days.includes(day);
             return (
               <button
@@ -185,10 +316,10 @@ function ScheduleStep({
           Time of day
         </h2>
         <div className="space-y-2.5">
-          {scheduleTimes.map((time) => (
+          {step.scheduleTimes.map((time) => (
             <QuestionnaireOptionCard
               key={time.value}
-              option={{ value: time.value, label: time.label }}
+              option={time}
               selected={times.includes(time.value)}
               onToggle={() => toggleTime(time.value)}
             />

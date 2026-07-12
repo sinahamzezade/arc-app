@@ -31,6 +31,9 @@ export type NotificationItem = {
         color: string;
       };
   coachBadge?: boolean;
+  actionUrl?: string | null;
+  type?: string;
+  createdAt?: string;
 };
 
 export type NotificationSection = {

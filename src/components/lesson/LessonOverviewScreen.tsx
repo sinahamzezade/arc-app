@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  BookOpen,
   Clock,
   ExternalLink,
   MessageCircle,
@@ -13,12 +14,16 @@ import {
   Target,
   Zap,
 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
 import { assets } from "@/lib/assets";
-import { getLesson } from "@/lib/lesson/mock-data";
+import { lessonsApi } from "@/lib/api/lessons";
+import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton } from "./LessonShell";
+import { LessonLoadState } from "./LessonLoadState";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
@@ -32,21 +37,37 @@ export default function LessonOverviewScreen({
   lessonId: string;
 }) {
   const router = useRouter();
-  const lesson = getLesson(lessonId);
+  const { data: session } = useSession();
+  const { lesson, isLoading, isError, error, refetch } =
+    usePlayableLesson(lessonId);
   const startLesson = useLessonStore((s) => s.startLesson);
+  const startedRef = useRef<string | null>(null);
+
+  const startMutation = useMutation({
+    mutationFn: () => lessonsApi.start(lessonId, session?.accessToken),
+  });
 
   useEffect(() => {
-    if (lesson) startLesson(lesson.id);
-  }, [lesson, startLesson]);
+    if (!lesson) return;
+    if (startedRef.current === lesson.id) return;
+    startedRef.current = lesson.id;
+    startLesson(lesson.id);
+    startMutation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- start once per lesson id
+  }, [lesson?.id]);
 
-  if (!lesson) {
+  if (isLoading) {
+    return <LessonLoadState message="Loading lesson…" />;
+  }
+
+  if (isError || !lesson) {
     return (
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-4 bg-[#f3effc] px-6 font-rounded">
-        <p className="text-center font-semibold text-arc-lavender-600">
-          Lesson not found.
-        </p>
-        <LessonPrimaryButton href="/learn">Back to Learn</LessonPrimaryButton>
-      </div>
+      <LessonLoadState
+        message={error?.message ?? "Lesson not found."}
+        actionHref="/path"
+        actionLabel="Back to Path"
+        onRetry={isError ? () => refetch() : undefined}
+      />
     );
   }
 
@@ -70,9 +91,8 @@ export default function LessonOverviewScreen({
           }}
         />
 
-        {/* Top bar */}
         <header className="relative z-[1] flex items-center gap-3">
-          <BackButton onClick={() => router.push("/learn")} />
+          <BackButton onClick={() => router.push("/path")} />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
               Lesson {lesson.lessonNumber}
@@ -95,7 +115,6 @@ export default function LessonOverviewScreen({
           </Link>
         </header>
 
-        {/* Masthead + Arlo */}
         <div className="relative z-[1] mt-6 grid grid-cols-[1fr_auto] items-end gap-3">
           <div className="min-w-0 pb-1">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-[#ffc928]/15 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.1em] text-[#ffc928] uppercase">
@@ -107,7 +126,10 @@ export default function LessonOverviewScreen({
             </h1>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold ring-1 ring-white/15">
-                <Clock className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
+                <Clock
+                  className="h-3.5 w-3.5 text-[#ffc928]"
+                  strokeWidth={2.5}
+                />
                 {lesson.minutes} min
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-[#ffc928]/15 px-2.5 py-1.5 text-[11px] font-extrabold text-[#ffc928]">
@@ -138,9 +160,7 @@ export default function LessonOverviewScreen({
         </p>
       </section>
 
-      {/* Sheet */}
       <div className="relative z-10 -mt-12 flex flex-1 flex-col rounded-t-[28px] bg-[#f3effc] px-4 pt-6 pb-[calc(env(safe-area-inset-bottom)+24px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
-        {/* Objective — night vault stamp */}
         <div className="relative overflow-hidden rounded-[22px] bg-[#0f1220] p-4 text-white shadow-[0_14px_32px_rgba(15,18,32,0.28)]">
           <div
             aria-hidden
@@ -157,28 +177,46 @@ export default function LessonOverviewScreen({
           </p>
         </div>
 
-        {/* Resource — clay row, not nested card stack */}
-        <a
-          href={lesson.resource.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 flex items-start gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]"
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]">
-            <ExternalLink className="h-4 w-4" strokeWidth={2.5} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-black tracking-[0.1em] text-arc-lavender-500 uppercase">
-              Resource
+        {lesson.resource.href.startsWith("http") ? (
+          <a
+            href={lesson.resource.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex items-start gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]">
+              <ExternalLink className="h-4 w-4" strokeWidth={2.5} />
             </span>
-            <span className="mt-0.5 block font-display text-[15px] leading-snug font-bold text-[#0f1220]">
-              {lesson.resource.label}
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10px] font-black tracking-[0.1em] text-arc-lavender-500 uppercase">
+                Resource
+              </span>
+              <span className="mt-0.5 block font-display text-[15px] leading-snug font-bold text-[#0f1220]">
+                {lesson.resource.label}
+              </span>
+              <span className="mt-1 block text-[12px] font-bold text-arc-lavender-700">
+                {lesson.resource.note}
+              </span>
             </span>
-            <span className="mt-1 block text-[12px] font-bold text-arc-lavender-700">
-              {lesson.resource.note}
+          </a>
+        ) : (
+          <div className="mt-3 flex items-start gap-3 rounded-[18px] border-2 border-dashed border-[#ebe4f6] bg-white/80 p-3.5">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#efe9f8] text-arc-purple-500">
+              <BookOpen className="h-4 w-4" strokeWidth={2.5} />
             </span>
-          </span>
-        </a>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10px] font-black tracking-[0.1em] text-arc-lavender-500 uppercase">
+                Resource
+              </span>
+              <span className="mt-0.5 block font-display text-[15px] leading-snug font-bold text-[#0f1220]">
+                {lesson.resource.label}
+              </span>
+              <span className="mt-1 block text-[12px] font-bold text-arc-lavender-700">
+                {lesson.resource.note}
+              </span>
+            </span>
+          </div>
+        )}
 
         <div className="mt-auto pt-6">
           <motion.div whileTap={{ scale: 0.98, y: 2 }} transition={softSpring}>

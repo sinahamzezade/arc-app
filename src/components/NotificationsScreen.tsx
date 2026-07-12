@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
 import {
   Award,
-  Bell,
   Calendar,
   CheckCheck,
   Flame,
@@ -19,15 +18,15 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useNotifications } from "@/hooks/useNotifications";
 import { assets } from "@/lib/assets";
-import { cn } from "@/lib/utils";
 import {
   notificationFilters,
-  notificationSections,
   type NotificationFilter,
   type NotificationItem,
   type NotificationSection,
 } from "@/lib/notifications/mock-data";
+import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
@@ -42,7 +41,7 @@ const iconMap = {
   flame: Flame,
 } as const;
 
-const filterIcons: Record<NotificationFilter, typeof Bell> = {
+const filterIcons: Record<NotificationFilter, typeof Radio> = {
   all: Radio,
   unread: Zap,
   rewards: Gift,
@@ -59,42 +58,46 @@ const categoryInk: Record<NotificationItem["category"], string> = {
 
 /**
  * Signal desk v2 — dispatch wire.
- * Radar hero + channel dials + timeline spine. Not Rank/Wallet card clone.
+ * Live inbox from GET /notifications.
  */
 export default function NotificationsScreen() {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const [filter, setFilter] = useState<NotificationFilter>("all");
-  const [items, setItems] = useState(() =>
-    notificationSections.flatMap((section) => section.items),
-  );
 
-  const unreadCount = items.filter((item) => item.unread).length;
+  const { data, isLoading, isError, markRead, markAllRead } =
+    useNotifications(filter);
 
-  const sections = useMemo(() => {
-    return notificationSections
-      .map((section) => ({
-        ...section,
-        items: section.items
-          .map((item) => items.find((i) => i.id === item.id) ?? item)
-          .filter((item) => matchesFilter(item, filter)),
-      }))
-      .filter((section) => section.items.length > 0);
-  }, [filter, items]);
+  const unreadCount = data?.unreadCount ?? 0;
+  const sections = data?.sections ?? [];
 
-  const markAllRead = () => {
-    setItems((prev) => prev.map((item) => ({ ...item, unread: false })));
+  const priority = useMemo(() => {
+    const items = data?.items ?? [];
+    return items.find(
+      (item) =>
+        item.unread &&
+        (item.category === "streak" ||
+          item.type === "streak_risk" ||
+          item.type === "study_reminder"),
+    );
+  }, [data?.items]);
+
+  const onMarkAllRead = () => {
+    if (unreadCount === 0 || markAllRead.isPending) return;
+    markAllRead.mutate();
   };
 
-  const markRead = (id: string) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, unread: false } : item)),
-    );
+  const onOpen = (item: NotificationItem) => {
+    if (item.unread) {
+      markRead.mutate(item.id);
+    }
+    if (item.actionUrl) {
+      router.push(item.actionUrl);
+    }
   };
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      {/* DISPATCH HERO */}
       <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-24 text-white">
         <RadarBackdrop reduceMotion={!!reduceMotion} />
 
@@ -110,8 +113,8 @@ export default function NotificationsScreen() {
           </div>
           <motion.button
             type="button"
-            onClick={markAllRead}
-            disabled={unreadCount === 0}
+            onClick={onMarkAllRead}
+            disabled={unreadCount === 0 || markAllRead.isPending}
             whileTap={reduceMotion ? undefined : { scale: 0.96 }}
             transition={snappySpring}
             aria-label="Mark all as read"
@@ -150,9 +153,11 @@ export default function NotificationsScreen() {
               )}
             </div>
             <p className="mt-3 max-w-[13.5rem] text-[14px] leading-snug font-semibold text-white/55">
-              {unreadCount === 0
-                ? "Wire quiet. Arlo will ping when something matters."
-                : "Unread traffic on the wire. Tap a signal to clear it."}
+              {isLoading
+                ? "Tuning the wire…"
+                : unreadCount === 0
+                  ? "Wire quiet. Arlo will ping when something matters."
+                  : "Unread traffic on the wire. Tap a signal to clear it."}
             </p>
           </div>
 
@@ -179,7 +184,6 @@ export default function NotificationsScreen() {
         </div>
       </section>
 
-      {/* Channel dials — overhang */}
       <div className="relative z-10 -mt-5 px-4">
         <nav
           role="tablist"
@@ -217,7 +221,7 @@ export default function NotificationsScreen() {
 
       <div className="relative px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+28px)]">
         <AnimatePresence>
-          {(filter === "all" || filter === "unread") && unreadCount > 0 ? (
+          {(filter === "all" || filter === "unread") && priority ? (
             <motion.div
               key="priority"
               initial={reduceMotion ? false : { opacity: 0, y: 10 }}
@@ -226,7 +230,14 @@ export default function NotificationsScreen() {
               transition={softSpring}
               className="mb-5"
             >
-              <PriorityWire onResume={() => router.push("/home")} />
+              <PriorityWire
+                title={priority.title}
+                body={priority.body}
+                onResume={() => {
+                  if (priority.unread) markRead.mutate(priority.id);
+                  router.push(priority.actionUrl || "/path");
+                }}
+              />
             </motion.div>
           ) : null}
         </AnimatePresence>
@@ -239,11 +250,17 @@ export default function NotificationsScreen() {
             exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
             transition={softSpring}
           >
-            {sections.length === 0 ? (
+            {isError ? (
+              <EmptyWire
+                title="Signal lost"
+                body="Could not reach the wire. Check connection and try again."
+              />
+            ) : isLoading ? (
+              <EmptyWire title="Listening…" body="Pulling signals off the wire." />
+            ) : sections.length === 0 ? (
               <EmptyWire />
             ) : (
               <div className="relative space-y-7">
-                {/* Timeline spine */}
                 <div
                   aria-hidden
                   className="pointer-events-none absolute top-3 bottom-3 left-[11px] w-px bg-[repeating-linear-gradient(180deg,#d5ccec_0_6px,transparent_6px_12px)]"
@@ -253,7 +270,7 @@ export default function NotificationsScreen() {
                   <WireGroup
                     key={section.id}
                     section={section}
-                    onOpen={markRead}
+                    onOpen={onOpen}
                     skew={si % 2 === 1}
                     reduceMotion={!!reduceMotion}
                   />
@@ -269,12 +286,6 @@ export default function NotificationsScreen() {
       </div>
     </div>
   );
-}
-
-function matchesFilter(item: NotificationItem, filter: NotificationFilter) {
-  if (filter === "all") return true;
-  if (filter === "unread") return item.unread;
-  return item.filterTags.includes(filter);
 }
 
 function RadarBackdrop({ reduceMotion }: { reduceMotion: boolean }) {
@@ -296,7 +307,6 @@ function RadarBackdrop({ reduceMotion }: { reduceMotion: boolean }) {
             "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1px at 55% 60%, #fff, transparent)",
         }}
       />
-      {/* Concentric radar */}
       <div
         aria-hidden
         className="pointer-events-none absolute top-8 -right-16 h-56 w-56"
@@ -327,7 +337,15 @@ function RadarBackdrop({ reduceMotion }: { reduceMotion: boolean }) {
   );
 }
 
-function PriorityWire({ onResume }: { onResume: () => void }) {
+function PriorityWire({
+  title,
+  body,
+  onResume,
+}: {
+  title: string;
+  body: string;
+  onResume: () => void;
+}) {
   return (
     <div className="relative ml-1 overflow-hidden rounded-[22px] bg-[#0f1220] text-white shadow-[0_14px_32px_rgba(15,18,32,0.22)]">
       <div
@@ -347,11 +365,9 @@ function PriorityWire({ onResume }: { onResume: () => void }) {
             Priority wire
           </p>
           <p className="mt-1 font-display text-[17px] leading-tight font-bold text-balance">
-            Keep your streak alive
+            {title}
           </p>
-          <p className="mt-1 text-[12px] font-bold text-white/50">
-            25 min from Day 8. Don&apos;t let it slip.
-          </p>
+          <p className="mt-1 text-[12px] font-bold text-white/50">{body}</p>
           <motion.button
             type="button"
             onClick={onResume}
@@ -385,7 +401,7 @@ function WireGroup({
   reduceMotion,
 }: {
   section: NotificationSection;
-  onOpen: (id: string) => void;
+  onOpen: (item: NotificationItem) => void;
   skew?: boolean;
   reduceMotion: boolean;
 }) {
@@ -398,10 +414,7 @@ function WireGroup({
         <h2 className="-rotate-1 font-display text-[15px] font-bold tracking-[-0.02em] text-[#1b1730]">
           {section.label}
         </h2>
-        <span
-          aria-hidden
-          className="h-px flex-1 bg-[#d5ccec]/80"
-        />
+        <span aria-hidden className="h-px flex-1 bg-[#d5ccec]/80" />
       </div>
 
       <ul className="space-y-2.5 pl-7">
@@ -426,14 +439,14 @@ function NotificationRow({
   onOpen,
 }: {
   item: NotificationItem;
-  onOpen: (id: string) => void;
+  onOpen: (item: NotificationItem) => void;
 }) {
   const ink = categoryInk[item.category];
 
   return (
     <button
       type="button"
-      onClick={() => onOpen(item.id)}
+      onClick={() => onOpen(item)}
       className={cn(
         "relative flex w-full items-start gap-3 overflow-hidden rounded-[18px] px-3 py-3 text-left transition-colors",
         item.unread
@@ -537,7 +550,13 @@ function NotificationIcon({ item }: { item: NotificationItem }) {
   );
 }
 
-function EmptyWire() {
+function EmptyWire({
+  title = "Channel empty",
+  body = "Nothing on this frequency. Flip channels or check back after your next lesson.",
+}: {
+  title?: string;
+  body?: string;
+}) {
   return (
     <div className="relative overflow-hidden rounded-[24px] border border-dashed border-[#d5ccec] bg-white/70 px-5 py-10 text-center">
       <div
@@ -554,11 +573,10 @@ function EmptyWire() {
         />
       </div>
       <p className="font-display text-[17px] font-bold text-[#1b1730]">
-        Channel empty
+        {title}
       </p>
       <p className="mx-auto mt-1 max-w-[16rem] text-[13px] font-semibold text-[#8a7cb8]">
-        Nothing on this frequency. Flip channels or check back after your next
-        lesson.
+        {body}
       </p>
     </div>
   );

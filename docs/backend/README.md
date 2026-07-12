@@ -49,10 +49,11 @@ Skill Graph Engine ◄───────────┼── Roadmap Generat
 | 02  | [Questionnaire — Question Engine](./02-questionnaire.md)             | Required for MVP |
 | 03  | [Skill Graph, Roadmap Generator & AI Coach](./03-goals-and-roadmap.md) | Required for MVP |
 | 04  | [Weekly Plan & Lessons](./04-weekly-plan-and-lessons.md)             | Required for MVP |
-| 05  | Rewards (XP / Coins / Gems)                                          | Planned          |
+| 05  | [Learn / Lesson Play](./05-Learn_Lesson_Play_API.md)                 | Required for MVP |
 | 06  | [Notifications](./06-notifications.md)                               | Required for MVP |
 | 07  | Subscriptions                                                        | Planned          |
 | 08  | Profile & Identity                                                   | Planned          |
+| 09  | Rewards (XP / Coins / Gems ledger)                                   | Planned          |
 
 ## Rules for implementers
 

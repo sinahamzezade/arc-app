@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useSession } from "next-auth/react";
 import { assets } from "@/lib/assets";
 import {
   profileMockData,
@@ -27,6 +28,7 @@ import {
   type ProfileSkill,
 } from "@/lib/profile/mock-data";
 import { cn } from "@/lib/utils";
+import { useEconomyStore } from "@/store/useEconomyStore";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
@@ -41,6 +43,16 @@ export default function ProfileScreen({
 }: {
   data?: ProfileMockData;
 }) {
+  const { data: session } = useSession();
+  const xp = useEconomyStore((s) => s.xp);
+  const gems = useEconomyStore((s) => s.gems);
+  const coins = useEconomyStore((s) => s.coins);
+  const weekStreak =
+    session?.profile?.weeklyStreak ?? data.weekStreak;
+  const userName =
+    session?.profile?.displayName ||
+    session?.user?.name ||
+    data.userName;
   const xpPercent = Math.min(
     100,
     Math.round((data.xpIntoLevel / data.xpForNextLevel) * 100),
@@ -73,7 +85,7 @@ export default function ProfileScreen({
               Your Arc
             </p>
             <h1 className="mt-2 font-display text-[40px] leading-[0.92] font-bold tracking-[-0.04em]">
-              {data.userName}
+              {userName}
             </h1>
             <p className="mt-2.5 max-w-[15rem] text-[13px] leading-snug font-bold text-white/50">
               <span>{data.fromRole}</span>
@@ -84,7 +96,7 @@ export default function ProfileScreen({
 
           <Link
             href="/identity"
-            aria-label={`Edit identity for ${data.userName}`}
+            aria-label={`Edit identity for ${userName}`}
             className="relative shrink-0"
           >
             <motion.div
@@ -126,7 +138,7 @@ export default function ProfileScreen({
             </p>
             <p className="inline-flex items-center gap-1 font-display text-[18px] font-bold">
               <Flame className="h-4 w-4" strokeWidth={2.5} />
-              {data.weekStreak}w
+              {weekStreak}w
             </p>
           </div>
           <div className="rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
@@ -134,7 +146,7 @@ export default function ProfileScreen({
               XP
             </p>
             <p className="font-display text-[18px] font-bold tabular-nums">
-              {data.xp.toLocaleString()}
+              {xp.toLocaleString()}
             </p>
           </div>
           <Link
@@ -146,7 +158,7 @@ export default function ProfileScreen({
             </p>
             <p className="inline-flex items-center gap-1 font-display text-[16px] font-bold">
               <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
-              {data.coins.toLocaleString()}
+              {coins.toLocaleString()}
             </p>
           </Link>
         </div>
@@ -181,7 +193,7 @@ export default function ProfileScreen({
             </span>
             <div>
               <p className="font-display text-[18px] leading-none font-bold text-[#1b1730]">
-                {data.gems.toLocaleString()}
+                {gems.toLocaleString()}
               </p>
               <p className="mt-0.5 text-[10px] font-extrabold tracking-wide text-[#8a7cb8] uppercase">
                 Gems
@@ -192,7 +204,7 @@ export default function ProfileScreen({
 
         <SkillsStampRail skills={data.skills} />
 
-        <ActionTwinRow coins={data.coins} />
+        <ActionTwinRow coins={coins} />
 
         <SharePassportButton />
 
