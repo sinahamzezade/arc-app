@@ -17,6 +17,9 @@ const HOP_BY_HOP = new Set([
   "upgrade",
   "host",
   "content-length",
+  // Node fetch decompresses; forwarding these → ERR_CONTENT_DECODING_FAILED
+  "content-encoding",
+  "accept-encoding",
 ]);
 
 type Ctx = { params: Promise<{ path: string[] }> };
@@ -31,6 +34,9 @@ async function proxy(req: NextRequest, ctx: Ctx) {
       headers.set(key, value);
     }
   });
+  // Ask upstream for plain bytes — Node fetch already auto-decodes gzip/br.
+  headers.delete("accept-encoding");
+  headers.set("accept-encoding", "identity");
 
   const init: RequestInit = {
     method: req.method,
