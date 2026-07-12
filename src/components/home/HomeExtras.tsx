@@ -34,19 +34,22 @@ export function HomeExtras({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-4">
-        <RankCard
+      <motion.div
+        variants={sectionVariants}
+        className="grid grid-cols-2 gap-2"
+      >
+        <RankInfo
           title={stats.rank}
           nextTitle={stats.nextRank}
           xp={stats.xpIntoLevel}
           pct={xpPct}
         />
-        <WheelCard
+        <WheelInfo
           spins={dailyBonus.spinsLeft}
           hoursLeft={dailyBonus.expiresIn}
           maxGems={dailyBonus.previewGems}
         />
-      </div>
+      </motion.div>
 
       <motion.section
         variants={sectionVariants}
@@ -92,7 +95,7 @@ export function HomeExtras({
   );
 }
 
-function RankCard({
+function RankInfo({
   title,
   nextTitle,
   xp,
@@ -104,32 +107,32 @@ function RankCard({
   pct: number;
 }) {
   const reduceMotion = useReducedMotion();
-  const r = 18;
+  const r = 14;
   const c = 2 * Math.PI * r;
 
   return (
-    <motion.section
-      variants={sectionVariants}
+    <Link
+      href="/rank"
       aria-label="Rank"
-      className="rounded-[22px] border border-[#ebe4f6] bg-white p-4 shadow-[0_6px_16px_rgba(70,40,150,0.05)]"
+      className="flex items-center gap-2.5 rounded-[16px] bg-[#0f1220] px-3 py-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
     >
-      <div className="relative h-14 w-14">
-        <svg viewBox="0 0 44 44" className="h-14 w-14 -rotate-90" aria-hidden>
+      <div className="relative h-9 w-9 shrink-0">
+        <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90" aria-hidden>
           <circle
-            cx="22"
-            cy="22"
+            cx="18"
+            cy="18"
             r={r}
             fill="none"
-            stroke="#efe9f8"
-            strokeWidth="5"
+            stroke="rgba(255,255,255,0.12)"
+            strokeWidth="4"
           />
           <motion.circle
-            cx="22"
-            cy="22"
+            cx="18"
+            cy="18"
             r={r}
             fill="none"
-            stroke="#6b4eff"
-            strokeWidth="5"
+            stroke="#ffc928"
+            strokeWidth="4"
             strokeLinecap="round"
             strokeDasharray={c}
             initial={
@@ -138,27 +141,29 @@ function RankCard({
                 : { strokeDashoffset: c }
             }
             animate={{ strokeDashoffset: c * (1 - pct / 100) }}
-            transition={{ duration: 0.9, ease: "easeOut", delay: 0.3 }}
+            transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold text-[#1b1730]">
+        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black">
           {pct}%
         </span>
       </div>
-      <p className="mt-3 text-[10px] font-extrabold tracking-[0.08em] text-[#b3a8d6] uppercase">
-        Rank
-      </p>
-      <p className="font-display text-[16px] leading-tight font-semibold text-[#1b1730]">
-        {title}
-      </p>
-      <p className="mt-0.5 text-[11px] font-bold text-[#8a7cb8]">
-        {xp} XP → {nextTitle}
-      </p>
-    </motion.section>
+      <span className="min-w-0">
+        <span className="block text-[9px] font-black tracking-[0.1em] text-white/40 uppercase">
+          Rank
+        </span>
+        <span className="block truncate font-display text-[13px] leading-tight font-bold">
+          {title}
+        </span>
+        <span className="mt-0.5 block truncate text-[10px] font-bold text-white/40">
+          {xp} XP → {nextTitle}
+        </span>
+      </span>
+    </Link>
   );
 }
 
-function WheelCard({
+function WheelInfo({
   spins,
   hoursLeft,
   maxGems,
@@ -167,32 +172,27 @@ function WheelCard({
   hoursLeft: string;
   maxGems: number;
 }) {
-  const reduceMotion = useReducedMotion();
-
   return (
-    <motion.section variants={sectionVariants} aria-label="Lucky wheel">
-      <Link
-        href="/lucky-wheel"
-        className="block h-full rounded-[22px] border border-[#ead7a0] bg-[linear-gradient(150deg,#fffbf0,#fff0c4)] p-4 shadow-[0_6px_16px_rgba(199,154,46,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c79a2e]"
-      >
-        <motion.span
-          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ffc928] text-[#1b1730] shadow-[0_4px_0_#c79a2e]"
-          animate={reduceMotion ? undefined : { rotate: [0, 8, 0] }}
-          transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <FerrisWheel className="h-6 w-6" strokeWidth={2.2} />
-        </motion.span>
-        <p className="mt-3 text-[10px] font-extrabold tracking-[0.08em] text-[#c79a2e] uppercase">
-          Bonus · {hoursLeft} left
-        </p>
-        <p className="font-display text-[16px] leading-tight font-semibold text-[#1b1730]">
+    <Link
+      href="/lucky-wheel"
+      aria-label="Lucky wheel"
+      className="flex items-center gap-2.5 rounded-[16px] bg-[#ffc928] px-3 py-2.5 text-[#0f1220] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c79a2e]"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0f1220] text-[#ffc928]">
+        <FerrisWheel className="h-[18px] w-[18px]" strokeWidth={2.25} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[9px] font-black tracking-[0.1em] text-[#0f1220]/55 uppercase">
+          Bonus · {hoursLeft}
+        </span>
+        <span className="block truncate font-display text-[13px] leading-tight font-bold">
           Lucky Wheel
-        </p>
-        <p className="mt-0.5 text-[11px] font-bold text-[#8a7cb8]">
-          {spins} spin ready · up to {maxGems} gems
-        </p>
-      </Link>
-    </motion.section>
+        </span>
+        <span className="mt-0.5 block truncate text-[10px] font-bold text-[#0f1220]/50">
+          {spins} spin · ≤{maxGems} gems
+        </span>
+      </span>
+    </Link>
   );
 }
 
