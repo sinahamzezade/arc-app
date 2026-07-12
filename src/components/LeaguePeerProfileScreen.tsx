@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowDown,
@@ -8,27 +8,70 @@ import {
   Award,
   Flame,
   Swords,
-  ThumbsUp,
-  Trophy,
+  UserMinus,
+  UserPlus,
+  Users,
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
+import { ApiError, messageForCode } from "@/lib/api/errors";
+import {
+  socialApi,
+  type SocialProfileDto,
+} from "@/lib/api/social";
 import type { LeaguePeerProfile } from "@/lib/leaderboard/mock-data";
 import { cn } from "@/lib/utils";
 
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /**
  * League peer passport — night-hero family.
- * Opened from standings row tap. No rotate flourishes.
+ * Follow/unfollow via SocialPermissionService rules (allowFollows, block, self).
  */
 export default function LeaguePeerProfileScreen({
   peer,
 }: {
   peer: LeaguePeerProfile;
 }) {
-  const [cheered, setCheered] = useState(false);
+  const liveId = UUID_RE.test(peer.id) ? peer.id : null;
+
+  const [social, setSocial] = useState<SocialProfileDto | null>(null);
+  const [socialLoading, setSocialLoading] = useState(Boolean(liveId));
+  const [followBusy, setFollowBusy] = useState(false);
+  const [friendBusy, setFriendBusy] = useState(false);
+  const [friendSent, setFriendSent] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadSocial = useCallback(async () => {
+    if (!liveId) {
+      setSocialLoading(false);
+      return;
+    }
+    setSocialLoading(true);
+    try {
+      const profile = await socialApi.getProfile(liveId);
+      setSocial(profile);
+      setActionError(null);
+    } catch (err) {
+      setSocial(null);
+      setActionError(
+        err instanceof ApiError
+          ? messageForCode(err.code, err.message)
+          : "Could not load social profile",
+      );
+    } finally {
+      setSocialLoading(false);
+    }
+  }, [liveId]);
+
+  useEffect(() => {
+    void loadSocial();
+  }, [loadSocial]);
+
   const demoteFloor = peer.cohortSize - peer.demoteBottom + 1;
   const zone =
     peer.rank <= peer.promoteTop
@@ -50,6 +93,54 @@ export default function LeaguePeerProfileScreen({
       : zone === "demote"
         ? "bg-[#e5484d]/20 text-[#ff8a8a]"
         : "bg-[#ffc928]/20 text-[#ffc928]";
+
+  const isFollowing = Boolean(social?.relationship.isFollowing);
+  const canFollow = Boolean(social?.canFollow);
+  const canUnfollow = Boolean(social?.canUnfollow ?? isFollowing);
+  const canBattle = Boolean(social?.canBattle);
+  const canStudy = Boolean(social?.canStudy);
+  const displayName = social?.name ?? peer.name;
+
+  async function toggleFollow() {
+    if (!liveId || followBusy) return;
+    if (!isFollowing && !canFollow) return;
+    if (isFollowing && !canUnfollow) return;
+
+    setFollowBusy(true);
+    setActionError(null);
+    try {
+      if (isFollowing) await socialApi.unfollow(liveId);
+      else await socialApi.follow(liveId);
+      await loadSocial();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? messageForCode(err.code, err.message)
+          : "Follow failed",
+      );
+    } finally {
+      setFollowBusy(false);
+    }
+  }
+
+  async function addFriend() {
+    if (!liveId || friendBusy || friendSent) return;
+    setFriendBusy(true);
+    setActionError(null);
+    try {
+      await socialApi.sendFriendRequest(liveId);
+      setFriendSent(true);
+      await loadSocial();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? messageForCode(err.code, err.message)
+          : "Friend request failed",
+      );
+    } finally {
+      setFriendBusy(false);
+    }
+  }
 
   if (peer.isYou) {
     return (
@@ -103,7 +194,12 @@ export default function LeaguePeerProfileScreen({
               {peer.leagueName} · {peer.weekLabel}
             </p>
           </div>
-          <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-extrabold", zoneTone)}>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-[10px] font-extrabold",
+              zoneTone,
+            )}
+          >
             {zoneLabel}
           </span>
         </div>
@@ -114,7 +210,7 @@ export default function LeaguePeerProfileScreen({
               {peer.rankTitle}
             </p>
             <h1 className="mt-1 font-display text-[42px] leading-[0.88] font-bold tracking-[-0.04em] text-balance">
-              {peer.name}
+              {displayName}
             </h1>
             <p className="mt-2.5 text-[13px] leading-snug font-bold text-white/60">
               <span>{peer.fromRole}</span>
@@ -131,7 +227,7 @@ export default function LeaguePeerProfileScreen({
               className="flex h-[88px] w-[88px] items-center justify-center rounded-[28px] font-display text-[36px] font-bold shadow-[0_10px_28px_rgba(0,0,0,0.35)] ring-4 ring-[#ffc928]/35"
               style={{ background: peer.avatarBg, color: peer.avatarColor }}
             >
-              {peer.initial}
+              {social?.initial ?? peer.initial}
             </div>
             <span className="absolute -top-2 -right-2 rounded-xl bg-[#ffc928] px-2 py-1 font-display text-[13px] font-bold text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
               #{peer.rank}
@@ -141,7 +237,7 @@ export default function LeaguePeerProfileScreen({
 
         <div className="relative z-[1] mt-5 flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-extrabold ring-1 ring-white/15">
-            <Trophy className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
+            <Zap className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
             {peer.xp} XP
           </span>
           {peer.streakWeeks != null ? (
@@ -150,14 +246,30 @@ export default function LeaguePeerProfileScreen({
               {peer.streakWeeks}w streak
             </span>
           ) : null}
-          <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-extrabold text-white/70 ring-1 ring-white/15">
-            {peer.joinedLabel}
-          </span>
+          {social ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-extrabold text-white/70 ring-1 ring-white/15">
+              <Users className="h-3.5 w-3.5" strokeWidth={2.5} />
+              {social.counters.followers} followers
+            </span>
+          ) : (
+            <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-extrabold text-white/70 ring-1 ring-white/15">
+              {peer.joinedLabel}
+            </span>
+          )}
+          {isFollowing ? (
+            <span className="rounded-full bg-arc-purple-500/30 px-3 py-1.5 text-[11px] font-extrabold text-[#c4b5fd] ring-1 ring-arc-purple-500/40">
+              Following
+            </span>
+          ) : null}
+          {social?.relationship.isFriend ? (
+            <span className="rounded-full bg-[#16a56b]/25 px-3 py-1.5 text-[11px] font-extrabold text-[#62d84e] ring-1 ring-[#16a56b]/35">
+              Friend
+            </span>
+          ) : null}
         </div>
       </section>
 
       <div className="relative z-10 -mt-12 space-y-3 rounded-t-[28px] bg-[#f3effc] px-4 pt-6 pb-[calc(env(safe-area-inset-bottom)+28px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
-        {/* Season stats vault */}
         <div className="relative overflow-hidden rounded-[22px] bg-[#0f1220] p-4 text-white shadow-[0_14px_32px_rgba(15,18,32,0.28)]">
           <div
             aria-hidden
@@ -195,37 +307,107 @@ export default function LeaguePeerProfileScreen({
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Social actions — follow is one-way; battle/study need friendship */}
         <div className="grid grid-cols-2 gap-2.5">
-          <motion.button
-            type="button"
-            onClick={() => setCheered(true)}
-            disabled={cheered}
-            whileTap={!cheered ? { scale: 0.97, y: 2 } : undefined}
-            transition={snappySpring}
-            className={cn(
-              "flex h-[52px] items-center justify-center gap-2 rounded-[18px] font-display text-[15px] font-bold",
-              cheered
-                ? "bg-[#16a56b] text-white shadow-[0_4px_0_#0e7a4c]"
-                : "bg-[#ffc928] text-[#0f1220] shadow-[0_4px_0_#c79a2e]",
-            )}
-          >
-            <ThumbsUp className="h-4 w-4" strokeWidth={2.5} />
-            {cheered ? "Cheered" : "Cheer"}
-          </motion.button>
-          <Link
-            href="/battle"
-            className="flex h-[52px] items-center justify-center gap-2 rounded-[18px] bg-arc-purple-500 font-display text-[15px] font-bold text-white shadow-[0_4px_0_var(--color-arc-purple-700)]"
-          >
-            <Swords className="h-4 w-4" strokeWidth={2.5} />
-            Battle
-          </Link>
+          {liveId ? (
+            <motion.button
+              type="button"
+              aria-label={
+                isFollowing
+                  ? `Unfollow ${displayName}`
+                  : `Follow ${displayName}`
+              }
+              disabled={
+                followBusy ||
+                socialLoading ||
+                (!isFollowing && !canFollow) ||
+                (isFollowing && !canUnfollow)
+              }
+              onClick={() => void toggleFollow()}
+              whileTap={
+                !followBusy && (isFollowing ? canUnfollow : canFollow)
+                  ? { scale: 0.97, y: 2 }
+                  : undefined
+              }
+              transition={snappySpring}
+              className={cn(
+                "flex h-[52px] items-center justify-center gap-2 rounded-[18px] font-display text-[15px] font-bold disabled:opacity-50",
+                isFollowing
+                  ? "border-2 border-[#ebe4f6] bg-white text-[#1b1730] shadow-[0_4px_0_#ebe4f6]"
+                  : "bg-[#ffc928] text-[#0f1220] shadow-[0_4px_0_#c79a2e]",
+              )}
+            >
+              {isFollowing ? (
+                <UserMinus className="h-4 w-4" strokeWidth={2.5} />
+              ) : (
+                <UserPlus className="h-4 w-4" strokeWidth={2.5} />
+              )}
+              {followBusy
+                ? "…"
+                : socialLoading
+                  ? "…"
+                  : isFollowing
+                    ? "Unfollow"
+                    : canFollow
+                      ? "Follow"
+                      : "Follow off"}
+            </motion.button>
+          ) : (
+            <div className="flex h-[52px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#ebe4f6] bg-white text-[12px] font-extrabold text-arc-lavender-600">
+              Demo peer
+            </div>
+          )}
+
+          {canBattle ? (
+            <Link
+              href={`/battle/create?opponent=${liveId ?? ""}`}
+              className="flex h-[52px] items-center justify-center gap-2 rounded-[18px] bg-arc-purple-500 font-display text-[15px] font-bold text-white shadow-[0_4px_0_var(--color-arc-purple-700)]"
+            >
+              <Swords className="h-4 w-4" strokeWidth={2.5} />
+              Battle
+            </Link>
+          ) : (
+            <motion.button
+              type="button"
+              disabled={!liveId || friendBusy || friendSent}
+              onClick={() => void addFriend()}
+              whileTap={
+                liveId && !friendBusy && !friendSent
+                  ? { scale: 0.97, y: 2 }
+                  : undefined
+              }
+              transition={snappySpring}
+              className={cn(
+                "flex h-[52px] items-center justify-center gap-2 rounded-[18px] font-display text-[15px] font-bold text-white disabled:opacity-50",
+                friendSent
+                  ? "bg-[#16a56b] shadow-[0_4px_0_#0e7a4c]"
+                  : "bg-arc-purple-500 shadow-[0_4px_0_var(--color-arc-purple-700)]",
+              )}
+            >
+              <UserPlus className="h-4 w-4" strokeWidth={2.5} />
+              {friendBusy ? "…" : friendSent ? "Sent" : "Add friend"}
+            </motion.button>
+          )}
         </div>
 
-        {/* Recent */}
+        {canStudy && liveId ? (
+          <Link
+            href={`/study/invite?friend=${liveId}`}
+            className="flex h-12 items-center justify-center gap-2 rounded-[16px] border-2 border-[#ebe4f6] bg-white text-[13px] font-extrabold text-[#1b1730] shadow-[0_3px_0_#ebe4f6]"
+          >
+            Study Together
+          </Link>
+        ) : null}
+
+        {actionError ? (
+          <p className="rounded-2xl bg-[#fdecef] px-3.5 py-2.5 text-center text-[12px] font-bold text-[#c0392b]">
+            {actionError}
+          </p>
+        ) : null}
+
         <div className="rounded-[20px] border-2 border-[#ebe4f6] bg-white p-4 shadow-[0_4px_0_#ebe4f6]">
           <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
-            Recent form
+            Recent
           </p>
           <ul className="mt-3 space-y-0">
             {peer.recent.map((item, i) => (

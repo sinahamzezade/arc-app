@@ -1,6 +1,7 @@
 export type NotificationFilter = "all" | "unread" | "rewards" | "social";
 
 export type NotificationCategory =
+  | "learning"
   | "streak"
   | "coach"
   | "social"
@@ -25,6 +26,7 @@ export type NotificationItem = {
           | "gift"
           | "user-plus"
           | "star"
+          | "sparkles"
           | "calendar"
           | "flame";
         bg: string;

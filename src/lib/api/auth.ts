@@ -8,6 +8,7 @@ export const authApi = {
     email: string;
     password: string;
     agreeToTerms: boolean;
+    referralCode?: string;
   }) {
     return apiFetch<AuthSessionResponse>("/auth/register", { body });
   },

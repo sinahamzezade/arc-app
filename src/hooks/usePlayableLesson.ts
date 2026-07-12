@@ -39,10 +39,11 @@ export function usePlayableLesson(lessonId: string): UsePlayableLessonResult {
     if (!query.data) return;
     hydrateFromProgress(lessonId, {
       contentStep: query.data.progress.contentStep,
-      practiceOptionId: null,
+      practiceOptionId: query.data.progress.practiceOptionId ?? null,
       quizAnswers: query.data.progress.quizAnswers ?? {},
       quizIndex: query.data.progress.quizIndex ?? 0,
       completed: query.data.progress.status === "completed",
+      attemptId: query.data.attemptId ?? null,
     });
   }, [query.data, lessonId, hydrateFromProgress]);
 

@@ -1,6 +1,11 @@
 export type PathNodeKind = "lesson" | "milestone" | "unit-gate";
 
-export type PathNodeStatus = "current" | "locked" | "milestone" | "unit-locked";
+export type PathNodeStatus =
+  | "current"
+  | "done"
+  | "locked"
+  | "milestone"
+  | "unit-locked";
 
 export type PathIconName =
   | "flag"

@@ -2,47 +2,116 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Coins, Gem, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { assets } from "@/lib/assets";
-import { battleFriends } from "@/lib/battle/mock-data";
-import { useBattleStore } from "@/store/useBattleStore";
+import { meApi } from "@/lib/api/auth";
+import { battlesApi, type BattleDto } from "@/lib/api/battles";
+import { ApiError, messageForCode } from "@/lib/api/errors";
 import { useEconomyStore } from "@/store/useEconomyStore";
 
 export default function BattleResultScreen({ battleId }: { battleId: string }) {
   const router = useRouter();
-  const setup = useBattleStore((s) => s.setup);
-  const yourScore = useBattleStore((s) => s.yourScore);
-  const theirScore = useBattleStore((s) => s.theirScore);
-  const addXp = useEconomyStore((s) => s.addXp);
-  const addGems = useEconomyStore((s) => s.addGems);
-  const addCoins = useEconomyStore((s) => s.addCoins);
-  const paid = useRef(false);
-
-  const opponent =
-    battleFriends.find((f) => f.id === setup.opponentId) ?? battleFriends[0];
-
-  const win = yourScore > theirScore;
-  const draw = yourScore === theirScore;
-  const pot = setup.stake * 2;
+  const hydrateFromProfile = useEconomyStore((s) => s.hydrateFromProfile);
+  const [battle, setBattle] = useState<BattleDto | null>(null);
+  const [xpAwarded, setXpAwarded] = useState(0);
+  const [coinsDelta, setCoinsDelta] = useState(0);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [avgAnswerMs, setAvgAnswerMs] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [rematchBusy, setRematchBusy] = useState(false);
 
   useEffect(() => {
-    if (paid.current) return;
-    paid.current = true;
-    // Both stakes already escrowed → award pot / refund
-    if (win) {
-      addCoins(pot);
-      addXp(25);
-      addGems(3);
-    } else if (draw) {
-      addCoins(setup.stake);
-      addXp(5);
-    } else {
-      addXp(5);
+    let cancelled = false;
+    (async () => {
+      try {
+        const dto = await battlesApi.get(battleId);
+        if (!cancelled) setBattle(dto);
+        try {
+          const hist = await battlesApi.history();
+          const mine = hist.items.find((h) => h.id === battleId);
+          if (mine && !cancelled) {
+            setXpAwarded(mine.xpAwarded);
+            setCoinsDelta(mine.coinsDelta);
+            setAccuracy(mine.accuracy);
+            setAvgAnswerMs(mine.avgAnswerMs);
+          }
+        } catch {
+          /* ignore */
+        }
+        try {
+          const me = await meApi.get();
+          if (me.profile && !cancelled) hydrateFromProfile(me.profile);
+        } catch {
+          /* ignore */
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof ApiError
+              ? messageForCode(err.code, err.message)
+              : "Result unavailable",
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [battleId, hydrateFromProfile]);
+
+  const yourScore = battle?.yourScore ?? 0;
+  const theirScore = battle?.theirScore ?? 0;
+  const win = Boolean(
+    battle?.winnerId && battle.winnerId !== battle.opponent.userId,
+  );
+  const draw =
+    (battle?.status === "completed" || battle?.status === "refunded") &&
+    (battle.resultReason === "draw" || !battle.winnerId);
+  const forfeited = battle?.status === "forfeited";
+  const voided =
+    battle?.status === "voided" || battle?.status === "refunded";
+  const headline = win
+    ? "Victory"
+    : draw
+      ? "Draw"
+      : forfeited
+        ? "Forfeit"
+        : voided
+          ? "Refunded"
+          : "Defeat";
+  const pot = battle?.pot ?? 0;
+  const stake = battle?.stakePerPlayer ?? 0;
+  const coinDisplay =
+    coinsDelta !== 0
+      ? `${coinsDelta > 0 ? "+" : ""}${coinsDelta}`
+      : win
+        ? `+${pot}`
+        : draw
+          ? `+${stake}`
+          : "0";
+  const opponentName =
+    battle?.opponent.displayName ||
+    battle?.opponent.username ||
+    "Rival";
+
+  const rematch = async () => {
+    if (rematchBusy) return;
+    setRematchBusy(true);
+    try {
+      const next = await battlesApi.rematch(battleId);
+      router.push(`/battle/invite/${next.id}?sent=1`);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? messageForCode(err.code, err.message)
+          : "Rematch failed",
+      );
+      setRematchBusy(false);
     }
-  }, [win, draw, pot, setup.stake, addCoins, addXp, addGems]);
+  };
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-hidden bg-[#1b1433] font-rounded">
@@ -67,35 +136,49 @@ export default function BattleResultScreen({ battleId }: { battleId: string }) {
             className="h-[140px] w-[140px] object-contain"
           />
           <p className="mt-2 text-[11px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
-            {win ? "Victory" : draw ? "Draw" : "Defeat"}
+            {headline}
           </p>
           <h1 className="mt-2 font-display text-[32px] leading-none font-bold text-white">
             {yourScore} – {theirScore}
           </h1>
           <p className="mt-2 text-[14px] font-semibold text-white/65">
-            vs {opponent.name} · {setup.subject}
+            vs {opponentName}
+            {battle ? ` · ${battle.subject}` : ""}
           </p>
+          {accuracy != null || avgAnswerMs != null ? (
+            <p className="mt-2 text-[12px] font-bold text-white/45">
+              {accuracy != null ? `${Math.round(accuracy * 100)}% accuracy` : ""}
+              {accuracy != null && avgAnswerMs != null ? " · " : ""}
+              {avgAnswerMs != null
+                ? `${(avgAnswerMs / 1000).toFixed(1)}s avg`
+                : ""}
+            </p>
+          ) : null}
 
           <div className="mt-8 grid w-full grid-cols-3 gap-2">
             <Chip
               icon={<Star className="h-4 w-4" />}
-              value={win ? "+25" : "+5"}
+              value={xpAwarded > 0 ? `+${xpAwarded}` : "+XP"}
               label="XP"
               tone="xp"
             />
             <Chip
               icon={<Gem className="h-4 w-4" />}
-              value={win ? "+3" : "0"}
+              value="0"
               label="Gems"
               tone="gem"
             />
             <Chip
               icon={<Coins className="h-4 w-4" />}
-              value={win ? `+${pot}` : draw ? `+${setup.stake}` : "0"}
+              value={coinDisplay}
               label="Coins"
               tone="coin"
             />
           </div>
+
+          {error ? (
+            <p className="mt-4 text-[13px] font-bold text-[#ff8a3d]">{error}</p>
+          ) : null}
         </motion.div>
 
         <div className="space-y-2">
@@ -108,10 +191,11 @@ export default function BattleResultScreen({ battleId }: { battleId: string }) {
           </Link>
           <button
             type="button"
-            onClick={() => router.push("/battle/create")}
+            disabled={rematchBusy}
+            onClick={() => void rematch()}
             className="w-full py-3 font-display text-[14px] font-semibold text-white/55"
           >
-            Rematch setup
+            {rematchBusy ? "Starting rematch…" : "Rematch"}
           </button>
         </div>
       </div>

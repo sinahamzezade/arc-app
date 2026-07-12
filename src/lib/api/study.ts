@@ -1,0 +1,182 @@
+import { apiFetch } from "./client";
+
+export type StudySessionStatusDto =
+  | "draft"
+  | "invited"
+  | "accepted"
+  | "waiting"
+  | "active"
+  | "completed"
+  | "declined"
+  | "expired"
+  | "cancelled"
+  | "abandoned"
+  | "partially_completed"
+  | "voided";
+
+export type StudyStartModeDto = "now" | "within_1_hour" | "scheduled";
+
+export type StudyParticipantDto = {
+  userId: string;
+  role: "creator" | "invitee";
+  name: string;
+  initial: string;
+  invitationStatus: string;
+  taskId: string | null;
+  taskLabel: string | null;
+  ready: boolean;
+  joinedAt: string | null;
+  leftAt: string | null;
+  verifiedActiveSeconds: number;
+  heartbeatCount: number;
+  lastHeartbeatAt: string | null;
+  appVisible: boolean;
+  meaningfulActionCompleted: boolean;
+  completionConfirmed: boolean;
+  qualified: boolean;
+  progressHint: number;
+};
+
+export type StudySessionDto = {
+  id: string;
+  status: StudySessionStatusDto;
+  subject: string;
+  durationMinutes: number;
+  startMode: StudyStartModeDto;
+  message: string | null;
+  scheduledStartAt: string | null;
+  scheduledEndAt: string | null;
+  inviteExpiresAt: string | null;
+  actualStartAt: string | null;
+  actualEndAt: string | null;
+  plannedEndAt: string | null;
+  remainingSeconds: number | null;
+  roomVersion: number;
+  completionOutcome: string;
+  sharedBonusGranted: boolean;
+  sharedBonus: { coins: number; gems: number } | null;
+  role: "creator" | "invitee";
+  you: StudyParticipantDto;
+  partner: StudyParticipantDto;
+  serverNow: string;
+  createdAt: string;
+};
+
+export type CreateStudySessionInput = {
+  inviteeId: string;
+  subject: string;
+  durationMinutes: number;
+  startMode: StudyStartModeDto;
+  message?: string;
+  scheduledStartAt?: string;
+};
+
+export const studyApi = {
+  create(input: CreateStudySessionInput, accessToken?: string | null) {
+    return apiFetch<StudySessionDto>("/study-together", {
+      method: "POST",
+      body: input,
+      accessToken,
+    });
+  },
+
+  invites(accessToken?: string | null) {
+    return apiFetch<{ items: StudySessionDto[] }>("/study-together/invites", {
+      accessToken,
+    });
+  },
+
+  history(cursor?: string, accessToken?: string | null) {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    return apiFetch<{ items: StudySessionDto[]; nextCursor: string | null }>(
+      `/study-together/history${q}`,
+      { accessToken },
+    );
+  },
+
+  accept(id: string, accessToken?: string | null) {
+    return apiFetch<StudySessionDto>(`/study-together/${id}/accept`, {
+      method: "POST",
+      body: {},
+      accessToken,
+    });
+  },
+
+  decline(id: string, accessToken?: string | null) {
+    return apiFetch<StudySessionDto>(`/study-together/${id}/decline`, {
+      method: "POST",
+      body: {},
+      accessToken,
+    });
+  },
+
+  cancel(id: string, accessToken?: string | null) {
+    return apiFetch<StudySessionDto>(`/study-together/${id}/cancel`, {
+      method: "POST",
+      body: {},
+      accessToken,
+    });
+  },
+
+  setTask(
+    id: string,
+    body: {
+      taskId?: string;
+      taskLabel?: string;
+      meaningfulAction?: boolean;
+    },
+    accessToken?: string | null,
+  ) {
+    return apiFetch<StudySessionDto>(`/study-together/${id}/task`, {
+      method: "POST",
+      body,
+      accessToken,
+    });
+  },
+
+  ready(id: string, accessToken?: string | null) {
+    return apiFetch<StudySessionDto>(`/study-together/${id}/ready`, {
+      method: "POST",
+      body: {},
+      accessToken,
+    });
+  },
+
+  heartbeat(
+    id: string,
+    body?: { appVisible?: boolean; focusActive?: boolean },
+    accessToken?: string | null,
+  ) {
+    return apiFetch<StudySessionDto>(`/study-together/${id}/heartbeat`, {
+      method: "POST",
+      body: body ?? { appVisible: true, focusActive: true },
+      accessToken,
+    });
+  },
+
+  state(id: string, accessToken?: string | null) {
+    return apiFetch<StudySessionDto>(`/study-together/${id}/state`, {
+      accessToken,
+    });
+  },
+
+  leave(id: string, accessToken?: string | null) {
+    return apiFetch<StudySessionDto>(`/study-together/${id}/leave`, {
+      method: "POST",
+      body: {},
+      accessToken,
+    });
+  },
+
+  complete(
+    id: string,
+    body?: { meaningfulAction?: boolean },
+    accessToken?: string | null,
+  ) {
+    return apiFetch<StudySessionDto>(`/study-together/${id}/complete`, {
+      method: "POST",
+      body: body ?? { meaningfulAction: true },
+      accessToken,
+    });
+  },
+};

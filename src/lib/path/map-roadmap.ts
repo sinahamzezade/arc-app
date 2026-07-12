@@ -18,6 +18,7 @@ const ICONS: PathIconName[] = [
 
 function lessonStatus(lesson: RoadmapLessonDto): PathNodeStatus {
   if (lesson.status === "available") return "current";
+  if (lesson.status === "completed") return "done";
   return "locked";
 }
 
@@ -113,7 +114,7 @@ export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathMockData {
     upNext: firstAvailable ?? {
       lessonNumber: 1,
       title: "Your next lesson",
-      href: "/learn/lesson-1",
+      href: "/learn",
       minutes: 20,
     },
   };

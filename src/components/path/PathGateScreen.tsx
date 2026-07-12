@@ -63,7 +63,7 @@ const copy: Record<
   },
   building: {
     stamp: "DRAW",
-    eyebrow: "Skill graph live",
+    eyebrow: "Content pool live",
     title: (
       <>
         Drawing
@@ -71,7 +71,7 @@ const copy: Record<
         your roadmap
       </>
     ),
-    subtitle: "Arlo walks the skill graph node by node.",
+    subtitle: "Arlo picks published lessons from the shared content pool.",
     arlo: assets.arlo.wand,
     arloAlt: "Arlo mapping",
     dockEyebrow: "In flight",

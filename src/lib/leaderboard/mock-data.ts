@@ -1,55 +1,26 @@
-export type LeaderboardTab = "board" | "quests" | "divisions";
+import type {
+  LeaderboardData,
+  LeaderboardEntry,
+  LeaderboardMockData,
+  LeaderboardTab,
+  LeagueDivision,
+  LeaguePeerProfile,
+  LeagueQuest,
+  LeagueTierName,
+} from "./types";
 
-export type LeaderboardEntry = {
-  id: string;
-  rank: number;
-  name: string;
-  initial: string;
-  xp: number;
-  isYou?: boolean;
-  streakWeeks?: number;
-  nudge?: string;
-  showLike?: boolean;
-  avatarBg: string;
-  avatarColor: string;
+export type {
+  LeaderboardData,
+  LeaderboardEntry,
+  LeaderboardMockData,
+  LeaderboardTab,
+  LeagueDivision,
+  LeaguePeerProfile,
+  LeagueQuest,
+  LeagueTierName,
 };
 
-export type LeagueQuest = {
-  id: string;
-  title: string;
-  detail: string;
-  progress: number;
-  goal: number;
-  xpReward: number;
-  done: boolean;
-};
-
-export type LeagueDivision = {
-  id: string;
-  name: string;
-  tier: "bronze" | "silver" | "gold";
-  rangeLabel: string;
-  active: boolean;
-};
-
-export type LeaderboardMockData = {
-  leagueName: string;
-  leagueTier: "bronze" | "silver" | "gold";
-  cohortLabel: string;
-  weekLabel: string;
-  stats: {
-    promoteTop: number;
-    daysLeft: number;
-    demoteBottom: number;
-    cohortSize: number;
-  };
-  entries: LeaderboardEntry[];
-  quests: LeagueQuest[];
-  divisions: LeagueDivision[];
-  footerNote: string;
-};
-
-export const leaderboardMockData: LeaderboardMockData = {
+export const leaderboardMockData: LeaderboardData = {
   leagueName: "Bronze League",
   leagueTier: "bronze",
   cohortLabel: "Matched cohort · ~8 hrs/week",
@@ -211,47 +182,47 @@ export const leaderboardMockData: LeaderboardMockData = {
       id: "bronze",
       name: "Bronze",
       tier: "bronze",
-      rangeLabel: "0–499 XP / week",
+      rangeLabel: "Open to all learners",
       active: true,
     },
     {
       id: "silver",
       name: "Silver",
       tier: "silver",
-      rangeLabel: "500–999 XP / week",
+      rangeLabel: "Rank level ≥ 3",
       active: false,
     },
     {
       id: "gold",
       name: "Gold",
       tier: "gold",
-      rangeLabel: "1000+ XP / week",
+      rangeLabel: "Rank level ≥ 4",
+      active: false,
+    },
+    {
+      id: "platinum",
+      name: "Platinum",
+      tier: "platinum",
+      rangeLabel: "Rank level ≥ 6",
+      active: false,
+    },
+    {
+      id: "diamond",
+      name: "Diamond",
+      tier: "diamond",
+      rangeLabel: "Rank level ≥ 8",
+      active: false,
+    },
+    {
+      id: "master",
+      name: "Master",
+      tier: "master",
+      rangeLabel: "Rank ≥ 10 · 12 weekly seals",
       active: false,
     },
   ],
   footerNote:
     "Consistency beats cramming — ranks track progress, not raw hours.",
-};
-
-export type LeaguePeerProfile = LeaderboardEntry & {
-  leagueName: string;
-  leagueTier: LeaderboardMockData["leagueTier"];
-  weekLabel: string;
-  cohortLabel: string;
-  cohortSize: number;
-  promoteTop: number;
-  demoteBottom: number;
-  daysLeft: number;
-  fromRole: string;
-  becoming: string;
-  rankTitle: string;
-  bio: string;
-  badgesEarned: number;
-  badgesTotal: number;
-  lessonsThisWeek: number;
-  battlesWon: number;
-  joinedLabel: string;
-  recent: { id: string; label: string; when: string }[];
 };
 
 const peerExtras: Record<
@@ -334,7 +305,7 @@ const defaultExtras: (typeof peerExtras)[string] = {
   ],
 };
 
-/** Build peer passport from standings id. Null if missing. */
+/** Build peer passport from standings id (mock fallback). */
 export function getLeaguePeerProfile(
   id: string,
 ): LeaguePeerProfile | null {
@@ -369,4 +340,3 @@ export function getLeaguePeerProfile(
     daysLeft: leaderboardMockData.stats.daysLeft,
   };
 }
-

@@ -11,6 +11,7 @@ import {
   Flame,
   Gift,
   Radio,
+  Sparkles,
   Star,
   Trophy,
   UserPlus,
@@ -37,6 +38,7 @@ const iconMap = {
   gift: Gift,
   "user-plus": UserPlus,
   star: Star,
+  sparkles: Sparkles,
   calendar: Calendar,
   flame: Flame,
 } as const;
@@ -49,6 +51,7 @@ const filterIcons: Record<NotificationFilter, typeof Radio> = {
 };
 
 const categoryInk: Record<NotificationItem["category"], string> = {
+  learning: "#6b4eff",
   streak: "#ff8a3d",
   coach: "#6b4eff",
   social: "#2d8cff",

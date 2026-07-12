@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { BackButton } from "@/components/BackButton";
 import {
   Bell,
+  CalendarClock,
   ChevronRight,
+  EyeOff,
   Globe,
   Lock,
   LogOut,
@@ -16,6 +18,13 @@ import {
   User,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCourseTiming } from "@/hooks/useCourseTiming";
+import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
+import { useCurrentLeague } from "@/hooks/useCurrentLeague";
+import { leaguesApi } from "@/lib/api/leagues";
+import { socialApi, type SocialPrivacyDto } from "@/lib/api/social";
+import { formatEta, paceMeta } from "@/lib/course-timing/format";
 import { signOutArc } from "@/lib/auth/session";
 import {
   settingsMockData,
@@ -39,8 +48,30 @@ export default function SettingsScreen({
   const router = useRouter();
   const { data: session } = useSession();
   const [tab, setTab] = useState<SettingsTab>("account");
-  const [toggles, setToggles] = useState(data.toggles);
   const [signingOut, setSigningOut] = useState(false);
+  const prefsQuery = useNotificationPreferences();
+  const { timing, patchCommitment } = useCourseTiming();
+  const { league } = useCurrentLeague();
+  const queryClient = useQueryClient();
+  const [hideLeague, setHideLeague] = useState(false);
+  const [privacyBusy, setPrivacyBusy] = useState(false);
+  const [socialPrivacy, setSocialPrivacy] = useState<SocialPrivacyDto | null>(
+    null,
+  );
+
+  useEffect(() => {
+    void socialApi
+      .getPrivacy(session?.accessToken)
+      .then(setSocialPrivacy)
+      .catch(() => undefined);
+  }, [session?.accessToken]);
+
+  const pace = timing ? paceMeta(timing.pace) : null;
+  const eta = formatEta(timing?.estimatedCompletionDate);
+  const deviceTz =
+    typeof Intl !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : "UTC";
 
   const email = session?.user?.email || data.email;
   const language =
@@ -48,10 +79,45 @@ export default function SettingsScreen({
       ? "English"
       : session?.profile?.language || data.language;
 
+  const leagueHidden =
+    league?.me?.hideFromProfile ?? hideLeague;
+
+  const toggles =
+    (prefsQuery.data?.toggles as SettingsToggle[] | undefined) ?? data.toggles;
+
   const setToggle = (id: SettingsToggleId) => {
-    setToggles((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, on: !t.on } : t)),
-    );
+    const current = toggles.find((t) => t.id === id);
+    if (!current) return;
+    prefsQuery.update.mutate({ [id]: !current.on });
+  };
+
+  const toggleLeaguePrivacy = async () => {
+    if (privacyBusy) return;
+    setPrivacyBusy(true);
+    const next = !leagueHidden;
+    try {
+      await leaguesApi.setPrivacy(next, session?.accessToken);
+      setHideLeague(next);
+      await queryClient.invalidateQueries({ queryKey: ["leagues"] });
+    } finally {
+      setPrivacyBusy(false);
+    }
+  };
+
+  const toggleSocialFlag = async (
+    key: "allowFriendRequests" | "allowFollows",
+  ) => {
+    if (privacyBusy || !socialPrivacy) return;
+    setPrivacyBusy(true);
+    try {
+      const next = await socialApi.updatePrivacy(
+        { [key]: !socialPrivacy[key] },
+        session?.accessToken,
+      );
+      setSocialPrivacy(next);
+    } finally {
+      setPrivacyBusy(false);
+    }
   };
 
   const signOut = async () => {
@@ -158,6 +224,38 @@ export default function SettingsScreen({
                 title="Language"
                 detail={language}
               />
+              <Link href="/week" className="block">
+                <SettingsRow
+                  icon={CalendarClock}
+                  title="Study schedule"
+                  detail={
+                    timing
+                      ? `${pace?.label ?? "On track"}${eta ? ` · ETA ${eta}` : ""}`
+                      : "Open week plan"
+                  }
+                  chevron
+                />
+              </Link>
+              <button
+                type="button"
+                disabled={patchCommitment.isPending}
+                onClick={() =>
+                  patchCommitment.mutate({
+                    timezone: deviceTz,
+                    replan: true,
+                  })
+                }
+                className="w-full rounded-[18px] border border-[#ebe4f6] bg-white px-4 py-3.5 text-left shadow-[0_8px_20px_rgba(70,40,150,0.05)] disabled:opacity-50"
+              >
+                <p className="text-[14px] font-extrabold text-[#1b1730]">
+                  {patchCommitment.isPending
+                    ? "Syncing timezone…"
+                    : "Use device timezone"}
+                </p>
+                <p className="mt-0.5 text-[12px] font-semibold text-[#8a7cb8]">
+                  {deviceTz} · updates reminders & slots
+                </p>
+              </button>
               <Link href="/plan" className="block">
                 <SettingsRow
                   icon={Mail}
@@ -219,6 +317,81 @@ export default function SettingsScreen({
                 title="Visibility"
                 detail={data.privacy}
               />
+              <button
+                type="button"
+                onClick={() => void toggleLeaguePrivacy()}
+                disabled={privacyBusy}
+                className="flex w-full items-center gap-3 rounded-[18px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 text-left shadow-[0_6px_16px_rgba(70,40,150,0.04)] disabled:opacity-60"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f6f2ff] text-arc-purple-500">
+                  <EyeOff className="h-5 w-5" strokeWidth={2.25} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-[14px] font-semibold text-[#1b1730]">
+                    Hide league on profile
+                  </p>
+                  <p className="mt-0.5 text-[12px] font-semibold text-[#8a7cb8]">
+                    {leagueHidden
+                      ? "Hidden from friends · still scored"
+                      : "Visible on your public league card"}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                    leagueHidden ? "bg-[#6b4eff]" : "bg-[#e8e2f4]",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform",
+                      leagueHidden ? "left-5" : "left-0.5",
+                    )}
+                  />
+                </span>
+              </button>
+              {(
+                [
+                  ["allowFriendRequests", "Allow friend requests"] as const,
+                  ["allowFollows", "Allow follows"] as const,
+                ] as const
+              ).map(([key, label]) => {
+                const on = socialPrivacy?.[key] ?? true;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => void toggleSocialFlag(key)}
+                    disabled={privacyBusy || !socialPrivacy}
+                    className="flex w-full items-center gap-3 rounded-[18px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 text-left shadow-[0_6px_16px_rgba(70,40,150,0.04)] disabled:opacity-60"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f6f2ff] text-arc-purple-500">
+                      <Shield className="h-5 w-5" strokeWidth={2.25} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display text-[14px] font-semibold text-[#1b1730]">
+                        {label}
+                      </p>
+                      <p className="mt-0.5 text-[12px] font-semibold text-[#8a7cb8]">
+                        {on ? "On" : "Off"}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                        on ? "bg-[#6b4eff]" : "bg-[#e8e2f4]",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform",
+                          on ? "left-5" : "left-0.5",
+                        )}
+                      />
+                    </span>
+                  </button>
+                );
+              })}
               <SettingsRow
                 icon={Lock}
                 title="Password"

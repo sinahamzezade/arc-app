@@ -34,6 +34,8 @@ export type HomeMockData = {
     stepsTotal: number;
     rewardXp: number;
     rewardGems: number;
+    /** Path / learn deep-link when live */
+    href?: string;
   };
   dailyBonus: {
     title: string;
@@ -122,6 +124,7 @@ export const homeMockData: HomeMockData = {
     stepsTotal: 3,
     rewardXp: 40,
     rewardGems: 10,
+    href: "/path",
   },
   dailyBonus: {
     title: "Lucky Wheel",

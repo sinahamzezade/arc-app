@@ -2,12 +2,13 @@ import { create } from "zustand";
 
 type LessonSessionState = {
   lessonId: string | null;
+  attemptId: string | null;
   contentStep: number;
   practiceOptionId: string | null;
+  practiceHintUsed: boolean;
   quizAnswers: Record<string, string>;
   quizIndex: number;
   completed: boolean;
-  /** Local reveal cache after server check — optionId → correct */
   practiceReveal: {
     correctOptionId: string | null;
     feedback: string | null;
@@ -18,6 +19,7 @@ type LessonSessionState = {
     { correctOptionId: string; explanation: string; correct: boolean }
   >;
   startLesson: (lessonId: string) => void;
+  setAttemptId: (attemptId: string | null) => void;
   hydrateFromProgress: (
     lessonId: string,
     progress: {
@@ -26,10 +28,12 @@ type LessonSessionState = {
       quizAnswers: Record<string, string>;
       quizIndex: number;
       completed: boolean;
+      attemptId?: string | null;
     },
   ) => void;
   setContentStep: (step: number) => void;
   setPracticeOption: (optionId: string) => void;
+  setPracticeHintUsed: (used: boolean) => void;
   setPracticeReveal: (reveal: LessonSessionState["practiceReveal"]) => void;
   setQuizAnswer: (questionId: string, optionId: string) => void;
   setQuizReveal: (
@@ -37,7 +41,7 @@ type LessonSessionState = {
     reveal: { correctOptionId: string; explanation: string; correct: boolean },
   ) => void;
   setQuizIndex: (index: number) => void;
-  markCompleted: () => void;
+  setCompleted: (completed: boolean) => void;
   reset: () => void;
 };
 
@@ -49,8 +53,10 @@ const emptyReveal = {
 
 const initial = {
   lessonId: null as string | null,
+  attemptId: null as string | null,
   contentStep: 0,
   practiceOptionId: null as string | null,
+  practiceHintUsed: false,
   quizAnswers: {} as Record<string, string>,
   quizIndex: 0,
   completed: false,
@@ -69,6 +75,7 @@ export const useLessonStore = create<LessonSessionState>((set, get) => ({
             lessonId,
           },
     ),
+  setAttemptId: (attemptId) => set({ attemptId }),
   hydrateFromProgress: (lessonId, progress) => {
     const current = get();
     if (
@@ -77,10 +84,14 @@ export const useLessonStore = create<LessonSessionState>((set, get) => ({
         current.practiceOptionId != null ||
         current.practiceReveal.correctOptionId != null)
     ) {
+      if (progress.attemptId && !current.attemptId) {
+        set({ attemptId: progress.attemptId });
+      }
       return;
     }
     set({
       lessonId,
+      attemptId: progress.attemptId ?? null,
       contentStep: progress.contentStep,
       practiceOptionId: progress.practiceOptionId,
       quizAnswers: progress.quizAnswers,
@@ -88,11 +99,13 @@ export const useLessonStore = create<LessonSessionState>((set, get) => ({
       completed: progress.completed,
       practiceReveal: emptyReveal,
       quizReveal: {},
+      practiceHintUsed: false,
     });
   },
   setContentStep: (contentStep) => set({ contentStep }),
   setPracticeOption: (practiceOptionId) =>
     set({ practiceOptionId, practiceReveal: emptyReveal }),
+  setPracticeHintUsed: (practiceHintUsed) => set({ practiceHintUsed }),
   setPracticeReveal: (practiceReveal) => set({ practiceReveal }),
   setQuizAnswer: (questionId, optionId) =>
     set((state) => ({
@@ -103,6 +116,6 @@ export const useLessonStore = create<LessonSessionState>((set, get) => ({
       quizReveal: { ...state.quizReveal, [questionId]: reveal },
     })),
   setQuizIndex: (quizIndex) => set({ quizIndex }),
-  markCompleted: () => set({ completed: true }),
+  setCompleted: (completed) => set({ completed }),
   reset: () => set(initial),
 }));

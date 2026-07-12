@@ -1,35 +1,55 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BackButton } from "@/components/BackButton";
-import {
-  Clock,
-  Coins,
-  HelpCircle,
-  Swords,
-  Zap,
-} from "lucide-react";
+import { Clock, Coins, HelpCircle, Swords, Zap } from "lucide-react";
 import { motion } from "motion/react";
+import { battlesApi } from "@/lib/api/battles";
+import { ApiError, messageForCode } from "@/lib/api/errors";
+import { leaguesApi } from "@/lib/api/leagues";
+import { socialApi, type SocialFriendDto } from "@/lib/api/social";
 import {
-  battleFriends,
   battleSubjects,
   battleTopics,
   type BattleDifficulty,
   type BattleMode,
 } from "@/lib/battle/mock-data";
+import {
+  maxStakeForRankLevel,
+  stakeOptionsForRank,
+} from "@/lib/battle/stake-limits";
 import { useBattleStore } from "@/store/useBattleStore";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
 
-const difficulties: BattleDifficulty[] = ["easy", "medium", "hard", "mixed"];
+const difficulties: BattleDifficulty[] = [
+  "easy",
+  "medium",
+  "hard",
+  "expert",
+  "mixed",
+];
 const questionCounts = [5, 10, 15, 20];
 const secondsOptions = [15, 30, 45, 60];
-const stakes = [50, 100, 250, 500];
+
+const fallbackOpponent: SocialFriendDto = {
+  userId: "",
+  displayName: "Rival",
+  username: null,
+  name: "Rival",
+  initial: "R",
+  color: "#6B4EFF",
+  avatarUrl: null,
+  level: 1,
+  league: "Bronze",
+  online: false,
+  canBattle: true,
+};
 
 /**
  * Fight-card builder. Face-off hero + dials + pot.
- * Not a labeled chip form.
+ * Opponent from crew (friends API) — Battle is friends-only.
  */
 export default function BattleCreateScreen() {
   const router = useRouter();
@@ -38,24 +58,104 @@ export default function BattleCreateScreen() {
   const setSetup = useBattleStore((s) => s.setSetup);
   const resetPlay = useBattleStore((s) => s.resetPlay);
   const coins = useEconomyStore((s) => s.coins);
-  const spendCoins = useEconomyStore((s) => s.spendCoins);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [friends, setFriends] = useState<SocialFriendDto[]>([]);
+  const [rankLevel, setRankLevel] = useState(1);
+  const [customStake, setCustomStake] = useState("");
 
   useEffect(() => {
     const opponent = searchParams.get("opponent");
     if (opponent) setSetup({ opponentId: opponent });
   }, [searchParams, setSetup]);
 
-  const opponent =
-    battleFriends.find((f) => f.id === setup.opponentId) ?? battleFriends[0];
-  const topics = battleTopics[setup.subject] ?? [];
-  const canStake = coins >= setup.stake;
-  const pot = setup.stake * 2;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [crew, me] = await Promise.all([
+          socialApi.friends(),
+          leaguesApi.getMe().catch(() => null),
+        ]);
+        if (cancelled) return;
+        setFriends(crew.items);
+        if (me?.rankLevel) setRankLevel(me.rankLevel);
+        if (
+          !searchParams.get("opponent") &&
+          crew.items[0] &&
+          !setup.opponentId
+        ) {
+          setSetup({ opponentId: crew.items[0].userId });
+        }
+      } catch {
+        /* empty crew */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const challenge = () => {
-    if (!canStake) return;
-    spendCoins(setup.stake);
-    resetPlay();
-    router.push(`/battle/invite/inv-out?sent=1`);
+  const maxStake = maxStakeForRankLevel(rankLevel);
+  const stakes = stakeOptionsForRank(rankLevel);
+  const opponent =
+    friends.find((f) => f.userId === setup.opponentId) ??
+    (setup.opponentId
+      ? {
+          ...fallbackOpponent,
+          userId: setup.opponentId,
+          name: "Rival",
+          initial: "R",
+        }
+      : friends[0] ?? fallbackOpponent);
+  const topics = battleTopics[setup.subject] ?? [];
+  const effectiveStake = Math.min(setup.stake, maxStake);
+  const canStake = coins >= effectiveStake && effectiveStake > 0;
+  const pot = effectiveStake * 2;
+  const opponentIsUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      setup.opponentId,
+    );
+
+  useEffect(() => {
+    if (setup.stake > maxStake) setSetup({ stake: maxStake });
+  }, [maxStake, setup.stake, setSetup]);
+
+  const challenge = async () => {
+    if (!canStake || busy) return;
+    if (!opponentIsUuid) {
+      setError("Pick a crew member to challenge.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const battle = await battlesApi.create({
+        opponentId: setup.opponentId,
+        subject: setup.subject,
+        topic: setup.topic || undefined,
+        difficulty: setup.difficulty,
+        questions: setup.questions,
+        secondsPerQuestion: setup.seconds,
+        mode: setup.mode,
+        stake: effectiveStake,
+        idempotencyKey:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `create-${Date.now()}`,
+      });
+      resetPlay();
+      router.push(`/battle/invite/${battle.id}?sent=1`);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? messageForCode(err.code, err.message)
+          : "Could not create battle",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -115,26 +215,32 @@ export default function BattleCreateScreen() {
 
         {/* Opponent switcher — tiny avatars under */}
         <div className="relative mt-5 flex justify-center gap-2">
-          {battleFriends.map((f) => {
-            const active = setup.opponentId === f.id;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                aria-label={`Pick ${f.name}`}
-                onClick={() => setSetup({ opponentId: f.id })}
-                className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-xl font-display text-[12px] font-bold text-white transition-transform",
-                  active
-                    ? "scale-110 ring-2 ring-[#ffc928] ring-offset-2 ring-offset-[#0f1220]"
-                    : "opacity-45",
-                )}
-                style={{ background: f.color }}
-              >
-                {f.initial}
-              </button>
-            );
-          })}
+          {friends.length === 0 ? (
+            <p className="text-[12px] font-bold text-white/50">
+              Add friends on Social to challenge them.
+            </p>
+          ) : (
+            friends.map((f) => {
+              const active = setup.opponentId === f.userId;
+              return (
+                <button
+                  key={f.userId}
+                  type="button"
+                  aria-label={`Pick ${f.name}`}
+                  onClick={() => setSetup({ opponentId: f.userId })}
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-xl font-display text-[12px] font-bold text-white transition-transform",
+                    active
+                      ? "scale-110 ring-2 ring-[#ffc928] ring-offset-2 ring-offset-[#0f1220]"
+                      : "opacity-45",
+                  )}
+                  style={{ background: f.color }}
+                >
+                  {f.initial}
+                </button>
+              );
+            })
+          )}
         </div>
       </section>
 
@@ -284,20 +390,28 @@ export default function BattleCreateScreen() {
                 {pot}
               </p>
               <p className="mt-1.5 text-[12px] font-bold text-white/50">
-                Each puts in {setup.stake}
+                Each puts in {effectiveStake} · max {maxStake} (Lv {rankLevel})
               </p>
             </div>
             <Coins className="h-12 w-12 text-[#ffc928]" strokeWidth={1.75} />
           </div>
-          <div className="mt-4 grid grid-cols-4 gap-1.5">
+          <div
+            className={cn(
+              "mt-4 grid gap-1.5",
+              stakes.length >= 5 ? "grid-cols-5" : "grid-cols-4",
+            )}
+          >
             {stakes.map((s) => (
               <button
                 key={s}
                 type="button"
-                onClick={() => setSetup({ stake: s })}
+                onClick={() => {
+                  setCustomStake("");
+                  setSetup({ stake: s });
+                }}
                 className={cn(
                   "rounded-xl py-2.5 font-display text-[14px] font-bold",
-                  setup.stake === s
+                  effectiveStake === s && !customStake
                     ? "bg-[#ffc928] text-[#1b1730]"
                     : "bg-white/10 text-white/70",
                 )}
@@ -306,10 +420,37 @@ export default function BattleCreateScreen() {
               </button>
             ))}
           </div>
+          <label className="mt-3 block">
+            <span className="text-[10px] font-black tracking-wide text-white/40 uppercase">
+              Custom stake
+            </span>
+            <input
+              type="number"
+              min={10}
+              max={maxStake}
+              step={10}
+              value={customStake}
+              placeholder={`10–${maxStake}`}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setCustomStake(raw);
+                const n = Number(raw);
+                if (Number.isFinite(n) && n > 0) {
+                  setSetup({
+                    stake: Math.min(maxStake, Math.max(10, Math.round(n))),
+                  });
+                }
+              }}
+              className="mt-1 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 font-display text-[15px] font-bold text-white outline-none placeholder:text-white/30 focus:border-[#ffc928]"
+            />
+          </label>
           {!canStake ? (
             <p className="mt-3 text-[12px] font-bold text-[#ff8a3d]">
               Not enough coins for this stake.
             </p>
+          ) : null}
+          {error ? (
+            <p className="mt-3 text-[12px] font-bold text-[#ff8a3d]">{error}</p>
           ) : null}
         </div>
       </div>
@@ -318,18 +459,20 @@ export default function BattleCreateScreen() {
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
         <motion.button
           type="button"
-          disabled={!canStake}
-          onClick={challenge}
+          disabled={!canStake || busy}
+          onClick={() => void challenge()}
           whileTap={{ scale: 0.98, y: 2 }}
           className={cn(
             "pointer-events-auto flex w-full items-center justify-center gap-2 rounded-[20px] py-4 font-display text-[16px] font-semibold text-white",
-            canStake
+            canStake && !busy
               ? "bg-arc-purple-500 shadow-[0_6px_0_#4b2fd6]"
               : "bg-[#c6bce0]",
           )}
         >
           <Swords className="h-5 w-5" strokeWidth={2.5} />
-          Challenge {opponent.name.split(" ")[0]} · {setup.stake}c
+          {busy
+            ? "Sending…"
+            : `Challenge ${opponent.name.split(" ")[0]} · ${effectiveStake}c`}
         </motion.button>
       </div>
     </div>
@@ -350,12 +493,7 @@ function Fighter({
   align: "left" | "right";
 }) {
   return (
-    <div
-      className={cn(
-        "min-w-0 flex-1",
-        align === "right" && "text-right",
-      )}
-    >
+    <div className={cn("min-w-0 flex-1", align === "right" && "text-right")}>
       <span
         className={cn(
           "inline-flex h-16 w-16 items-center justify-center rounded-[20px] font-display text-[24px] font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)]",
@@ -413,9 +551,7 @@ function DialBtn({
       onClick={onClick}
       className={cn(
         "min-w-[3.25rem] flex-1 rounded-xl py-2 text-[12px] font-extrabold capitalize",
-        active
-          ? "bg-[#1b1433] text-white"
-          : "bg-[#f6f2ff] text-[#8a7cb8]",
+        active ? "bg-[#1b1433] text-white" : "bg-[#f6f2ff] text-[#8a7cb8]",
       )}
     >
       {label}

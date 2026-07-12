@@ -4,34 +4,24 @@ import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { assets } from "@/lib/assets";
+import { lessonsApi } from "@/lib/api/lessons";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { LessonShell } from "./LessonShell";
 import { LessonLoadState } from "./LessonLoadState";
 
 type ChatMsg = { role: "user" | "arlo"; text: string };
 
-function arloReply(input: string, lessonTitle: string): string {
-  const q = input.toLowerCase();
-  if (q.includes("explain") || q.includes("what")) {
-    return `In one line: this stop is about “${lessonTitle}”. Say it back, then practice.`;
-  }
-  if (q.includes("hint") || q.includes("stuck")) {
-    return `Break “${lessonTitle}” into: what it is → why it matters → one tiny example.`;
-  }
-  if (q.includes("quiz") || q.includes("practice")) {
-    return "Do practice first, then quiz. Wrong answers teach faster than perfect reading.";
-  }
-  return `Solid question. Keep it tied to “${lessonTitle}” — ask for a recap, a hint, or a mini quiz.`;
-}
-
 export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
   const router = useRouter();
+  const { data: session } = useSession();
   const { lesson, isLoading, isError, error, refetch } =
     usePlayableLesson(lessonId);
   const [input, setInput] = useState("");
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
+  const [sending, setSending] = useState(false);
 
   if (isLoading) {
     return (
@@ -60,26 +50,41 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
           },
         ];
 
-  const send = (text: string) => {
+  const send = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
-    setMsgs((prev) => {
-      const base =
-        prev.length > 0
-          ? prev
-          : [
-              {
-                role: "arlo" as const,
-                text: `I'm locked on “${lesson.title}”. Ask for a recap, a hint, or a mini quiz.`,
-              },
-            ];
-      return [
-        ...base,
-        { role: "user", text: trimmed },
-        { role: "arlo", text: arloReply(trimmed, lesson.title) },
-      ];
-    });
+    if (!trimmed || sending) return;
+
+    const base =
+      msgs.length > 0
+        ? msgs
+        : [
+            {
+              role: "arlo" as const,
+              text: `I'm locked on “${lesson.title}”. Ask for a recap, a hint, or a mini quiz.`,
+            },
+          ];
+
+    setMsgs([...base, { role: "user", text: trimmed }]);
     setInput("");
+    setSending(true);
+    try {
+      const res = await lessonsApi.arloChat(
+        lessonId,
+        trimmed,
+        session?.accessToken,
+      );
+      setMsgs((prev) => [...prev, { role: "arlo", text: res.reply }]);
+    } catch {
+      setMsgs((prev) => [
+        ...prev,
+        {
+          role: "arlo",
+          text: `Couldn't reach coach just now — keep going on “${lesson.title}”.`,
+        },
+      ]);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -104,7 +109,7 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
               Arlo
             </p>
             <p className="text-[12px] font-semibold text-[#8a7cb8]">
-              Lesson coach · local replies
+              Lesson coach
             </p>
           </div>
         </div>
@@ -114,8 +119,9 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
             <button
               key={prompt}
               type="button"
-              onClick={() => send(prompt)}
-              className="rounded-full border border-[#ebe4f6] bg-white px-3 py-1.5 text-[12px] font-bold text-[#4a3d78]"
+              onClick={() => void send(prompt)}
+              disabled={sending}
+              className="rounded-full border border-[#ebe4f6] bg-white px-3 py-1.5 text-[12px] font-bold text-[#4a3d78] disabled:opacity-60"
             >
               {prompt}
             </button>
@@ -143,19 +149,21 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
           className="flex items-center gap-2 rounded-2xl border border-[#ebe4f6] bg-white p-1.5"
           onSubmit={(e) => {
             e.preventDefault();
-            send(input);
+            void send(input);
           }}
         >
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about this lesson…"
-            className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-[14px] font-semibold text-[#2b1b57] outline-none placeholder:text-[#b3a8d6]"
+            disabled={sending}
+            className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-[14px] font-semibold text-[#2b1b57] outline-none placeholder:text-[#b3a8d6] disabled:opacity-60"
           />
           <button
             type="submit"
             aria-label="Send"
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
+            disabled={sending}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6] disabled:opacity-60"
           >
             <Send className="h-4 w-4" strokeWidth={2.5} />
           </button>

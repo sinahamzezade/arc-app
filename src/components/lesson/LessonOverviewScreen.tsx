@@ -41,10 +41,14 @@ export default function LessonOverviewScreen({
   const { lesson, isLoading, isError, error, refetch } =
     usePlayableLesson(lessonId);
   const startLesson = useLessonStore((s) => s.startLesson);
+  const setAttemptId = useLessonStore((s) => s.setAttemptId);
   const startedRef = useRef<string | null>(null);
 
   const startMutation = useMutation({
     mutationFn: () => lessonsApi.start(lessonId, session?.accessToken),
+    onSuccess: (res) => {
+      if (res.attemptId) setAttemptId(res.attemptId);
+    },
   });
 
   useEffect(() => {
@@ -134,8 +138,16 @@ export default function LessonOverviewScreen({
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-[#ffc928]/15 px-2.5 py-1.5 text-[11px] font-extrabold text-[#ffc928]">
                 <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />+
-                {lesson.xpReward} XP
+                {lesson.reward.xp} XP
               </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold ring-1 ring-white/15">
+                +{lesson.reward.gems} gems · +{lesson.reward.coins} coins
+              </span>
+              {lesson.contentSource?.rewardClass ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold ring-1 ring-white/15">
+                  {lesson.contentSource.rewardClass}
+                </span>
+              ) : null}
             </div>
           </div>
 

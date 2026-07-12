@@ -1,5 +1,6 @@
 import { apiFetch } from "./client";
 import type {
+  LessonArloChatResponse,
   LessonCheckPracticeResponse,
   LessonCheckQuizResponse,
   LessonCompleteResponse,
@@ -14,13 +15,22 @@ export type UpdateLessonProgressBody = {
   quizAnswers?: Record<string, string>;
   quizIndex?: number;
   timeSpentMinutes?: number;
+  attemptId?: string;
 };
 
 export type CompleteLessonBody = {
   quizAnswers?: Record<string, string>;
   practiceOptionId?: string;
   timeSpentMinutes?: number;
+  attemptId: string;
 };
+
+function newIdempotencyKey() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `lesson-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export const lessonsApi = {
   getPlay(lessonId: string, accessToken?: string | null) {
@@ -47,6 +57,7 @@ export const lessonsApi = {
       status: string;
       sessionState: UpdateLessonProgressBody;
       timeSpentMinutes: number;
+      attemptId?: string | null;
     }>(`/lessons/${lessonId}/progress`, {
       method: "PATCH",
       body,
@@ -56,14 +67,14 @@ export const lessonsApi = {
 
   checkPractice(
     lessonId: string,
-    optionId: string,
+    body: { optionId: string; attemptId: string; hintUsed?: boolean },
     accessToken?: string | null,
   ) {
     return apiFetch<LessonCheckPracticeResponse>(
       `/lessons/${lessonId}/practice/check`,
       {
         method: "POST",
-        body: { optionId },
+        body,
         accessToken,
       },
     );
@@ -71,7 +82,7 @@ export const lessonsApi = {
 
   checkQuiz(
     lessonId: string,
-    body: { questionId: string; optionId: string },
+    body: { questionId: string; optionId: string; attemptId: string },
     accessToken?: string | null,
   ) {
     return apiFetch<LessonCheckQuizResponse>(
@@ -86,13 +97,32 @@ export const lessonsApi = {
 
   complete(
     lessonId: string,
-    body: CompleteLessonBody = {},
+    body: CompleteLessonBody,
     accessToken?: string | null,
+    idempotencyKey?: string,
   ) {
     return apiFetch<LessonCompleteResponse>(`/lessons/${lessonId}/complete`, {
       method: "POST",
       body,
       accessToken,
+      headers: {
+        "Idempotency-Key": idempotencyKey ?? newIdempotencyKey(),
+      },
     });
+  },
+
+  arloChat(
+    lessonId: string,
+    message: string,
+    accessToken?: string | null,
+  ) {
+    return apiFetch<LessonArloChatResponse>(
+      `/lessons/${lessonId}/arlo/chat`,
+      {
+        method: "POST",
+        body: { message },
+        accessToken,
+      },
+    );
   },
 };

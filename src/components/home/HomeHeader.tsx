@@ -1,61 +1,82 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { Bell, Flame, Gem } from "lucide-react";
-import type { HomeMockData } from "@/lib/home/mock-data";
+import { Bell, Coins, Gem, Zap } from "lucide-react";
+import { Skeleton } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
 type HomeHeaderProps = {
-  streakWeeks: HomeMockData["weeklyStreak"]["weeks"];
-  gems: HomeMockData["stats"]["gems"];
-  notificationCount: HomeMockData["notificationCount"];
+  coins: number;
+  xp: number;
+  gems: number;
+  notificationCount: number;
+  loading?: boolean;
 };
 
+function formatBalance(n: number): string {
+  if (n >= 1_000_000) {
+    return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}m`;
+  }
+  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
+  if (n >= 1000) {
+    return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  }
+  return n.toLocaleString();
+}
+
 /**
- * Compact clay stamps — streak · gems · bell.
+ * Arc clay wallet chips — same stamp language as Rank / CTAs.
+ * Coin gold · XP blue · Gem purple + night bell.
  */
 export function HomeHeader({
-  streakWeeks,
+  coins,
+  xp,
   gems,
   notificationCount,
+  loading = false,
 }: HomeHeaderProps) {
   return (
     <div className="flex items-center gap-2">
-      <Link
-        href="/week"
-        aria-label={`${streakWeeks} week streak`}
-        className="inline-flex items-center gap-1 rounded-xl bg-arc-orange-400 py-1 pr-2.5 pl-1 text-white shadow-[0_2px_0_#d46520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 active:translate-y-px active:shadow-[0_1px_0_#d46520]"
+      <div
+        className="flex min-w-0 flex-1 items-center gap-1.5"
+        aria-label="Balances"
+        aria-busy={loading || undefined}
       >
-        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#0f1220]/15">
-          <Flame
-            className="h-3 w-3"
-            fill="currentColor"
-            strokeWidth={1.5}
-          />
-        </span>
-        <span className="flex items-baseline gap-0.5">
-          <span className="font-display text-[14px] leading-none font-bold tabular-nums">
-            {streakWeeks}
-          </span>
-          <span className="text-[8px] font-extrabold tracking-[0.1em] uppercase opacity-80">
-            wks
-          </span>
-        </span>
-      </Link>
-
-      <Link
-        href="/wallet"
-        aria-label={`${gems} gems`}
-        className="inline-flex items-center gap-1 rounded-xl bg-arc-purple-500 py-1 pr-2.5 pl-1 text-white shadow-[0_2px_0_var(--color-arc-purple-700)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] active:translate-y-px active:shadow-[0_1px_0_var(--color-arc-purple-700)]"
-      >
-        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/15">
-          <Gem className="h-3 w-3" strokeWidth={2.5} />
-        </span>
-        <span className="font-display text-[14px] leading-none font-bold tabular-nums">
-          {gems.toLocaleString()}
-        </span>
-      </Link>
-
-      <div className="flex-1" />
+        {loading ? (
+          <ChipsSkeleton />
+        ) : (
+          <>
+            <ClayChip
+              href="/wallet"
+              label={`${coins.toLocaleString()} coins`}
+              value={formatBalance(coins)}
+              tone="coin"
+              icon={<Coins className="h-3.5 w-3.5" strokeWidth={2.5} />}
+            />
+            <ClayChip
+              href="/rank"
+              label={`${xp.toLocaleString()} XP`}
+              value={formatBalance(xp)}
+              tone="xp"
+              icon={
+                <Zap
+                  className="h-3.5 w-3.5"
+                  strokeWidth={2.5}
+                  fill="currentColor"
+                />
+              }
+            />
+            <ClayChip
+              href="/wallet"
+              label={`${gems.toLocaleString()} gems`}
+              value={formatBalance(gems)}
+              tone="gem"
+              icon={<Gem className="h-3.5 w-3.5" strokeWidth={2.5} />}
+            />
+          </>
+        )}
+      </div>
 
       <Link
         href="/notifications"
@@ -64,15 +85,74 @@ export function HomeHeader({
             ? `Notifications, ${notificationCount} unread`
             : "Notifications"
         }
-        className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+        className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
       >
         <Bell className="h-4 w-4" strokeWidth={2.25} />
         {notificationCount > 0 ? (
           <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-arc-orange-400 px-[3px] text-[9px] font-extrabold text-white">
-            {notificationCount}
+            {notificationCount > 99 ? "99+" : notificationCount}
           </span>
         ) : null}
       </Link>
+    </div>
+  );
+}
+
+function ClayChip({
+  href,
+  label,
+  value,
+  tone,
+  icon,
+}: {
+  href: string;
+  label: string;
+  value: string;
+  tone: "coin" | "xp" | "gem";
+  icon: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      className={cn(
+        "inline-flex min-w-0 items-center gap-1 rounded-xl py-1 pr-2.5 pl-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220] active:translate-y-px active:shadow-none",
+        tone === "coin" &&
+          "bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e]",
+        tone === "xp" &&
+          "bg-[#2d8cff] text-white shadow-[0_3px_0_#1a5fad]",
+        tone === "gem" &&
+          "bg-[#b35cff] text-white shadow-[0_3px_0_#7a2fc4]",
+      )}
+    >
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-black/15">
+        {icon}
+      </span>
+      <span className="truncate font-display text-[13px] leading-none font-bold tabular-nums">
+        {value}
+      </span>
+    </Link>
+  );
+}
+
+function ChipsSkeleton() {
+  return (
+    <div
+      className="flex items-center gap-1.5"
+      role="status"
+      aria-label="Loading balances"
+    >
+      {[
+        "bg-[#ffc928]/40",
+        "bg-[#2d8cff]/40",
+        "bg-[#b35cff]/40",
+      ].map((bg, i) => (
+        <Skeleton
+          key={i}
+          animationType="shimmer"
+          className={cn("h-8 w-[4.5rem] rounded-xl", bg)}
+        />
+      ))}
     </div>
   );
 }

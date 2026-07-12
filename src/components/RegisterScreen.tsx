@@ -45,6 +45,7 @@ export default function RegisterScreen() {
       email: "",
       password: "",
       confirmPassword: "",
+      referralCode: "",
       agreeToTerms: false,
     },
   });
@@ -69,6 +70,7 @@ export default function RegisterScreen() {
         email: data.email,
         password: data.password,
         agreeToTerms: data.agreeToTerms,
+        referralCode: data.referralCode?.trim() || undefined,
       });
       await goVerify();
     } catch (err) {
@@ -187,6 +189,15 @@ export default function RegisterScreen() {
           autoComplete="new-password"
           error={errors.confirmPassword?.message}
           {...register("confirmPassword")}
+        />
+        <ArcField
+          id="referralCode"
+          label="Referral code (optional)"
+          type="text"
+          autoComplete="off"
+          placeholder="FRIEND-A7K2"
+          error={errors.referralCode?.message}
+          {...register("referralCode")}
         />
 
         <Controller

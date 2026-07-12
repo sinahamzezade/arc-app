@@ -68,6 +68,7 @@ export async function signUpWithPassword(input: {
   email: string;
   password: string;
   agreeToTerms: boolean;
+  referralCode?: string;
 }) {
   try {
     const data = await authApi.register(input);

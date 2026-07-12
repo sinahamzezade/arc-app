@@ -18,29 +18,48 @@ export function useCurrentWeek() {
     enabled: status === "authenticated" && Boolean(accessToken),
     queryFn: () => weeksApi.getCurrent(accessToken),
     retry: (count, err) => {
-      // Roadmap not ready → don't spam
       const code =
         err && typeof err === "object" && "code" in err
           ? String((err as { code: string }).code)
           : "";
-      if (code === "ROADMAP_NOT_READY" || code === "WEEK_NOT_FOUND") {
+      if (
+        code === "ROADMAP_NOT_READY" ||
+        code === "WEEK_NOT_FOUND" ||
+        code === "WEEK_PLAN_BUILDING"
+      ) {
         return false;
       }
       return count < 2;
     },
   });
 
+  const setWeek = (data: WeekCurrentResponse) => {
+    queryClient.setQueryData(weekQueryKey(accessToken), data);
+  };
+
   const replan = useMutation({
     mutationFn: (body: ReplanWeekBody = {}) =>
       weeksApi.replan(body, accessToken),
-    onSuccess: (data) => {
-      queryClient.setQueryData(weekQueryKey(accessToken), data);
-    },
+    onSuccess: setWeek,
+  });
+
+  const moveTask = useMutation({
+    mutationFn: (input: { taskId: string; dayIndex: number }) =>
+      weeksApi.moveTask(input.taskId, input.dayIndex, accessToken),
+    onSuccess: setWeek,
+  });
+
+  const skipTask = useMutation({
+    mutationFn: (input: { taskId: string; reason?: string }) =>
+      weeksApi.skipTask(input.taskId, { reason: input.reason }, accessToken),
+    onSuccess: setWeek,
   });
 
   return {
     ...query,
     week: query.data as WeekCurrentResponse | undefined,
     replan,
+    moveTask,
+    skipTask,
   };
 }

@@ -48,9 +48,15 @@ export function useNotifications(filter: NotificationListFilter = "all") {
     onSuccess: invalidate,
   });
 
+  const hide = useMutation({
+    mutationFn: (id: string) => notificationsApi.hide(id, accessToken),
+    onSuccess: invalidate,
+  });
+
   return {
     ...listQuery,
     markRead,
     markAllRead,
+    hide,
   };
 }

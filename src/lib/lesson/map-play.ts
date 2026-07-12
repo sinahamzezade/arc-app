@@ -10,6 +10,13 @@ export type PlayableLesson = {
   minutes: number;
   xpReward: number;
   objective: string;
+  contentSource: {
+    lessonTemplateId: string | null;
+    lessonVersionId: string | null;
+    version: number | null;
+    status: string | null;
+    rewardClass: string | null;
+  } | null;
   resource: { label: string; href: string; note: string };
   arloPrompt: string;
   content: LessonContentPage[];
@@ -44,6 +51,15 @@ export function mapPlayDtoToLesson(dto: LessonPlayDto): PlayableLesson {
     minutes: dto.minutes,
     xpReward: dto.xpReward,
     objective: dto.objective,
+    contentSource: dto.contentSource
+      ? {
+          lessonTemplateId: dto.contentSource.lessonTemplateId,
+          lessonVersionId: dto.contentSource.lessonVersionId,
+          version: dto.contentSource.version,
+          status: dto.contentSource.status,
+          rewardClass: dto.contentSource.rewardClass,
+        }
+      : null,
     resource: {
       label: dto.resource.label,
       href: dto.resource.href,

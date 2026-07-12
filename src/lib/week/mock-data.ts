@@ -4,11 +4,18 @@ import {
   type HomeMockData,
 } from "@/lib/home/mock-data";
 
-export type WeekTaskStatus = "done" | "today" | "upcoming" | "missed" | "skipped";
+export type WeekTaskStatus =
+  | "done"
+  | "today"
+  | "upcoming"
+  | "missed"
+  | "skipped"
+  | "moved";
 
 export type WeekTask = {
   id: string;
   dayLabel: string;
+  dayIndex?: number;
   title: string;
   track: string;
   minutes: number;

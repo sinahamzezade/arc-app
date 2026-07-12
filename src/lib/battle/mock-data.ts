@@ -1,4 +1,9 @@
-export type BattleDifficulty = "easy" | "medium" | "hard" | "mixed";
+export type BattleDifficulty =
+  | "easy"
+  | "medium"
+  | "hard"
+  | "expert"
+  | "mixed";
 export type BattleMode = "live" | "async";
 export type BattleResult = "win" | "loss" | "draw" | "pending";
 
@@ -16,8 +21,24 @@ export type BattleQuestion = {
   id: string;
   prompt: string;
   options: { id: string; label: string }[];
-  correctOptionId: string;
-  explanation: string;
+  /**
+   * Mock/local only. Live pool play payloads never include this —
+   * server grades via battle check API.
+   */
+  correctOptionId?: string;
+  explanation?: string;
+  /** Content-pool version id when sourced from QuestionPool. */
+  questionVersionId?: string;
+  isSuddenDeath?: boolean;
+  answers?: Array<{
+    participantId: string;
+    selectedOptionId: string | null;
+    isCorrect: boolean;
+    questionScore: number;
+    responseMs: number;
+    timedOut: boolean;
+    isYou?: boolean;
+  }>;
 };
 
 export type BattleHistoryItem = {
@@ -124,7 +145,8 @@ export const battleQuestions: BattleQuestion[] = [
       { id: "d", label: "HAVING only" },
     ],
     correctOptionId: "b",
-    explanation: "WHERE filters rows before aggregation. HAVING filters groups.",
+    explanation:
+      "WHERE filters rows before aggregation. HAVING filters groups.",
   },
   {
     id: "bq2",

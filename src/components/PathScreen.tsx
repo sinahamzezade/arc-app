@@ -21,6 +21,7 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import PathGateScreen from "@/components/path/PathGateScreen";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
+import { messageForCode } from "@/lib/api/errors";
 import { mapRoadmapToPathData } from "@/lib/path/map-roadmap";
 import {
   pathMockData,
@@ -257,10 +258,13 @@ export default function PathScreen({
   }
 
   if (job?.status === "failed" && !roadmap) {
+    const codeMsg = job.errorCode
+      ? messageForCode(job.errorCode, job.errorMessage || "")
+      : "";
     return (
       <PathGateScreen
         kind="failed"
-        message={job.errorMessage || undefined}
+        message={codeMsg || job.errorMessage || undefined}
         onRetry={() => void refetch()}
       />
     );
@@ -340,8 +344,6 @@ function RoadMap({ data }: { data: PathMockData }) {
           backgroundSize: "auto, auto, auto, auto, auto, 56px 56px, 56px 56px",
         }}
       >
-        <CompassBadge />
-
         <motion.div
           className="relative mx-auto w-full"
           style={{ height: trail.totalH }}
@@ -923,20 +925,5 @@ function FinishMarker({
         </p>
       </div>
     </motion.div>
-  );
-}
-
-/** Small compass — every map gets one. */
-function CompassBadge() {
-  return (
-    <div
-      aria-hidden
-      className="absolute top-3 right-4 z-10 flex rotate-[8deg] items-center gap-1 rounded-full bg-white/90 px-2.5 py-1.5 text-arc-purple-500 shadow-[0_6px_14px_rgba(70,40,150,0.12)] ring-1 ring-[#ebe4f6]"
-    >
-      <Compass className="h-4 w-4" strokeWidth={2.4} />
-      <span className="font-display text-[11px] font-bold text-[#1b1730]">
-        N
-      </span>
-    </div>
   );
 }

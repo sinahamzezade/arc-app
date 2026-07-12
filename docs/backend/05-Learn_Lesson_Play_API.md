@@ -581,7 +581,8 @@ DTOs: class-validator for bodies; serializers strip `correct` / `correctOptionId
 | `arc-app/src/app/(routes)/learn/**`                              | Routes                             |
 | `arc-app/src/components/lesson/*`                                | Screens                            |
 | `arc-app/src/lib/lesson/mock-data.ts`                            | Playable types + golden `lesson-1` |
-| `arc-app/src/lib/lesson/resolve-lesson.ts`                       | Temporary synth — replace with API |
+| `arc-app/src/lib/lesson/map-play.ts`                              | Map GET play DTO → UI lesson |
+| `arc-app/src/hooks/usePlayableLesson.ts`                          | Live play loader + hydrate   |
 | `arc-app/src/store/useLessonStore.ts`                            | Ephemeral session                  |
 | `arc-app/src/schemas/lesson.ts`                                  | Zod progress shape (unused)        |
 | `arc-app/src/lib/api/types.ts`                                   | `RoadmapLessonDto` metadata        |

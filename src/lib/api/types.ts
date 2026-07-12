@@ -5,10 +5,7 @@ export type AuthUser = {
   createdAt?: string;
 };
 
-export type QuestionnaireStatus =
-  | "not_started"
-  | "in_progress"
-  | "completed";
+export type QuestionnaireStatus = "not_started" | "in_progress" | "completed";
 
 export type Profile = {
   id: string;
@@ -156,6 +153,10 @@ export type RoadmapLessonDto = {
   orderIndex: number;
   status: "locked" | "available" | "completed";
   resource: RoadmapResourceDto | null;
+  /** Pool snapshot — present when roadmap instance stores source refs. */
+  lessonTemplateId?: string | null;
+  lessonVersionId?: string | null;
+  rewardClass?: string | null;
 };
 
 export type RoadmapMilestoneDto = {
@@ -192,6 +193,7 @@ export type RoadmapCurrentResponse = {
 };
 
 export type NotificationCategoryDto =
+  | "learning"
   | "streak"
   | "coach"
   | "social"
@@ -200,17 +202,56 @@ export type NotificationCategoryDto =
 
 export type NotificationTypeDto =
   | "study_reminder"
+  | "study_starting"
+  | "missed_session"
+  | "replan_suggestion"
+  | "deadline_risk"
+  | "pace_ahead"
+  | "pace_behind"
   | "streak_risk"
+  | "streak_protected"
+  | "streak_broken"
+  | "streak_recovered"
   | "weekly_recap"
   | "missed_week_recovery"
+  | "reward_granted"
   | "badge_unlocked"
-  | "replan_suggestion"
+  | "rank_close"
+  | "rank_unlocked"
+  | "rank_close"
+  | "rank_gate_completed"
+  | "chest_ready"
+  | "lucky_wheel_ready"
+  | "lucky_wheel_reward"
+  | "friend_request"
+  | "friend_request_accepted"
+  | "new_follower"
+  | "study_invite"
+  | "study_invite_accepted"
+  | "study_session_starting"
+  | "study_partner_ready"
+  | "study_session_completed"
   | "battle_invite"
+  | "battle_invite_expiring"
+  | "battle_accepted"
+  | "battle_starting"
+  | "battle_result"
+  | "battle_rematch"
   | "league_update"
+  | "league_started"
+  | "league_position_changed"
+  | "league_promotion_risk"
+  | "league_demote_risk"
+  | "league_position_risk"
+  | "league_finalized"
+  | "league_promoted"
+  | "league_demoted"
+  | "league_gate_blocked"
   | "referral"
   | "product_update"
   | "coach_message"
-  | "system";
+  | "system"
+  | "security";
 
 export type NotificationDto = {
   id: string;
@@ -220,8 +261,10 @@ export type NotificationDto = {
   body: string;
   actionUrl: string | null;
   payload: Record<string, unknown> | null;
+  priority?: "low" | "normal" | "high" | "critical";
   unread: boolean;
   readAt: string | null;
+  expiresAt?: string | null;
   createdAt: string;
 };
 
@@ -231,56 +274,96 @@ export type NotificationListResponse = {
   unreadCount: number;
   limit: number;
   offset: number;
+  nextCursor?: string | null;
 };
 
 export type NotificationUnreadCountResponse = {
   unreadCount: number;
 };
 
+export type NotificationPreferenceToggleId =
+  | "push"
+  | "email"
+  | "learningReminders"
+  | "weeklyProgress"
+  | "streakReminders"
+  | "rewards"
+  | "social"
+  | "studyTogetherInvites"
+  | "battleInvites"
+  | "leagueUpdates"
+  | "luckyWheel"
+  | "coachMessages"
+  | "marketing";
+
 export type NotificationPreferencesResponse = {
-  preferences: {
-    push: boolean;
-    email: boolean;
-    streakReminders: boolean;
-    battleInvites: boolean;
-    marketing: boolean;
+  preferences: Record<NotificationPreferenceToggleId, boolean> & {
+    quietHoursEnabled?: boolean;
+    quietHoursStart?: string;
+    quietHoursEnd?: string;
   };
   toggles: Array<{
-    id: "push" | "email" | "streakReminders" | "battleInvites" | "marketing";
+    id: NotificationPreferenceToggleId;
     label: string;
     detail: string;
     on: boolean;
   }>;
 };
 
-export type WeekDayStatusDto = "done" | "empty" | "today";
+export type WeekDayStatusDto = "done" | "empty" | "today" | "current" | "completed";
 
 export type WeekTaskStatusDto =
   | "upcoming"
   | "today"
   | "done"
   | "missed"
-  | "skipped";
+  | "skipped"
+  | "moved";
+
+export type WeekProgressStatusDto =
+  | "ahead"
+  | "on_track"
+  | "catch_up"
+  | "at_risk"
+  | "sealed";
 
 export type WeekCurrentResponse = {
+  status?: string;
   weekLabel: string;
   rangeLabel: string;
   weekStart: string;
+  windowStartAt?: string | null;
+  windowEndAt?: string | null;
   targetWeek: number;
   sealed: boolean;
   sessionsLeft: number;
   estimateMinutes: number;
   replanHref: string;
+  weeklyStreak?: number;
+  todayMission?: {
+    taskId: string;
+    lessonId: string | null;
+    title: string;
+    state: string;
+    estimatedMinutes: number;
+    href: string;
+  } | null;
   progress: {
+    status?: WeekProgressStatusDto;
     percent: number;
     hoursDone: number;
     hoursPlanned: number;
+    verifiedMinutesDone?: number;
+    minutesPlanned?: number;
     sessionsDone: number;
     sessionsPlanned: number;
+    sessionsLeft?: number;
+    remainingMinutes?: number;
     onTrack: boolean;
     lockRewardXp: number;
     lockRewardGems: number;
   };
+  sealRewardPreview?: { xp: number; gems: number };
   streak: {
     weeks: number;
     days: { label: string; status: "done" | "empty" }[];
@@ -288,6 +371,7 @@ export type WeekCurrentResponse = {
   days: {
     label: string;
     full: string;
+    dayIndex?: number;
     status: WeekDayStatusDto;
     minutesPlanned: number;
     minutesDone: number;
@@ -295,12 +379,14 @@ export type WeekCurrentResponse = {
   tasks: {
     id: string;
     dayLabel: string;
+    dayIndex?: number;
     title: string;
     track: string;
     minutes: number;
     xp: number;
     status: WeekTaskStatusDto;
     href?: string;
+    lessonId?: string | null;
   }[];
   arloNudge: string;
 };
@@ -312,6 +398,14 @@ export type LessonContentBlockDto =
   | { type: "callout"; title: string; body: string }
   | { type: "code"; label: string; code: string };
 
+export type LessonContentSourceDto = {
+  lessonTemplateId: string | null;
+  lessonVersionId: string | null;
+  version: number | null;
+  status: string | null;
+  rewardClass: string | null;
+};
+
 export type LessonPlayDto = {
   id: string;
   lessonNumber: number;
@@ -321,6 +415,13 @@ export type LessonPlayDto = {
   xpReward: number;
   objective: string;
   status: "locked" | "available" | "completed";
+  contentVersionId?: string;
+  contentSchemaVersion?: number;
+  rewardRuleVersion?: string;
+  attemptId?: string | null;
+  serverTime?: string;
+  /** Content-pool provenance when backend attaches it. */
+  contentSource?: LessonContentSourceDto | null;
   resource: {
     id: string | null;
     label: string;
@@ -358,6 +459,7 @@ export type LessonPlayDto = {
     status: "not_started" | "in_progress" | "completed";
     contentStep: number;
     practiceDone: boolean;
+    practiceOptionId?: string | null;
     quizAnswers: Record<string, string>;
     quizIndex: number;
     startedAt: string | null;
@@ -369,6 +471,10 @@ export type LessonStartResponse = {
   lessonId: string;
   status: string;
   startedAt: string;
+  attemptId?: string;
+  contentVersionId?: string;
+  contentSchemaVersion?: number;
+  rewardRuleVersion?: string;
 };
 
 export type LessonCheckPracticeResponse = {
@@ -395,6 +501,12 @@ export type LessonCompleteResponse = {
     badgeLabel?: string;
     arloLine: string;
   };
+  wallet?: {
+    lifetimeXp: number;
+    gems: number;
+    coins: number;
+    version: number;
+  };
   profile: {
     totalXp: number;
     gems: number;
@@ -402,4 +514,12 @@ export type LessonCompleteResponse = {
   };
   unlockedLessonIds: string[];
   roadmapProgressPercent: number;
+  attemptId?: string | null;
+  contentVersionId?: string;
+  rewardRuleVersion?: string;
+};
+
+export type LessonArloChatResponse = {
+  reply: string;
+  source: "ai" | "stub";
 };

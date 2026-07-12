@@ -16,6 +16,12 @@ export const registerSchema = z
     email: z.string().email("Enter a valid email"),
     password: passwordSchema,
     confirmPassword: z.string(),
+    referralCode: z
+      .string()
+      .trim()
+      .max(32)
+      .optional()
+      .or(z.literal("")),
     agreeToTerms: z.boolean().refine((value) => value, {
       message: "You must agree to continue",
     }),

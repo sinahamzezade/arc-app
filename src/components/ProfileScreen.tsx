@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
@@ -15,13 +16,17 @@ import {
   Lock,
   Pencil,
   Settings,
+  Swords,
   UserPlus,
+  Users,
   WandSparkles,
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useSession } from "next-auth/react";
 import { assets } from "@/lib/assets";
+import { socialApi } from "@/lib/api/social";
+import { useBattleStats } from "@/hooks/useBattles";
 import {
   profileMockData,
   type ProfileMockData,
@@ -57,6 +62,30 @@ export default function ProfileScreen({
     100,
     Math.round((data.xpIntoLevel / data.xpForNextLevel) * 100),
   );
+
+  const [followerCount, setFollowerCount] = useState<number | null>(null);
+  const [followingCount, setFollowingCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    let cancelled = false;
+    void socialApi
+      .getProfile(userId)
+      .then((p) => {
+        if (cancelled) return;
+        setFollowerCount(p.counters.followers);
+        setFollowingCount(p.counters.following);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFollowerCount(0);
+        setFollowingCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -122,6 +151,13 @@ export default function ProfileScreen({
           <span className="rounded-full bg-[#ffc928]/20 px-3 py-1 text-[11px] font-black tracking-wide text-[#ffc928]">
             DAY {data.day}
           </span>
+          <Link
+            href="/profile/followers"
+            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-[11px] font-black tracking-wide ring-1 ring-white/15"
+          >
+            <Users className="h-3 w-3 text-[#ffc928]" strokeWidth={2.5} />
+            {followerCount == null ? "…" : followerCount} followers
+          </Link>
           <span className="ml-auto inline-flex items-center gap-1 text-[12px] font-extrabold text-white/70">
             <Zap className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
             {data.xpIntoLevel}
@@ -149,6 +185,17 @@ export default function ProfileScreen({
               {xp.toLocaleString()}
             </p>
           </div>
+          <Link
+            href="/profile/followers?tab=following"
+            className="rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15"
+          >
+            <p className="text-[9px] font-black tracking-wide text-white/40 uppercase">
+              Following
+            </p>
+            <p className="font-display text-[18px] font-bold tabular-nums">
+              {followingCount == null ? "…" : followingCount}
+            </p>
+          </Link>
           <Link
             href="/wallet"
             className="ml-auto rounded-2xl bg-[#ffc928] px-3 py-2 text-[#0f1220] shadow-[0_4px_0_#c79a2e]"
@@ -202,9 +249,30 @@ export default function ProfileScreen({
           </Link>
         </div>
 
+        <Link
+          href="/profile/followers"
+          className="flex items-center gap-3 rounded-[20px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 shadow-[0_12px_28px_rgba(70,40,150,0.08)]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f0ebff] text-arc-purple-500">
+            <Users className="h-5 w-5" strokeWidth={2.4} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-[16px] leading-none font-bold text-[#1b1730]">
+              {followerCount == null ? "…" : followerCount} followers
+            </p>
+            <p className="mt-1 text-[11px] font-bold text-[#8a7cb8]">
+              {followingCount == null ? "…" : followingCount} following · tap to
+              manage
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-[#b3a8d6]" strokeWidth={2.5} />
+        </Link>
+
         <SkillsStampRail skills={data.skills} />
 
         <ActionTwinRow coins={coins} />
+
+        <BattleArenaCard />
 
         <SharePassportButton />
 
@@ -382,6 +450,87 @@ function ActionTwinRow({ coins }: { coins: number }) {
           </span>
         </Link>
       </motion.div>
+    </div>
+  );
+}
+
+function BattleArenaCard() {
+  const { data: stats } = useBattleStats();
+  if (!stats || stats.played === 0) {
+    return (
+      <Link
+        href="/battle"
+        className="flex items-center gap-3 rounded-[22px] border border-dashed border-[#d5ccec] bg-white px-4 py-3.5"
+      >
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e4eeff] text-[#2d8cff]">
+          <Swords className="h-5 w-5" strokeWidth={2.25} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-[15px] font-semibold text-[#1b1730]">
+            Battle arena
+          </span>
+          <span className="block text-[12px] font-bold text-[#8a7cb8]">
+            Challenge friends · wager coins
+          </span>
+        </span>
+        <ArrowRight className="h-4 w-4 text-[#c3badb]" strokeWidth={2.5} />
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href="/battle"
+      className="block overflow-hidden rounded-[22px] border border-[#ebe4f6] bg-white shadow-[0_8px_24px_rgba(70,40,150,0.06)]"
+    >
+      <div className="flex items-center gap-3 px-4 pt-3.5 pb-2">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e4eeff] text-[#2d8cff]">
+          <Swords className="h-5 w-5" strokeWidth={2.25} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-[15px] font-semibold text-[#1b1730]">
+            Battle record
+          </p>
+          <p className="text-[12px] font-bold text-[#8a7cb8]">
+            {stats.favoriteSubject} · {stats.winStreak} streak
+          </p>
+        </div>
+        <ArrowRight className="h-4 w-4 text-[#c3badb]" strokeWidth={2.5} />
+      </div>
+      <div className="grid grid-cols-4 gap-1 border-t border-[#f0ecf7] px-2 py-2.5 text-center">
+        <StatChip label="Played" value={String(stats.played)} />
+        <StatChip label="Won" value={String(stats.wins)} tone="good" />
+        <StatChip label="Lost" value={String(stats.losses)} />
+        <StatChip label="Rate" value={`${stats.winRate}%`} tone="accent" />
+      </div>
+    </Link>
+  );
+}
+
+function StatChip({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "good" | "accent";
+}) {
+  return (
+    <div className="rounded-xl bg-[#faf8ff] px-1 py-2">
+      <p
+        className={cn(
+          "font-display text-[15px] font-bold",
+          tone === "good" && "text-[#178a52]",
+          tone === "accent" && "text-arc-purple-500",
+          !tone && "text-[#1b1730]",
+        )}
+      >
+        {value}
+      </p>
+      <p className="text-[9px] font-black tracking-wide text-[#8a7cb8] uppercase">
+        {label}
+      </p>
     </div>
   );
 }

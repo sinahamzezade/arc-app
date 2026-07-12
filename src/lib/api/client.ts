@@ -12,6 +12,8 @@ type RequestOptions = {
   method?: string;
   body?: unknown;
   accessToken?: string | null;
+  /** Extra request headers (e.g. Idempotency-Key). */
+  headers?: Record<string, string>;
   /** Skip one refresh retry (used by refresh itself). */
   skipRefresh?: boolean;
 };
@@ -118,6 +120,7 @@ export async function apiFetch<T>(
 
   const headers: Record<string, string> = {
     Accept: "application/json",
+    ...options.headers,
   };
   if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";

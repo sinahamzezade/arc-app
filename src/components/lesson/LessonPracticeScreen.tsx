@@ -29,13 +29,26 @@ export default function LessonPracticeScreen({
   const setPracticeOption = useLessonStore((s) => s.setPracticeOption);
   const practiceReveal = useLessonStore((s) => s.practiceReveal);
   const setPracticeReveal = useLessonStore((s) => s.setPracticeReveal);
+  const attemptId = useLessonStore((s) => s.attemptId);
+  const practiceHintUsed = useLessonStore((s) => s.practiceHintUsed);
+  const setPracticeHintUsed = useLessonStore((s) => s.setPracticeHintUsed);
   const [checking, setChecking] = useState(false);
 
   const revealed = practiceReveal.correctOptionId != null;
 
   const checkMutation = useMutation({
-    mutationFn: (optionId: string) =>
-      lessonsApi.checkPractice(lessonId, optionId, session?.accessToken),
+    mutationFn: (optionId: string) => {
+      if (!attemptId) throw new Error("Start the lesson first");
+      return lessonsApi.checkPractice(
+        lessonId,
+        {
+          optionId,
+          attemptId,
+                hintUsed: practiceHintUsed,
+        },
+        session?.accessToken,
+      );
+    },
     onSuccess: (res) => {
       setPracticeReveal({
         correctOptionId: res.correctOptionId,
@@ -101,10 +114,14 @@ export default function LessonPracticeScreen({
           ))}
         </div>
 
-        <div className="mt-4 flex items-start gap-2 rounded-2xl bg-[#fff8e8] px-3.5 py-3 text-[13px] font-semibold text-[#8a6a1e]">
+        <button
+          type="button"
+          className="mt-4 flex w-full items-start gap-2 rounded-2xl bg-[#fff8e8] px-3.5 py-3 text-left text-[13px] font-semibold text-[#8a6a1e]"
+          onClick={() => setPracticeHintUsed(true)}
+        >
           <Lightbulb className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.25} />
           {practice.hint}
-        </div>
+        </button>
 
         {revealed && practiceReveal.feedback ? (
           <p

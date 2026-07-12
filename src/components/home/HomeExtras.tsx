@@ -11,6 +11,10 @@ import {
   Trophy,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { useHomeLeagueCard } from "@/hooks/useLeagueHistory";
+import { useLuckyWheel } from "@/hooks/useLuckyWheel";
+import { useHomeRankCard } from "@/hooks/useRanks";
+import { formatWheelCountdown } from "@/lib/api/lucky-wheel";
 import type { HomeMockData } from "@/lib/home/mock-data";
 import { cn } from "@/lib/utils";
 import { sectionVariants } from "./motion";
@@ -31,6 +35,23 @@ export function HomeExtras({
   badges,
 }: HomeExtrasProps) {
   const xpPct = Math.round((stats.xpIntoLevel / stats.xpForLevel) * 100);
+  const { data: liveLeague } = useHomeLeagueCard();
+  const { data: liveRank } = useHomeRankCard();
+  const { wheel } = useLuckyWheel();
+  const leagueCard = liveLeague ?? leaderboard;
+  const rankTitle = liveRank?.rank ?? stats.rank;
+  const rankNext = liveRank?.nextRank ?? stats.nextRank;
+  const rankXp = liveRank?.xpIntoLevel ?? stats.xpIntoLevel;
+  const rankPct = liveRank
+    ? Math.round(
+        (liveRank.xpIntoLevel / Math.max(1, liveRank.xpForLevel)) * 100,
+      )
+    : xpPct;
+  const wheelSpins = wheel?.spinsAvailable ?? dailyBonus.spinsLeft;
+  const wheelHours = wheel
+    ? formatWheelCountdown(wheel.nextSpinAt ?? wheel.resetsAt, wheel.serverNow)
+    : dailyBonus.expiresIn;
+  const wheelGems = wheel?.previewGems ?? dailyBonus.previewGems;
 
   return (
     <>
@@ -39,15 +60,15 @@ export function HomeExtras({
         className="grid grid-cols-2 gap-2"
       >
         <RankInfo
-          title={stats.rank}
-          nextTitle={stats.nextRank}
-          xp={stats.xpIntoLevel}
-          pct={xpPct}
+          title={rankTitle}
+          nextTitle={rankNext}
+          xp={rankXp}
+          pct={rankPct}
         />
         <WheelInfo
-          spins={dailyBonus.spinsLeft}
-          hoursLeft={dailyBonus.expiresIn}
-          maxGems={dailyBonus.previewGems}
+          spins={wheelSpins}
+          hoursLeft={wheelHours}
+          maxGems={wheelGems}
         />
       </motion.div>
 
@@ -57,7 +78,7 @@ export function HomeExtras({
         className="divide-y divide-[#f0ecf7] rounded-[22px] border border-[#ebe4f6] bg-white shadow-[0_6px_16px_rgba(70,40,150,0.05)]"
       >
         <QuietRow
-          href="/milestones"
+          href={milestone.href ?? "/path"}
           icon={Medal}
           iconClass="bg-[#f0ecf7] text-arc-purple-500"
           title={milestone.subtitle}
@@ -67,13 +88,13 @@ export function HomeExtras({
           href="/leaderboard"
           icon={Trophy}
           iconClass="bg-[#fff3d0] text-[#c79a2e]"
-          title={`${leaderboard.league} · #${leaderboard.yourPlace}`}
-          sub={`${leaderboard.endsIn} · ${leaderboard.xpToNext} XP to climb`}
+          title={`${leagueCard.league} · #${leagueCard.yourPlace}`}
+          sub={`${leagueCard.endsIn} · ${leagueCard.xpToNext} XP to climb`}
           trailing={
             <span className="mr-1 flex -space-x-2" aria-hidden>
-              {leaderboard.peers.map((r) => (
+              {leagueCard.peers.map((r) => (
                 <span
-                  key={r.initial}
+                  key={r.initial + r.color}
                   className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-extrabold text-white ring-2 ring-white"
                   style={{ backgroundColor: r.color }}
                 >
@@ -114,7 +135,7 @@ function RankInfo({
     <Link
       href="/rank"
       aria-label="Rank"
-      className="flex items-center gap-2.5 rounded-[16px] bg-[#0f1220] px-3 py-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+      className="flex items-center gap-2.5 rounded-[16px] bg-white px-3 py-2.5 text-[#1b1730] shadow-[0_6px_16px_rgba(70,40,150,0.06)] ring-1 ring-[#ebe4f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
     >
       <div className="relative h-9 w-9 shrink-0">
         <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90" aria-hidden>
@@ -123,7 +144,7 @@ function RankInfo({
             cy="18"
             r={r}
             fill="none"
-            stroke="rgba(255,255,255,0.12)"
+            stroke="#ebe4f6"
             strokeWidth="4"
           />
           <motion.circle
@@ -144,18 +165,18 @@ function RankInfo({
             transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black">
+        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-[#1b1730]">
           {pct}%
         </span>
       </div>
       <span className="min-w-0">
-        <span className="block text-[9px] font-black tracking-[0.1em] text-white/40 uppercase">
+        <span className="block text-[9px] font-black tracking-[0.1em] text-[#8a7cb8] uppercase">
           Rank
         </span>
         <span className="block truncate font-display text-[13px] leading-tight font-bold">
           {title}
         </span>
-        <span className="mt-0.5 block truncate text-[10px] font-bold text-white/40">
+        <span className="mt-0.5 block truncate text-[10px] font-bold text-[#8a7cb8]">
           {xp} XP → {nextTitle}
         </span>
       </span>

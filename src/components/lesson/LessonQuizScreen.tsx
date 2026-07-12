@@ -27,11 +27,18 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
   const setQuizIndex = useLessonStore((s) => s.setQuizIndex);
   const quizReveal = useLessonStore((s) => s.quizReveal);
   const setQuizReveal = useLessonStore((s) => s.setQuizReveal);
+  const attemptId = useLessonStore((s) => s.attemptId);
   const [localRevealed, setLocalRevealed] = useState(false);
 
   const checkMutation = useMutation({
-    mutationFn: (payload: { questionId: string; optionId: string }) =>
-      lessonsApi.checkQuiz(lessonId, payload, session?.accessToken),
+    mutationFn: (payload: { questionId: string; optionId: string }) => {
+      if (!attemptId) throw new Error("Start the lesson first");
+      return lessonsApi.checkQuiz(
+        lessonId,
+        { ...payload, attemptId },
+        session?.accessToken,
+      );
+    },
     onSuccess: (res, vars) => {
       setQuizReveal(vars.questionId, {
         correctOptionId: res.correctOptionId,

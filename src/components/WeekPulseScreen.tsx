@@ -12,8 +12,14 @@ import {
 } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { motion } from "motion/react";
+import { useCourseTiming } from "@/hooks/useCourseTiming";
 import { useCurrentWeek } from "@/hooks/useCurrentWeek";
 import type { WeekCurrentResponse } from "@/lib/api/types";
+import {
+  formatEta,
+  formatNextSession,
+  paceMeta,
+} from "@/lib/course-timing/format";
 import {
   weekPulseMockData,
   type WeekPulseMockData,
@@ -35,19 +41,20 @@ function mapWeekToPulse(week: WeekCurrentResponse): WeekPulseMockData {
     days: week.days.map((d) => ({
       label: d.label,
       full: d.full,
-      status: d.status,
+      status: d.status === "current" || d.status === "today" ? "today" : d.status === "completed" ? "done" : d.status,
       minutesPlanned: d.minutesPlanned,
       minutesDone: d.minutesDone,
     })),
     tasks: week.tasks.map((t) => ({
       id: t.id,
       dayLabel: t.dayLabel,
+      dayIndex: t.dayIndex,
       title: t.title,
       track: t.track,
       minutes: t.minutes,
       xp: t.xp,
       status: t.status as WeekTaskStatus,
-      href: t.href,
+      href: t.href ?? (t.lessonId ? `/learn/${t.lessonId}` : undefined),
     })),
     arloNudge: week.arloNudge,
   };
@@ -56,23 +63,78 @@ function mapWeekToPulse(week: WeekCurrentResponse): WeekPulseMockData {
 /**
  * Week commitment stage — night hero family (Home).
  * Sessions-left first. Today ticket. Plan list. Replan dock.
- * Live data from GET /weeks/current.
+ * Live: `/weeks/current` + `/course-timing/current` (pace / ETA).
  */
 export default function WeekPulseScreen({
   data: dataProp,
 }: {
   data?: WeekPulseMockData;
 }) {
-  const { week, replan } = useCurrentWeek();
+  const { week, replan, moveTask, skipTask } = useCurrentWeek();
+  const {
+    timing,
+    feasibility,
+    replan: pathReplan,
+  } = useCourseTiming();
   const data = week ? mapWeekToPulse(week) : (dataProp ?? weekPulseMockData);
 
-  const todayTask = data.tasks.find((t) => t.status === "today");
+  const timingPace = timing ? paceMeta(timing.pace) : null;
+  const etaLabel = formatEta(timing?.estimatedCompletionDate);
+  const nextBlock = formatNextSession(timing);
+
+  const todayTask =
+    (week?.todayMission
+      ? data.tasks.find((t) => t.id === week.todayMission?.taskId)
+      : null) ?? data.tasks.find((t) => t.status === "today");
   const sessionsLeft =
     week?.sessionsLeft ??
     Math.max(0, data.progress.sessionsPlanned - data.progress.sessionsDone);
   const targetWeek =
     week?.targetWeek ?? data.streak.weeks + (sessionsLeft > 0 ? 1 : 0);
+
+  const progressLabel =
+    timingPace?.label ??
+    (week?.progress.status === "ahead"
+      ? "Ahead"
+      : week?.progress.status === "at_risk"
+        ? "At risk"
+        : week?.progress.status === "catch_up" || !data.progress.onTrack
+          ? "Catch up"
+          : week?.sealed
+            ? "Sealed"
+            : "On track");
+  const progressHot =
+    timingPace?.tone === "warn" ||
+    timingPace?.tone === "risk" ||
+    week?.progress.status === "catch_up" ||
+    week?.progress.status === "at_risk" ||
+    (!timingPace && !data.progress.onTrack);
+
+  const todayHref =
+    week?.todayMission?.href ??
+    todayTask?.href ??
+    nextBlock?.href;
+
   const doneDays = data.days.filter((d) => d.status === "done").length;
+
+  const replanning = replan.isPending || pathReplan.isPending;
+  const onReplan = week
+    ? () => {
+        if (timing?.pace === "at_risk" || timing?.pace === "slightly_behind") {
+          pathReplan.mutate({
+            reason: "user_request",
+            expectedVersion: timing.scheduleVersion,
+          });
+        }
+        replan.mutate({ mode: "catch_up" });
+      }
+    : timing
+      ? () =>
+          pathReplan.mutate({
+            reason: "user_request",
+            expectedVersion: timing.scheduleVersion,
+          })
+      : undefined;
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -105,13 +167,13 @@ export default function WeekPulseScreen({
               This week
             </h1>
           </div>
-          {data.progress.onTrack ? (
+          {week?.sealed || !progressHot ? (
             <span className="rounded-full bg-[#16a56b]/25 px-2.5 py-1 text-[11px] font-black text-[#7dffb5]">
-              On track
+              {progressLabel}
             </span>
           ) : (
             <span className="rounded-full bg-[#ff8a3d]/25 px-2.5 py-1 text-[11px] font-black text-[#ffc9a0]">
-              Catch up
+              {progressLabel}
             </span>
           )}
         </div>
@@ -144,6 +206,7 @@ export default function WeekPulseScreen({
             <p className="mt-2 text-[12px] font-bold text-white/40">
               {data.progress.hoursDone}/{data.progress.hoursPlanned} hrs ·{" "}
               {data.progress.percent}%
+              {etaLabel ? ` · ETA ${etaLabel}` : ""}
             </p>
           </div>
 
@@ -215,12 +278,77 @@ export default function WeekPulseScreen({
           <DayRail days={data.days} />
         </div>
 
+        {timing ? (
+          <section className="rounded-[20px] border border-[#ebe4f6] bg-white px-4 py-3.5 shadow-[0_8px_20px_rgba(70,40,150,0.05)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
+                  Path timing
+                </p>
+                <p className="mt-1 font-display text-[18px] font-bold text-[#1b1730]">
+                  {etaLabel ?? "Schedule building"}
+                </p>
+                <p className="mt-1 text-[12px] font-semibold text-[#8a7cb8]">
+                  {Math.round(timing.effectiveMinutesPerWeek)}m/wk ·{" "}
+                  {timing.remainingMinutes}m remaining
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "rounded-full px-2 py-1 text-[10px] font-black uppercase",
+                  timingPace?.tone === "good" &&
+                    "bg-[#62d84e]/15 text-[#2d9e45]",
+                  timingPace?.tone === "warn" &&
+                    "bg-[#ff8a3d]/15 text-[#e86500]",
+                  timingPace?.tone === "risk" &&
+                    "bg-[#ff5a5a]/15 text-[#d63030]",
+                  (!timingPace || timingPace.tone === "neutral") &&
+                    "bg-[#f0ecf7] text-[#4a3d78]",
+                )}
+              >
+                {progressLabel}
+              </span>
+            </div>
+            {feasibility.data?.feasibilityState === "unrealistic" ||
+            feasibility.data?.feasibilityState === "compressed" ? (
+              <p className="mt-2.5 rounded-xl bg-[#fff4ec] px-3 py-2 text-[12px] font-semibold text-[#b85a1a]">
+                Deadline feels{" "}
+                {feasibility.data.feasibilityState === "unrealistic"
+                  ? "unrealistic"
+                  : "tight"}
+                . Replan or extend hours.
+              </p>
+            ) : null}
+            {nextBlock && !todayTask ? (
+              <Link
+                href={nextBlock.href}
+                className="mt-3 flex items-center justify-between rounded-xl bg-[#f6f2ff] px-3 py-2.5"
+              >
+                <div>
+                  <p className="text-[10px] font-black tracking-wide text-arc-purple-500 uppercase">
+                    Next block
+                  </p>
+                  <p className="text-[13px] font-bold text-[#1b1730]">
+                    {nextBlock.title ?? nextBlock.when}
+                  </p>
+                </div>
+                <span className="text-[12px] font-black text-arc-purple-500">
+                  {nextBlock.minutes}m
+                </span>
+              </Link>
+            ) : null}
+          </section>
+        ) : null}
+
         {todayTask ? (
           <section>
             <p className="mb-2 px-0.5 text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
               Do this next
             </p>
-            <TodayTicket task={todayTask} />
+            <TodayTicket
+              task={todayTask}
+              href={week?.todayMission?.href ?? todayTask.href}
+            />
           </section>
         ) : null}
 
@@ -239,6 +367,28 @@ export default function WeekPulseScreen({
                 key={task.id}
                 task={task}
                 last={i === data.tasks.length - 1}
+                sealed={Boolean(week?.sealed)}
+                onSkip={
+                  week && !week.sealed
+                    ? () => skipTask.mutate({ taskId: task.id })
+                    : undefined
+                }
+                onMoveTomorrow={
+                  week && !week.sealed
+                    ? () => {
+                        const idx =
+                          typeof task.dayIndex === "number"
+                            ? task.dayIndex
+                            : (week.tasks.find((t) => t.id === task.id)
+                                ?.dayIndex ?? 0);
+                        moveTask.mutate({
+                          taskId: task.id,
+                          dayIndex: Math.min(6, idx + 1),
+                        });
+                      }
+                    : undefined
+                }
+                busy={moveTask.isPending || skipTask.isPending}
               />
             ))}
           </ul>
@@ -258,11 +408,9 @@ export default function WeekPulseScreen({
       </div>
 
       <ReplanDock
-        todayHref={todayTask?.href}
-        onReplan={
-          week ? () => replan.mutate({ mode: "catch_up" }) : undefined
-        }
-        replanning={replan.isPending}
+        todayHref={todayHref}
+        onReplan={onReplan}
+        replanning={replanning}
         sealed={week?.sealed}
       />
     </div>
@@ -323,7 +471,13 @@ function DayRail({ days }: { days: WeekPulseMockData["days"] }) {
   );
 }
 
-function TodayTicket({ task }: { task: WeekTask }) {
+function TodayTicket({
+  task,
+  href,
+}: {
+  task: WeekTask;
+  href?: string;
+}) {
   return (
     <div className="overflow-hidden rounded-[22px] border border-[#ebe4f6] bg-white shadow-[0_14px_32px_rgba(70,40,150,0.1)]">
       <div className="flex items-stretch">
@@ -350,7 +504,7 @@ function TodayTicket({ task }: { task: WeekTask }) {
       </div>
       <motion.div whileTap={{ scale: 0.985, y: 1 }} transition={snappySpring}>
         <Link
-          href={task.href ?? "/path"}
+          href={href ?? task.href ?? "/path"}
           className="flex w-full items-center justify-center gap-2 bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_4px_0_#4b2fd6]"
         >
           <Play className="h-4 w-4 fill-white" />
@@ -361,9 +515,28 @@ function TodayTicket({ task }: { task: WeekTask }) {
   );
 }
 
-function TaskRow({ task, last }: { task: WeekTask; last?: boolean }) {
+function TaskRow({
+  task,
+  last,
+  sealed,
+  onSkip,
+  onMoveTomorrow,
+  busy,
+}: {
+  task: WeekTask;
+  last?: boolean;
+  sealed?: boolean;
+  onSkip?: () => void;
+  onMoveTomorrow?: () => void;
+  busy?: boolean;
+}) {
   const done = task.status === "done";
   const today = task.status === "today";
+  const actionable =
+    !sealed &&
+    !done &&
+    task.status !== "skipped" &&
+    (onSkip || onMoveTomorrow);
 
   const inner = (
     <div
@@ -396,6 +569,38 @@ function TaskRow({ task, last }: { task: WeekTask; last?: boolean }) {
         <p className="text-[11px] font-bold text-[#8a7cb8]">
           {task.track} · {task.minutes}m · +{task.xp} XP
         </p>
+        {actionable ? (
+          <div className="mt-1.5 flex gap-2">
+            {onMoveTomorrow ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onMoveTomorrow();
+                }}
+                className="text-[10px] font-black tracking-wide text-arc-purple-500 uppercase disabled:opacity-40"
+              >
+                Move +1d
+              </button>
+            ) : null}
+            {onSkip ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSkip();
+                }}
+                className="text-[10px] font-black tracking-wide text-[#8a7cb8] uppercase disabled:opacity-40"
+              >
+                Skip
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       {today ? (
         <ArrowRight
@@ -406,7 +611,7 @@ function TaskRow({ task, last }: { task: WeekTask; last?: boolean }) {
     </div>
   );
 
-  if (task.href && today) {
+  if (task.href && (today || task.status === "upcoming" || task.status === "missed")) {
     return (
       <li>
         <Link href={task.href}>{inner}</Link>

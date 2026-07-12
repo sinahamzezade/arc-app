@@ -186,7 +186,7 @@ export const lessonCatalog: Record<string, LessonMock> = {
   },
 };
 
-/** Catalog lookup only. Roadmap UUID lessons → use resolvePlayableLesson. */
+/** Catalog lookup only. Live roadmap lessons use GET /lessons/:id/play. */
 export function getLesson(lessonId: string): LessonMock | null {
   if (!lessonId) return null;
   return lessonCatalog[lessonId] ?? null;

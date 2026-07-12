@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackButton } from "@/components/BackButton";
 import {
   Coins,
+  Flame,
   Gem,
   Shield,
   Snowflake,
@@ -12,106 +13,94 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { ApiError } from "@/lib/api/errors";
+import {
+  walletApi,
+  type LedgerEntry,
+  type StoreCatalogItem,
+  type StreakStateDto,
+} from "@/lib/api/wallet";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
-const gemItems = [
-  {
-    id: "freeze-1",
-    name: "1-Day Streak Freeze",
-    price: 50,
-    blurb: "Protect one missed day",
-    icon: Snowflake,
-  },
-  {
-    id: "freeze-3",
-    name: "3-Day Freeze Pack",
-    price: 120,
-    blurb: "Three one-day freezes",
-    icon: Shield,
-  },
-  {
-    id: "xp-boost",
-    name: "30-min XP Booster",
-    price: 50,
-    blurb: "+20% qualified XP · 1/day",
-    icon: Zap,
-  },
-  {
-    id: "rematch",
-    name: "Battle Rematch Token",
-    price: 20,
-    blurb: "Skip rematch cooldown",
-    icon: Star,
-  },
-];
-
-const coinItems = [
-  {
-    id: "frame-bronze",
-    name: "Bronze Profile Frame",
-    price: 600,
-    blurb: "Cosmetic frame",
-  },
-  {
-    id: "frame-gold",
-    name: "Gold Profile Frame",
-    price: 1400,
-    blurb: "Cosmetic frame",
-  },
-  {
-    id: "theme-battle",
-    name: "Battle Arena Theme",
-    price: 2000,
-    blurb: "Purple + gold arena",
-  },
-];
-
-const earnings = [
-  {
-    id: "e1",
-    label: "Battle win vs Alex",
-    delta: "+100 coins",
-    tone: "coin" as const,
-  },
-  {
-    id: "e2",
-    label: "Lesson complete",
-    delta: "+36 XP · +3 gems",
-    tone: "xp" as const,
-  },
-  {
-    id: "e3",
-    label: "Study Together bonus",
-    delta: "+15 coins · +2 gems",
-    tone: "gem" as const,
-  },
-  {
-    id: "e4",
-    label: "Referral activation hold",
-    delta: "+300 coins (7d)",
-    tone: "coin" as const,
-  },
-];
-
 type WalletTab = "ledger" | "gems" | "coins";
+
+function iconForSku(sku: string) {
+  if (sku.includes("freeze") || sku.includes("shield")) return Snowflake;
+  if (sku.includes("boost") || sku.includes("xp")) return Zap;
+  if (sku.includes("restore")) return Shield;
+  return Star;
+}
+
+function formatLedgerDelta(e: LedgerEntry): { label: string; delta: string; tone: "coin" | "gem" | "xp" } {
+  const sign = e.amount >= 0 ? "+" : "";
+  const abs = Math.abs(e.amount).toLocaleString();
+  if (e.currency === "coins") {
+    return {
+      label: e.reasonType.replace(/_/g, " "),
+      delta: `${sign}${abs} coins`,
+      tone: "coin",
+    };
+  }
+  if (e.currency === "gems") {
+    return {
+      label: e.reasonType.replace(/_/g, " "),
+      delta: `${sign}${abs} gems`,
+      tone: "gem",
+    };
+  }
+  return {
+    label: e.reasonType.replace(/_/g, " "),
+    delta: `${sign}${abs} XP`,
+    tone: "xp",
+  };
+}
 
 /**
  * Private vault — luxury ledger.
- * Giant coin balance hero, overlapping gem/XP chips, ticket shops.
- * Not 3 equal Bal cards + soft pill tabs.
+ * Live wallet / store / streak from gamification APIs.
  */
 export default function WalletScreen() {
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
-  const spendGems = useEconomyStore((s) => s.spendGems);
-  const spendCoins = useEconomyStore((s) => s.spendCoins);
+  const hydrateFromWallet = useEconomyStore((s) => s.hydrateFromWallet);
   const [tab, setTab] = useState<WalletTab>("ledger");
   const [toast, setToast] = useState<string | null>(null);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const [catalog, setCatalog] = useState<StoreCatalogItem[]>([]);
+  const [streak, setStreak] = useState<StreakStateDto | null>(null);
+  const [busySku, setBusySku] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [w, l, store, s] = await Promise.all([
+        walletApi.getWallet(),
+        walletApi.getLedger(),
+        walletApi.getStore(),
+        walletApi.getStreak(),
+      ]);
+      hydrateFromWallet(w);
+      setLedger(l.entries);
+      setCatalog(store);
+      setStreak(s);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError ? err.message : "Could not load wallet";
+      setToast(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [hydrateFromWallet]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   useEffect(() => {
     if (!toast) return;
@@ -119,25 +108,61 @@ export default function WalletScreen() {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const buyGem = (price: number, name: string) => {
-    if (!spendGems(price)) {
-      setToast("Not enough gems");
-      return;
+  const gemItems = useMemo(
+    () => catalog.filter((i) => i.currency === "gems"),
+    [catalog],
+  );
+  const coinItems = useMemo(
+    () => catalog.filter((i) => i.currency === "coins"),
+    [catalog],
+  );
+
+  const buy = async (item: StoreCatalogItem) => {
+    if (busySku) return;
+    setBusySku(item.sku);
+    try {
+      const key =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `p-${Date.now()}-${item.sku}`;
+      const res = await walletApi.purchase({ sku: item.sku }, key);
+      hydrateFromWallet(res.wallet);
+      setToast(res.alreadyPurchased ? `Already owned ${item.title}` : `Bought ${item.title}`);
+      const [l, s] = await Promise.all([
+        walletApi.getLedger(),
+        walletApi.getStreak(),
+      ]);
+      setLedger(l.entries);
+      setStreak(s);
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Purchase failed");
+    } finally {
+      setBusySku(null);
     }
-    setToast(`Bought ${name}`);
   };
 
-  const buyCoin = (price: number, name: string) => {
-    if (!spendCoins(price)) {
-      setToast("Not enough coins");
-      return;
+  const restore = async (days: 1 | 2 | 3) => {
+    try {
+      const key =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `r-${Date.now()}-${days}`;
+      const res = await walletApi.restoreStreak(days, key);
+      hydrateFromWallet(res.wallet);
+      setStreak((prev) =>
+        prev
+          ? { ...prev, dailyStreak: res.dailyStreak }
+          : prev,
+      );
+      setToast(`Restored ${days} day${days > 1 ? "s" : ""}`);
+      void refresh();
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Restore failed");
     }
-    setToast(`Bought ${name}`);
   };
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f6f2ff] font-rounded">
-      {/* VAULT HERO */}
       <section className="relative overflow-hidden bg-[#12141c] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-20 text-white">
         <div
           aria-hidden
@@ -171,7 +196,6 @@ export default function WalletScreen() {
         </div>
 
         <div className="relative mt-8 grid grid-cols-[1.35fr_0.9fr] items-end gap-3">
-          {/* Giant coins — primary */}
           <div>
             <p className="inline-flex items-center gap-1.5 text-[11px] font-extrabold tracking-[0.1em] text-[#ffc928] uppercase">
               <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -190,7 +214,6 @@ export default function WalletScreen() {
             </p>
           </div>
 
-          {/* Overlapping chips — break equal grid */}
           <div className="relative h-[118px]">
             <motion.div
               className="absolute top-0 right-0 z-[2] w-[92%] rounded-2xl bg-[#b35cff] px-3 py-2.5 shadow-[0_8px_0_#7a2fc4]"
@@ -226,9 +249,37 @@ export default function WalletScreen() {
             </motion.div>
           </div>
         </div>
+
+        {streak ? (
+          <div className="relative mt-5 flex items-center justify-between gap-3 rounded-2xl bg-white/8 px-3 py-2.5 ring-1 ring-white/10">
+            <div className="flex items-center gap-2">
+              <Flame className="h-4 w-4 text-[#ff8a3d]" strokeWidth={2.5} />
+              <div>
+                <p className="text-[11px] font-extrabold tracking-wide text-white/50 uppercase">
+                  Daily streak
+                </p>
+                <p className="font-display text-[18px] font-bold leading-none">
+                  {streak.dailyStreak} days
+                </p>
+              </div>
+            </div>
+            {streak.recoveryWindowEndsAt ? (
+              <button
+                type="button"
+                onClick={() => void restore(1)}
+                className="rounded-xl bg-[#ffc928] px-2.5 py-1.5 text-[11px] font-extrabold text-[#12141c]"
+              >
+                Restore 1d · 80
+              </button>
+            ) : (
+              <p className="text-[11px] font-bold text-white/40">
+                Week {streak.weeklyStreak}
+              </p>
+            )}
+          </div>
+        ) : null}
       </section>
 
-      {/* Segment overhang */}
       <div className="relative z-[1] -mt-5 px-4">
         <nav
           role="tablist"
@@ -277,8 +328,14 @@ export default function WalletScreen() {
           ) : null}
         </AnimatePresence>
 
+        {loading ? (
+          <p className="py-8 text-center text-[13px] font-bold text-[#8a7cb8]">
+            Loading vault…
+          </p>
+        ) : null}
+
         <AnimatePresence mode="wait">
-          {tab === "ledger" ? (
+          {tab === "ledger" && !loading ? (
             <motion.section
               key="ledger"
               initial={{ opacity: 0, y: 12 }}
@@ -288,48 +345,54 @@ export default function WalletScreen() {
             >
               <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
                 <h2 className="font-display text-[20px] font-bold tracking-[-0.02em] text-[#1b1730]">
-                  Recent earnings
+                  Recent activity
                 </h2>
-                <span className="text-[11px] font-extrabold text-[#8a7cb8]">
-                  This week
-                </span>
               </div>
 
-              <ul className="overflow-hidden rounded-[22px] border border-[#ebe4f6] bg-white shadow-[0_12px_28px_rgba(70,40,150,0.06)]">
-                {earnings.map((e, i) => (
-                  <li
-                    key={e.id}
-                    className={cn(
-                      "relative flex items-center justify-between gap-3 px-4 py-3.5",
-                      i < earnings.length - 1 && "border-b border-[#f0ecf7]",
-                      i === 1 && "bg-[#faf8ff]",
-                    )}
-                  >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "absolute top-0 bottom-0 left-0 w-1",
-                        e.tone === "coin" && "bg-[#ffc928]",
-                        e.tone === "gem" && "bg-[#b35cff]",
-                        e.tone === "xp" && "bg-[#6b4eff]",
-                      )}
-                    />
-                    <span className="pl-2 text-[13px] font-semibold text-[#1b1730]">
-                      {e.label}
-                    </span>
-                    <span
-                      className={cn(
-                        "shrink-0 font-display text-[12px] font-bold",
-                        e.tone === "coin" && "text-[#9a6a00]",
-                        e.tone === "gem" && "text-[#b35cff]",
-                        e.tone === "xp" && "text-[#6b4eff]",
-                      )}
-                    >
-                      {e.delta}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {ledger.length === 0 ? (
+                <p className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-6 text-center text-[13px] font-semibold text-[#8a7cb8]">
+                  No ledger entries yet — finish a lesson to earn.
+                </p>
+              ) : (
+                <ul className="overflow-hidden rounded-[22px] border border-[#ebe4f6] bg-white shadow-[0_12px_28px_rgba(70,40,150,0.06)]">
+                  {ledger.slice(0, 20).map((raw, i) => {
+                    const e = formatLedgerDelta(raw);
+                    return (
+                      <li
+                        key={raw.id}
+                        className={cn(
+                          "relative flex items-center justify-between gap-3 px-4 py-3.5",
+                          i < Math.min(ledger.length, 20) - 1 &&
+                            "border-b border-[#f0ecf7]",
+                        )}
+                      >
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "absolute top-0 bottom-0 left-0 w-1",
+                            e.tone === "coin" && "bg-[#ffc928]",
+                            e.tone === "gem" && "bg-[#b35cff]",
+                            e.tone === "xp" && "bg-[#6b4eff]",
+                          )}
+                        />
+                        <span className="pl-2 text-[13px] font-semibold capitalize text-[#1b1730]">
+                          {e.label}
+                        </span>
+                        <span
+                          className={cn(
+                            "shrink-0 font-display text-[12px] font-bold",
+                            e.tone === "coin" && "text-[#9a6a00]",
+                            e.tone === "gem" && "text-[#b35cff]",
+                            e.tone === "xp" && "text-[#6b4eff]",
+                          )}
+                        >
+                          {e.delta}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
 
               <p className="mt-4 rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-3 text-[12px] leading-relaxed font-semibold text-[#8a7cb8]">
                 Referral rewards never create leaderboard XP. Gems cannot buy
@@ -338,7 +401,7 @@ export default function WalletScreen() {
             </motion.section>
           ) : null}
 
-          {tab === "gems" ? (
+          {tab === "gems" && !loading ? (
             <motion.ul
               key="gems"
               className="space-y-3"
@@ -351,7 +414,7 @@ export default function WalletScreen() {
                 Utility only · balance {gems.toLocaleString()} gems
               </p>
               {gemItems.map((item, i) => {
-                const Icon = item.icon;
+                const Icon = iconForSku(item.sku);
                 return (
                   <motion.li
                     key={item.id}
@@ -361,10 +424,8 @@ export default function WalletScreen() {
                     className={cn(
                       "relative overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white",
                       i === 1 && "ml-3",
-                      i === 3 && "mr-3",
                     )}
                   >
-                    {/* Ticket perforations */}
                     <div
                       aria-hidden
                       className="absolute top-0 bottom-0 left-[72px] w-px border-l border-dashed border-[#ebe4f6]"
@@ -376,18 +437,19 @@ export default function WalletScreen() {
                       <div className="flex min-w-0 flex-1 items-center gap-2 px-3.5 py-3.5">
                         <div className="min-w-0 flex-1">
                           <p className="font-display text-[14px] font-semibold text-[#1b1730]">
-                            {item.name}
+                            {item.title}
                           </p>
                           <p className="mt-0.5 text-[11px] font-bold text-[#8a7cb8]">
-                            {item.blurb}
+                            {item.description}
                           </p>
                         </div>
                         <motion.button
                           type="button"
-                          onClick={() => buyGem(item.price, item.name)}
+                          disabled={busySku === item.sku}
+                          onClick={() => void buy(item)}
                           whileTap={{ scale: 0.96, y: 1 }}
                           transition={snappySpring}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#b35cff] px-3 py-2.5 text-[12px] font-extrabold text-white shadow-[0_3px_0_#7a2fc4]"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#b35cff] px-3 py-2.5 text-[12px] font-extrabold text-white shadow-[0_3px_0_#7a2fc4] disabled:opacity-60"
                         >
                           <Gem className="h-3.5 w-3.5" strokeWidth={2.5} />
                           {item.price}
@@ -400,7 +462,7 @@ export default function WalletScreen() {
             </motion.ul>
           ) : null}
 
-          {tab === "coins" ? (
+          {tab === "coins" && !loading ? (
             <motion.ul
               key="coins"
               className="space-y-3"
@@ -429,24 +491,24 @@ export default function WalletScreen() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="font-display text-[14px] font-semibold">
-                        {item.name}
+                        {item.title}
                       </p>
                       <p className="mt-0.5 text-[11px] font-bold text-white/40">
-                        {item.blurb}
+                        {item.description}
                       </p>
                     </div>
                     <motion.button
                       type="button"
-                      onClick={() => buyCoin(item.price, item.name)}
+                      disabled={busySku === item.sku}
+                      onClick={() => void buy(item)}
                       whileTap={{ scale: 0.96, y: 1 }}
                       transition={snappySpring}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#ffc928] px-3 py-2.5 text-[12px] font-extrabold text-[#12141c] shadow-[0_3px_0_#c79a2e]"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#ffc928] px-3 py-2.5 text-[12px] font-extrabold text-[#12141c] shadow-[0_3px_0_#c79a2e] disabled:opacity-60"
                     >
                       <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
                       {item.price}
                     </motion.button>
                   </div>
-                  {/* Stub edge */}
                   <div
                     aria-hidden
                     className="h-2 bg-[repeating-linear-gradient(90deg,#ffc928_0_8px,transparent_8px_14px)] opacity-40"

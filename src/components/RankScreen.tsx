@@ -11,10 +11,11 @@ import {
   Lock,
   Sparkles,
   Star,
-  Trophy,
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useRankLadder } from "@/hooks/useRanks";
+import { formatRequirementLabel } from "@/lib/api/ranks";
 import { assets } from "@/lib/assets";
 import {
   rankMockData,
@@ -28,55 +29,55 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Rank stage — night hero family (Home/Wallet/League).
- * Giant level + overlapping currency chips + soft ladder.
- * Not purple-gradient header + equal wallet cards.
+ * Live from GET /ranks/me/ladder; mock fallback when signed out.
  */
 export default function RankScreen({
   data = rankMockData,
 }: {
   data?: RankMockData;
 }) {
-  const { stats } = data;
+  const { data: ladder, isLoading } = useRankLadder();
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
-  const levelPct = Math.round((stats.xpIntoLevel / stats.xpForLevel) * 100);
+
+  const me = ladder?.me;
+  const rankTitle = me?.current.title ?? data.stats.rank;
+  const level = me?.current.level ?? data.stats.level;
+  const nextTitle = me?.next?.title ?? data.nextRank;
+  const xpInto = me?.next?.xp.intoLevel ?? data.stats.xpIntoLevel;
+  const xpFor = me?.next?.xp.forLevel ?? data.stats.xpForLevel;
+  const xpToNext =
+    me?.next != null
+      ? Math.max(0, me.next.xp.required - me.current.lifetimeXp)
+      : data.xpToNextRank;
+  const levelPct = Math.round((xpInto / Math.max(1, xpFor)) * 100);
+  const requirements = me?.next?.requirements ?? [];
+  const tiers: RankTier[] =
+    ladder?.tiers.map((t) => ({
+      id: t.slug,
+      name: t.title,
+      levelRequired: t.level,
+      blurb: t.blurb,
+      status: t.status,
+    })) ?? data.tiers;
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      {/* RANK HERO */}
       <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-20 text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_70%_0%,rgba(255,201,40,0.18),transparent_55%)]"
         />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[-30px] h-40 w-40 rounded-full bg-[#ffc928]/20 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
-          style={{
-            backgroundImage:
-              "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1.5px at 55% 60%, #fff, transparent)",
-          }}
-        />
-
-        <div className="relative flex items-center gap-3">
-          <BackButton />
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
-              Career ranks
-            </p>
-            <h1 className="mt-0.5 font-display text-[24px] leading-none font-bold tracking-[-0.03em]">
-              Your Rank
-            </h1>
-          </div>
-          <Trophy className="h-5 w-5 text-[#ffc928]" strokeWidth={2.25} />
+        <div className="relative flex items-center justify-between">
+          <BackButton className="border-white/15 bg-white/10 text-white hover:bg-white/15" />
+          <p className="text-[11px] font-black tracking-[0.14em] text-white/45 uppercase">
+            Rank ladder
+          </p>
+          <span className="w-10" />
         </div>
 
-        <div className="relative mt-7 grid grid-cols-[1.2fr_1fr] items-end gap-3">
+        <div className="relative mt-6 grid grid-cols-[1fr_auto] items-end gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
               Current
@@ -87,13 +88,13 @@ export default function RankScreen({
               animate={{ opacity: 1, y: 0 }}
               transition={softSpring}
             >
-              Lv {stats.level}
+              Lv {level}
             </motion.p>
             <h2 className="mt-2 font-display text-[22px] leading-tight font-bold">
-              {stats.rank}
+              {isLoading ? "…" : rankTitle}
             </h2>
             <p className="mt-1.5 text-[12px] font-bold text-white/45">
-              Next: {data.nextRank} · {data.xpToNextRank} XP left
+              Next: {nextTitle} · {xpToNext} XP left
             </p>
           </div>
 
@@ -121,27 +122,26 @@ export default function RankScreen({
           <div className="mb-1.5 flex items-center justify-between text-[11px] font-extrabold">
             <span className="text-white/50">Level progress</span>
             <span className="text-[#ffc928]">
-              {stats.xpIntoLevel}/{stats.xpForLevel} XP
+              {xpInto}/{xpFor} XP
             </span>
           </div>
           <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
             <motion.div
               className="h-full rounded-full bg-[#ffc928]"
               initial={{ width: 0 }}
-              animate={{ width: `${levelPct}%` }}
+              animate={{ width: `${Math.min(100, levelPct)}%` }}
               transition={{ ...softSpring, delay: 0.15 }}
             />
           </div>
         </div>
       </section>
 
-      {/* Currency overhang chips */}
       <div className="relative z-[1] -mt-8 px-4">
         <div className="relative h-[88px]">
           <CurrencyChip
             className="absolute top-0 left-0 z-[3] w-[38%] -rotate-2"
             label="XP"
-            value={xp}
+            value={me?.current.lifetimeXp ?? xp}
             tip={data.walletTips[0].tip}
             tone="xp"
             icon={<Star className="h-4 w-4 fill-white text-white" />}
@@ -168,6 +168,59 @@ export default function RankScreen({
       </div>
 
       <div className="relative space-y-5 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+100px)]">
+        {requirements.length > 0 && (
+          <section>
+            <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
+              <h3 className="font-display text-[18px] font-bold text-[#1b1730]">
+                To unlock {nextTitle}
+              </h3>
+              <span className="text-[11px] font-extrabold text-[#8a7cb8]">
+                {requirements.filter((r) => r.complete).length}/
+                {requirements.length}
+              </span>
+            </div>
+            <ul className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white shadow-[0_10px_24px_rgba(70,40,150,0.06)]">
+              {requirements.map((req, i) => (
+                <li
+                  key={req.key}
+                  className={cn(
+                    "flex items-center justify-between gap-3 px-4 py-3.5",
+                    i < requirements.length - 1 && "border-b border-[#f0ecf7]",
+                  )}
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-xl",
+                        req.complete
+                          ? "bg-[#eef9f3] text-[#16a56b]"
+                          : "bg-[#efe9f8] text-[#8a7cb8]",
+                      )}
+                    >
+                      {req.complete ? (
+                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                      ) : (
+                        <Lock className="h-3 w-3" strokeWidth={2.5} />
+                      )}
+                    </span>
+                    <span className="truncate text-[14px] font-semibold text-[#1b1730]">
+                      {formatRequirementLabel(req.key)}
+                    </span>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 font-display text-[12px] font-bold tabular-nums",
+                      req.complete ? "text-[#16a56b]" : "text-arc-purple-500",
+                    )}
+                  >
+                    {req.current}/{req.required}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section>
           <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
             <h3 className="font-display text-[18px] font-bold text-[#1b1730]">
@@ -216,7 +269,7 @@ export default function RankScreen({
               aria-hidden
               className="absolute top-5 bottom-5 left-[21px] w-0.5 bg-[#ebe4f6]"
             />
-            {data.tiers.map((tier, i) => (
+            {tiers.map((tier, i) => (
               <RankLadderRow
                 key={tier.id}
                 tier={tier}
@@ -369,7 +422,7 @@ function RankLadderRow({ tier, offset }: { tier: RankTier; offset?: string }) {
             {current ? "You" : earned ? "Done" : `Lv ${tier.levelRequired}`}
           </span>
         </div>
-        {(current || tier.name === "Full Ninja") && (
+        {(current || tier.status === "locked") && tier.blurb && (
           <p
             className={cn(
               "mt-1 text-[12px] font-semibold",

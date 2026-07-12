@@ -5,9 +5,8 @@ import type {
   NotificationSection,
 } from "@/lib/notifications/mock-data";
 
-const ICON_BY_TYPE: Record<
-  NotificationTypeDto,
-  NotificationItem["icon"]
+const ICON_BY_TYPE: Partial<
+  Record<NotificationTypeDto, NotificationItem["icon"]>
 > = {
   study_reminder: {
     kind: "lucide",
@@ -15,7 +14,37 @@ const ICON_BY_TYPE: Record<
     bg: "#ffeede",
     color: "#ff8a3d",
   },
+  study_starting: {
+    kind: "lucide",
+    name: "flame",
+    bg: "#ffeede",
+    color: "#ff8a3d",
+  },
+  missed_session: {
+    kind: "lucide",
+    name: "calendar",
+    bg: "#ede6fb",
+    color: "#6b4eff",
+  },
   streak_risk: {
+    kind: "lucide",
+    name: "flame",
+    bg: "#ffeede",
+    color: "#ff8a3d",
+  },
+  streak_protected: {
+    kind: "lucide",
+    name: "flame",
+    bg: "#ffeede",
+    color: "#ff8a3d",
+  },
+  streak_broken: {
+    kind: "lucide",
+    name: "flame",
+    bg: "#ffeede",
+    color: "#ff8a3d",
+  },
+  streak_recovered: {
     kind: "lucide",
     name: "flame",
     bg: "#ffeede",
@@ -28,14 +57,68 @@ const ICON_BY_TYPE: Record<
     color: "#6b4eff",
   },
   missed_week_recovery: { kind: "arlo" },
+  reward_granted: {
+    kind: "lucide",
+    name: "gift",
+    bg: "#fff3dc",
+    color: "#f0a81e",
+  },
   badge_unlocked: {
     kind: "lucide",
     name: "award",
     bg: "#fff3dc",
     color: "#f0a81e",
   },
+  rank_unlocked: {
+    kind: "lucide",
+    name: "award",
+    bg: "#efe9ff",
+    color: "#6b4eff",
+  },
+  rank_close: {
+    kind: "lucide",
+    name: "star",
+    bg: "#fff3dc",
+    color: "#f0a81e",
+  },
+  rank_gate_completed: {
+    kind: "lucide",
+    name: "award",
+    bg: "#eef9f3",
+    color: "#16a56b",
+  },
   replan_suggestion: { kind: "arlo" },
   battle_invite: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#e4eeff",
+    color: "#2d8cff",
+  },
+  battle_invite_expiring: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#e4eeff",
+    color: "#2d8cff",
+  },
+  battle_accepted: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#e4eeff",
+    color: "#2d8cff",
+  },
+  battle_starting: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#e4eeff",
+    color: "#2d8cff",
+  },
+  battle_result: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#fff3dc",
+    color: "#f0a81e",
+  },
+  battle_rematch: {
     kind: "lucide",
     name: "trophy",
     bg: "#e4eeff",
@@ -46,6 +129,66 @@ const ICON_BY_TYPE: Record<
     name: "trophy",
     bg: "#e4eeff",
     color: "#2d8cff",
+  },
+  league_started: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#e4eeff",
+    color: "#2d8cff",
+  },
+  league_position_changed: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#e4eeff",
+    color: "#2d8cff",
+  },
+  league_promotion_risk: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#fff3dc",
+    color: "#f0a81e",
+  },
+  league_demote_risk: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#ffe4e4",
+    color: "#e5484d",
+  },
+  league_finalized: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#e4eeff",
+    color: "#2d8cff",
+  },
+  league_promoted: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#e4f6e8",
+    color: "#16c784",
+  },
+  league_demoted: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#ffe4e4",
+    color: "#e5484d",
+  },
+  league_gate_blocked: {
+    kind: "lucide",
+    name: "trophy",
+    bg: "#fff3dc",
+    color: "#f0a81e",
+  },
+  lucky_wheel_ready: {
+    kind: "lucide",
+    name: "sparkles",
+    bg: "#efe9ff",
+    color: "#6b4eff",
+  },
+  lucky_wheel_reward: {
+    kind: "lucide",
+    name: "sparkles",
+    bg: "#fff3dc",
+    color: "#f0a81e",
   },
   referral: {
     kind: "lucide",
@@ -66,12 +209,15 @@ const ICON_BY_TYPE: Record<
     bg: "#ede6fb",
     color: "#6b4eff",
   },
+  security: {
+    kind: "lucide",
+    name: "star",
+    bg: "#ffe8e8",
+    color: "#e5484d",
+  },
 };
 
-export function formatNotificationTime(
-  iso: string,
-  now = new Date(),
-): string {
+export function formatNotificationTime(iso: string, now = new Date()): string {
   const date = new Date(iso);
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
@@ -137,9 +283,7 @@ export function groupNotificationsByDay(
   y.setDate(now.getDate() - 1);
 
   for (const item of items) {
-    const created = item.createdAt
-      ? new Date(item.createdAt)
-      : new Date();
+    const created = item.createdAt ? new Date(item.createdAt) : new Date();
     if (isSameDay(created, now)) today.push(item);
     else if (isSameDay(created, y)) yesterday.push(item);
     else earlier.push(item);

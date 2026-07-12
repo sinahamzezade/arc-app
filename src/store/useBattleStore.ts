@@ -1,23 +1,44 @@
 import { create } from "zustand";
+import type { BattleDto, BattleQuestionDto } from "@/lib/api/battles";
 import {
-  battleQuestions,
   defaultBattleSetup,
+  type BattleQuestion,
   type BattleSetup,
 } from "@/lib/battle/mock-data";
 
+function mapQuestion(q: BattleQuestionDto): BattleQuestion {
+  return {
+    id: q.id,
+    questionVersionId: q.questionVersionId,
+    prompt: q.stem,
+    options: q.options,
+    correctOptionId: q.correctOptionIds?.[0],
+    explanation: q.explanation,
+    isSuddenDeath: q.isSuddenDeath,
+    answers: q.answers,
+  };
+}
+
 type BattlePlayState = {
   setup: BattleSetup;
+  activeBattleId: string | null;
+  battle: BattleDto | null;
+  questions: BattleQuestion[];
   questionIndex: number;
   yourScore: number;
   theirScore: number;
   selectedOptionId: string | null;
   revealed: boolean;
   answers: Record<string, string>;
+  submitting: boolean;
+  error: string | null;
   setSetup: (patch: Partial<BattleSetup>) => void;
+  setQuestions: (questions: BattleQuestion[]) => void;
+  applyBattle: (dto: BattleDto) => void;
   resetPlay: () => void;
   selectOption: (optionId: string) => void;
-  reveal: () => void;
-  nextQuestion: () => void;
+  setSubmitting: (v: boolean) => void;
+  setError: (msg: string | null) => void;
   isComplete: () => boolean;
 };
 
@@ -28,46 +49,67 @@ const playInitial = {
   selectedOptionId: null as string | null,
   revealed: false,
   answers: {} as Record<string, string>,
+  submitting: false,
+  error: null as string | null,
 };
 
 export const useBattleStore = create<BattlePlayState>((set, get) => ({
   setup: { ...defaultBattleSetup },
+  activeBattleId: null,
+  battle: null,
+  questions: [],
   ...playInitial,
   setSetup: (patch) => set((s) => ({ setup: { ...s.setup, ...patch } })),
-  resetPlay: () => set({ ...playInitial }),
+  setQuestions: (questions) => set({ questions, ...playInitial }),
+  applyBattle: (dto) => {
+    const q = dto.currentQuestion;
+    const revealed = Boolean(q?.revealedAt);
+    const myAnswer = q?.answers?.find((a) => a.selectedOptionId);
+    set({
+      activeBattleId: dto.id,
+      battle: dto,
+      yourScore: dto.yourScore,
+      theirScore: dto.theirScore,
+      setup: {
+        opponentId: dto.opponent.userId,
+        subject: dto.subject,
+        topic: dto.topic ?? "",
+        difficulty:
+          dto.difficulty === "expert"
+            ? "expert"
+            : (dto.difficulty as BattleSetup["difficulty"]),
+        questions: dto.questionCount,
+        seconds: dto.secondsPerQuestion,
+        mode: dto.mode,
+        stake: dto.stakePerPlayer,
+      },
+      questions: q ? [mapQuestion(q)] : get().questions,
+      questionIndex: 0,
+      revealed,
+      selectedOptionId: myAnswer?.selectedOptionId ?? get().selectedOptionId,
+      error: null,
+    });
+  },
+  resetPlay: () =>
+    set({
+      ...playInitial,
+      battle: null,
+      activeBattleId: null,
+      questions: [],
+    }),
   selectOption: (optionId) => {
-    if (get().revealed) return;
+    if (get().revealed || get().submitting) return;
     set({ selectedOptionId: optionId });
   },
-  reveal: () => {
-    const state = get();
-    if (state.revealed || !state.selectedOptionId) return;
-    const q = battleQuestions[state.questionIndex];
-    const correct = state.selectedOptionId === q.correctOptionId;
-    const yourGain = correct ? 100 + Math.floor(Math.random() * 20) : 0;
-    // Mock opponent: ~55% correct
-    const opponentCorrect = Math.random() > 0.45;
-    const theirGain = opponentCorrect ? 100 + Math.floor(Math.random() * 15) : 0;
-    set({
-      revealed: true,
-      yourScore: state.yourScore + yourGain,
-      theirScore: state.theirScore + theirGain,
-      answers: { ...state.answers, [q.id]: state.selectedOptionId },
-    });
-  },
-  nextQuestion: () => {
-    const { questionIndex, setup } = get();
-    const max = Math.min(setup.questions, battleQuestions.length) - 1;
-    if (questionIndex >= max) return;
-    set({
-      questionIndex: questionIndex + 1,
-      selectedOptionId: null,
-      revealed: false,
-    });
-  },
+  setSubmitting: (v) => set({ submitting: v }),
+  setError: (msg) => set({ error: msg }),
   isComplete: () => {
-    const { questionIndex, setup, revealed } = get();
-    const max = Math.min(setup.questions, battleQuestions.length) - 1;
-    return revealed && questionIndex >= max;
+    const { battle } = get();
+    return (
+      battle?.status === "completed" ||
+      battle?.status === "forfeited" ||
+      battle?.status === "voided" ||
+      battle?.status === "refunded"
+    );
   },
 }));
