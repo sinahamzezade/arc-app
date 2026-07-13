@@ -644,7 +644,10 @@ export default function FriendsScreen() {
                           !offset && "mr-3",
                         )}
                       >
-                        <div className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3.5">
+                        <Link
+                          href={`/friends/${f.userId}`}
+                          className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3.5"
+                        >
                           <span
                             className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] font-display text-[17px] font-bold text-white"
                             style={{ background: f.color }}
@@ -666,7 +669,7 @@ export default function FriendsScreen() {
                               {f.online ? " · Live" : ""}
                             </p>
                           </div>
-                        </div>
+                        </Link>
 
                         <div className="flex w-12 shrink-0 flex-col border-l border-[#f0ecf7]">
                           <Link
@@ -755,6 +758,10 @@ export default function FriendsScreen() {
                       transition={{ delay: i * 0.03 }}
                       className="flex items-center gap-3 rounded-[22px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 shadow-[0_8px_22px_rgba(70,40,150,0.06)]"
                     >
+                    <Link
+                      href={`/friends/${f.userId}`}
+                      className="flex min-w-0 flex-1 items-center gap-3"
+                    >
                       <span
                         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] font-display text-[15px] font-bold text-white"
                         style={{ background: f.color }}
@@ -769,6 +776,7 @@ export default function FriendsScreen() {
                           Lv {f.level} · {f.league}
                         </p>
                       </div>
+                    </Link>
                       <button
                         type="button"
                         disabled={followBusyId === f.userId}

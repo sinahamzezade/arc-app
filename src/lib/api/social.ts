@@ -78,6 +78,12 @@ export type SocialProfileDto = {
     followers: number;
     following: number;
   };
+  stats?: {
+    lessonsThisWeek: number;
+    battlesWon: number;
+    badgesEarned: number;
+    badgesTotal: number;
+  };
   privacy: {
     showWeeklyXp: boolean;
     showStreak: boolean;

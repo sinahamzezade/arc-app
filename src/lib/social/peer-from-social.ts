@@ -6,6 +6,15 @@ export function peerFromSocial(
   profile: SocialProfileDto | SocialSearchHitDto,
 ): LeaguePeerProfile {
   const name = profile.name || profile.displayName || "Learner";
+  const stats =
+    "stats" in profile && profile.stats
+      ? profile.stats
+      : {
+          badgesEarned: 0,
+          badgesTotal: 36,
+          lessonsThisWeek: 0,
+          battlesWon: 0,
+        };
   return {
     id: profile.userId,
     rank: 0,
@@ -28,10 +37,10 @@ export function peerFromSocial(
     bio: profile.username
       ? `@${profile.username}`
       : "Find them on Arc — follow or add as friend.",
-    badgesEarned: 0,
-    badgesTotal: 24,
-    lessonsThisWeek: 0,
-    battlesWon: 0,
+    badgesEarned: stats.badgesEarned,
+    badgesTotal: stats.badgesTotal,
+    lessonsThisWeek: stats.lessonsThisWeek,
+    battlesWon: stats.battlesWon,
     joinedLabel: profile.online ? "Online now" : "Offline",
     recent: [
       {
