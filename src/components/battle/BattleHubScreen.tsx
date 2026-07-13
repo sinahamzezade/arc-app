@@ -6,13 +6,18 @@ import {
   Coins,
   Flame,
   Gem,
+  Search,
   Swords,
   Users,
   X,
   Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { socialApi, type SocialFriendDto } from "@/lib/api/social";
+import {
+  socialApi,
+  type SocialFriendDto,
+  type SocialSearchHitDto,
+} from "@/lib/api/social";
 import { battlesApi, type BattleDto } from "@/lib/api/battles";
 import {
   battleHref,
@@ -67,7 +72,11 @@ export default function BattleHubScreen() {
     useBattleHub();
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
   const [cancelling, setCancelling] = useState(false);
+  const [userQuery, setUserQuery] = useState("");
+  const [searchHits, setSearchHits] = useState<SocialSearchHitDto[]>([]);
+  const [searching, setSearching] = useState(false);
   const online = friends.filter((f) => f.online);
+  const searchingUsers = userQuery.trim().length >= 2;
 
   useEffect(() => {
     setShowInviteEnded(Boolean(inviteStatus));
@@ -129,6 +138,29 @@ export default function BattleHubScreen() {
       clearInterval(id);
     };
   }, []);
+
+  useEffect(() => {
+    if (!searchingUsers) return;
+    const q = userQuery.trim();
+    let cancelled = false;
+    const t = setTimeout(() => {
+      setSearching(true);
+      void (async () => {
+        try {
+          const res = await socialApi.search(q);
+          if (!cancelled) setSearchHits(res.items);
+        } catch {
+          if (!cancelled) setSearchHits([]);
+        } finally {
+          if (!cancelled) setSearching(false);
+        }
+      })();
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [userQuery, searchingUsers]);
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -448,60 +480,135 @@ export default function BattleHubScreen() {
             </Link>
           </div>
 
-          <div className="flex items-end gap-3 overflow-x-auto pb-2">
-            {online.length === 0 ? (
-              <Link
-                href="/friends"
-                className="rounded-[22px] border border-dashed border-[#d5ccec] bg-white px-4 py-3 text-[12px] font-extrabold text-[#8a7cb8]"
+          <div className="mb-3 flex items-center gap-2 rounded-[16px] border border-[#ebe4f6] bg-white px-3.5 py-2.5 shadow-[0_4px_14px_rgba(70,40,150,0.05)]">
+            <Search className="h-4 w-4 shrink-0 text-[#b3a8d6]" strokeWidth={2.25} />
+            <input
+              value={userQuery}
+              onChange={(e) => setUserQuery(e.target.value)}
+              placeholder="Search users…"
+              autoComplete="off"
+              className="min-w-0 flex-1 bg-transparent font-display text-[14px] font-semibold text-[#1b1730] outline-none placeholder:text-[#c3badb]"
+            />
+            {searching ? (
+              <span className="text-[11px] font-bold text-[#b3a8d6]">…</span>
+            ) : userQuery ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setUserQuery("")}
+                className="rounded-full p-0.5 text-[#b3a8d6]"
               >
-                Invite crew to battle
-              </Link>
-            ) : (
-              online.map((f, i) => {
-                const big = i === 0;
-                return (
-                  <Link
-                    key={f.userId}
-                    href={
-                      blocking
-                        ? battleHref(blocking)
-                        : `/battle/create?opponent=${f.userId}`
-                    }
-                    className={cn(
-                      "relative shrink-0 rounded-[22px] border border-[#ebe4f6] bg-white p-3 shadow-[0_8px_20px_rgba(70,40,150,0.08)]",
-                      big ? "w-[148px]" : "w-[112px]",
-                      i === 1 && "translate-y-2",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "flex items-center justify-center rounded-2xl font-display font-bold text-white",
-                        big ? "h-14 w-14 text-[20px]" : "h-11 w-11 text-[16px]",
-                      )}
-                      style={{ background: f.color }}
-                    >
-                      {f.initial}
-                    </span>
-                    <span className="absolute top-3 right-3 h-2.5 w-2.5 rounded-full bg-[#16c784] ring-2 ring-white" />
-                    <p
-                      className={cn(
-                        "mt-2 truncate font-display font-semibold text-[#1b1730]",
-                        big ? "text-[15px]" : "text-[13px]",
-                      )}
-                    >
-                      {f.name.split(" ")[0]}
-                    </p>
-                    <p className="text-[10px] font-bold text-[#8a7cb8]">
-                      Lv {f.level} · {f.league}
-                    </p>
-                    <span className="mt-2 inline-flex rounded-full bg-[#f6f2ff] px-2 py-0.5 text-[10px] font-extrabold text-arc-purple-500">
-                      {blocking ? "Busy" : "Fight"}
-                    </span>
-                  </Link>
-                );
-              })
-            )}
+                <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+              </button>
+            ) : null}
           </div>
+
+          {searchingUsers ? (
+            <ul className="space-y-2">
+              {searching && searchHits.length === 0 ? (
+                <li className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/80 px-4 py-6 text-center text-[12px] font-bold text-[#8a7cb8]">
+                  Searching…
+                </li>
+              ) : searchHits.length === 0 ? (
+                <li className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/80 px-4 py-6 text-center text-[12px] font-bold text-[#8a7cb8]">
+                  No users match “{userQuery.trim()}”
+                </li>
+              ) : (
+                searchHits.map((hit) => (
+                  <li key={hit.userId}>
+                    <Link
+                      href={`/friends/${hit.userId}`}
+                      className="flex items-center gap-3 rounded-[18px] border border-[#ebe4f6] bg-white px-3.5 py-3 shadow-[0_6px_16px_rgba(70,40,150,0.06)]"
+                    >
+                      <span
+                        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-display text-[16px] font-bold text-white"
+                        style={{ background: hit.color }}
+                      >
+                        {hit.initial}
+                        <span
+                          className={cn(
+                            "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white",
+                            hit.online ? "bg-[#16c784]" : "bg-[#c3badb]",
+                          )}
+                        />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-display text-[14px] font-bold text-[#1b1730]">
+                          {hit.name}
+                        </p>
+                        <p className="text-[11px] font-bold text-[#8a7cb8]">
+                          {hit.username ? `@${hit.username} · ` : ""}
+                          Lv {hit.level} · {hit.league}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[11px] font-extrabold text-arc-purple-500">
+                        {hit.relationship === "friend"
+                          ? "Friend"
+                          : hit.relationship === "outgoing"
+                            ? "Pending"
+                            : "View"}
+                      </span>
+                    </Link>
+                  </li>
+                ))
+              )}
+            </ul>
+          ) : (
+            <div className="flex items-end gap-3 overflow-x-auto pb-2">
+              {online.length === 0 ? (
+                <Link
+                  href="/friends"
+                  className="rounded-[22px] border border-dashed border-[#d5ccec] bg-white px-4 py-3 text-[12px] font-extrabold text-[#8a7cb8]"
+                >
+                  Invite crew to battle
+                </Link>
+              ) : (
+                online.map((f, i) => {
+                  const big = i === 0;
+                  return (
+                    <Link
+                      key={f.userId}
+                      href={
+                        blocking
+                          ? battleHref(blocking)
+                          : `/battle/create?opponent=${f.userId}`
+                      }
+                      className={cn(
+                        "relative shrink-0 rounded-[22px] border border-[#ebe4f6] bg-white p-3 shadow-[0_8px_20px_rgba(70,40,150,0.08)]",
+                        big ? "w-[148px]" : "w-[112px]",
+                        i === 1 && "translate-y-2",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex items-center justify-center rounded-2xl font-display font-bold text-white",
+                          big ? "h-14 w-14 text-[20px]" : "h-11 w-11 text-[16px]",
+                        )}
+                        style={{ background: f.color }}
+                      >
+                        {f.initial}
+                      </span>
+                      <span className="absolute top-3 right-3 h-2.5 w-2.5 rounded-full bg-[#16c784] ring-2 ring-white" />
+                      <p
+                        className={cn(
+                          "mt-2 truncate font-display font-semibold text-[#1b1730]",
+                          big ? "text-[15px]" : "text-[13px]",
+                        )}
+                      >
+                        {f.name.split(" ")[0]}
+                      </p>
+                      <p className="text-[10px] font-bold text-[#8a7cb8]">
+                        Lv {f.level} · {f.league}
+                      </p>
+                      <span className="mt-2 inline-flex rounded-full bg-[#f6f2ff] px-2 py-0.5 text-[10px] font-extrabold text-arc-purple-500">
+                        {blocking ? "Busy" : "Fight"}
+                      </span>
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          )}
         </section>
 
         <section className="mt-7">
