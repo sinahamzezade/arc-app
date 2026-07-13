@@ -2,7 +2,10 @@ import { icons, type LucideIcon } from "lucide-react";
 
 /** Legacy kebab keys from questionnaire seed → Lucide PascalCase export. */
 const LEGACY_ICON_ALIASES: Record<string, keyof typeof icons> = {
-  "bar-chart": "BarChart3",
+  "bar-chart": "ChartColumn",
+  BarChart3: "ChartColumn",
+  BarChart: "ChartColumn",
+  BarChart2: "ChartColumn",
   code: "Code",
   server: "Server",
   megaphone: "Megaphone",
