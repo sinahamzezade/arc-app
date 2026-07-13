@@ -17,7 +17,7 @@ interface QuestionnaireState {
 }
 
 export const useQuestionnaireStore = create<QuestionnaireState>((set) => ({
-  answers: emptyQuestionnaireAnswers,
+  answers: emptyQuestionnaireAnswers(),
   schema: null,
   hydrated: false,
   setAnswers: (patch) =>
@@ -27,7 +27,7 @@ export const useQuestionnaireStore = create<QuestionnaireState>((set) => ({
   setHydrated: (hydrated) => set({ hydrated }),
   reset: () =>
     set({
-      answers: emptyQuestionnaireAnswers,
+      answers: emptyQuestionnaireAnswers(),
       schema: null,
       hydrated: false,
     }),

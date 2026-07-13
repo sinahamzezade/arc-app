@@ -4,12 +4,14 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Coins, Gem, Star } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { assets } from "@/lib/assets";
 import type { LessonCompleteResponse } from "@/lib/api/types";
+import { badgesApi } from "@/lib/api/badges";
 import { lessonsApi } from "@/lib/api/lessons";
+import { badgeImageFor, isBadgeUploadSrc } from "@/lib/badges/icons";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useEnsureLessonAttempt } from "@/hooks/useEnsureLessonAttempt";
 import { useLessonStore } from "@/store/useLessonStore";
@@ -33,6 +35,15 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
   const claimedRef = useRef(false);
   const confettiFiredRef = useRef(false);
   const idempotencyKeyRef = useRef<string | null>(null);
+
+  const accessToken = session?.accessToken;
+  const badgeCode = result?.reward.badgeId ?? null;
+  const { data: badgeDef } = useQuery({
+    queryKey: ["badges", "def", badgeCode, accessToken ?? "anon"],
+    enabled: Boolean(badgeCode && accessToken),
+    queryFn: () => badgesApi.get(badgeCode!, accessToken),
+    staleTime: 60_000,
+  });
 
   const completeMutation = useMutation({
     mutationFn: () => {
@@ -70,6 +81,7 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
       void queryClient.invalidateQueries({
         queryKey: ["lessons", "play", lessonId],
       });
+      void queryClient.invalidateQueries({ queryKey: ["badges"] });
     },
   });
 
@@ -131,8 +143,9 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
 
   const reward = result.reward;
   const quiz = result.quizScore;
-  const badgeSrc =
-    reward.badgeId === "first-step" ? assets.badges.firstStep : null;
+  const badgeSrc = badgeCode
+    ? badgeImageFor(badgeDef?.iconAssetKey ?? badgeCode)
+    : null;
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-hidden bg-[#100d22] font-rounded">
@@ -237,6 +250,7 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
                 alt=""
                 width={44}
                 height={44}
+                unoptimized={isBadgeUploadSrc(badgeSrc)}
                 className="h-11 w-11 object-contain"
               />
               <div className="text-left">

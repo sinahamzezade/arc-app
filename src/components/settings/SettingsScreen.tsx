@@ -13,7 +13,6 @@ import {
   Globe,
   Lock,
   LogOut,
-  Mail,
   Shield,
   User,
 } from "lucide-react";
@@ -25,7 +24,9 @@ import { useCurrentLeague } from "@/hooks/useCurrentLeague";
 import { leaguesApi } from "@/lib/api/leagues";
 import { socialApi, type SocialPrivacyDto } from "@/lib/api/social";
 import { formatEta, paceMeta } from "@/lib/course-timing/format";
+import { meApi } from "@/lib/api/auth";
 import { signOutArc } from "@/lib/auth/session";
+import { formatPasswordChangedAgo } from "@/lib/settings/format-password-changed";
 import {
   settingsMockData,
   type SettingsToggle,
@@ -58,11 +59,25 @@ export default function SettingsScreen({
   const [socialPrivacy, setSocialPrivacy] = useState<SocialPrivacyDto | null>(
     null,
   );
+  const [hasPassword, setHasPassword] = useState(true);
+  const [passwordChangedAt, setPasswordChangedAt] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     void socialApi
       .getPrivacy(session?.accessToken)
       .then(setSocialPrivacy)
+      .catch(() => undefined);
+  }, [session?.accessToken]);
+
+  useEffect(() => {
+    void meApi
+      .get()
+      .then((me) => {
+        setHasPassword(me.user.hasPassword ?? true);
+        setPasswordChangedAt(me.user.passwordLastChangedAt ?? null);
+      })
       .catch(() => undefined);
   }, [session?.accessToken]);
 
@@ -256,6 +271,7 @@ export default function SettingsScreen({
                   {deviceTz} · updates reminders & slots
                 </p>
               </button>
+              {/* TEMP: hide Plan & billing until billing ships
               <Link href="/plan" className="block">
                 <SettingsRow
                   icon={Mail}
@@ -264,6 +280,7 @@ export default function SettingsScreen({
                   chevron
                 />
               </Link>
+              */}
               <button
                 type="button"
                 onClick={() => void signOut()}
@@ -395,10 +412,15 @@ export default function SettingsScreen({
               <SettingsRow
                 icon={Lock}
                 title="Password"
-                detail="Last changed 3 months ago"
-                chevron
+                detail={
+                  hasPassword
+                    ? formatPasswordChangedAgo(passwordChangedAt)
+                    : "Signed in with social"
+                }
+                chevron={hasPassword}
+                href={hasPassword ? "/settings/password" : undefined}
               />
-              <div className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white">
+              <div className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white shadow-[0_6px_16px_rgba(70,40,150,0.04)]">
                 <Link
                   href="/privacy"
                   className="flex items-center justify-between border-b border-[#f0ecf7] px-4 py-3.5 text-[14px] font-semibold text-[#1b1730]"
@@ -427,14 +449,16 @@ function SettingsRow({
   title,
   detail,
   chevron,
+  href,
 }: {
   icon: typeof User;
   title: string;
   detail: string;
   chevron?: boolean;
+  href?: string;
 }) {
-  return (
-    <div className="flex items-center gap-3 rounded-[18px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 shadow-[0_6px_16px_rgba(70,40,150,0.04)]">
+  const inner = (
+    <>
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f6f2ff] text-arc-purple-500">
         <Icon className="h-5 w-5" strokeWidth={2.25} />
       </span>
@@ -449,8 +473,21 @@ function SettingsRow({
       {chevron ? (
         <ChevronRight className="h-4 w-4 shrink-0 text-[#c3badb]" />
       ) : null}
-    </div>
+    </>
   );
+
+  const className =
+    "flex items-center gap-3 rounded-[18px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 shadow-[0_6px_16px_rgba(70,40,150,0.04)]";
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {inner}
+      </Link>
+    );
+  }
+
+  return <div className={className}>{inner}</div>;
 }
 
 function ToggleRow({

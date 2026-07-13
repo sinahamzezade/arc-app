@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   emptyQuestionnaireAnswers,
+  isScheduleAnswer,
   type QuestionnaireAnswers,
 } from "@/schemas/questionnaire";
 import { ApiError, messageForCode } from "@/lib/api/errors";
@@ -12,16 +13,26 @@ import { useQuestionnaireStore } from "@/store/useQuestionnaireStore";
 
 function mergeAnswers(
   incoming: Partial<QuestionnaireAnswers> | null | undefined,
+  schemaSteps?: { id: string; uiKind?: string; selection?: string }[],
 ): QuestionnaireAnswers {
-  if (!incoming) return emptyQuestionnaireAnswers;
-  return {
-    ...emptyQuestionnaireAnswers,
-    ...incoming,
-    schedule: {
-      days: incoming.schedule?.days ?? [],
-      times: incoming.schedule?.times ?? [],
-    },
-  };
+  const base = emptyQuestionnaireAnswers(schemaSteps);
+  if (!incoming) return base;
+  const merged: QuestionnaireAnswers = { ...base, ...incoming };
+  for (const [key, value] of Object.entries(incoming)) {
+    if (isScheduleAnswer(value)) {
+      merged[key] = {
+        days: value.days ?? [],
+        times: value.times ?? [],
+      };
+    }
+  }
+  // Ensure schedule-shaped steps always have an object
+  for (const step of schemaSteps ?? []) {
+    if (step.uiKind === "schedule" && !isScheduleAnswer(merged[step.id])) {
+      merged[step.id] = { days: [], times: [] };
+    }
+  }
+  return merged;
 }
 
 /** Load schema + hydrate answers from backend (waits for Auth.js access token). */
@@ -67,9 +78,9 @@ export function useHydrateQuestionnaire() {
         if (cancelled) return;
         setSchema(schemaRes);
         if (answersRes.answers) {
-          replaceAnswers(mergeAnswers(answersRes.answers));
+          replaceAnswers(mergeAnswers(answersRes.answers, schemaRes.steps));
         } else {
-          setHydrated(true);
+          replaceAnswers(emptyQuestionnaireAnswers(schemaRes.steps));
         }
         setError(null);
       } catch (err) {

@@ -60,23 +60,34 @@ export default function BattleInviteScreen({ inviteId }: { inviteId: string }) {
       }
     };
     void load();
-    const poll = sent ? setInterval(() => void load(), 3000) : undefined;
+    const poll = setInterval(() => void load(), 3000);
     return () => {
       cancelled = true;
-      if (poll) clearInterval(poll);
+      clearInterval(poll);
     };
-  }, [inviteId, applyBattle, sent]);
+  }, [inviteId, applyBattle]);
 
   useEffect(() => {
     if (!battle) return;
     if (
       battle.status === "ready" ||
       battle.status === "in_progress" ||
-      battle.status === "accepted"
+      battle.status === "accepted" ||
+      battle.status === "funding"
     ) {
       router.replace(`/battle/play/${inviteId}`);
+      return;
     }
-  }, [battle, inviteId, router]);
+    const closedByOther =
+      (sent && battle.status === "declined") ||
+      (!sent && battle.status === "cancelled") ||
+      battle.status === "expired" ||
+      battle.status === "voided";
+    if (closedByOther) {
+      resetPlay();
+      router.replace(`/battle?invite=${battle.status}`);
+    }
+  }, [battle, inviteId, resetPlay, router, sent]);
 
   const stake = battle?.stakePerPlayer ?? 0;
   const name = battle ? displayName(battle) : "…";

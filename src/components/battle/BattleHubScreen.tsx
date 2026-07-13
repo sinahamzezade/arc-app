@@ -8,9 +8,10 @@ import {
   Gem,
   Swords,
   Users,
+  X,
   Zap,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { socialApi, type SocialFriendDto } from "@/lib/api/social";
 import { battlesApi, type BattleDto } from "@/lib/api/battles";
 import {
@@ -21,13 +22,31 @@ import {
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
 function rivalName(b: BattleDto) {
   return b.opponent.displayName || b.opponent.username || "Rival";
+}
+
+function inviteEndedCopy(status: string | null): {
+  eyebrow: string;
+  title: string;
+} | null {
+  switch (status) {
+    case "declined":
+      return { eyebrow: "Invite closed", title: "Rival declined the challenge" };
+    case "cancelled":
+      return { eyebrow: "Invite closed", title: "Challenge was cancelled" };
+    case "expired":
+      return { eyebrow: "Timed out", title: "Invite expired — send a new one" };
+    case "voided":
+      return { eyebrow: "Invite closed", title: "Challenge was voided" };
+    default:
+      return null;
+  }
 }
 
 /**
@@ -37,23 +56,45 @@ export default function BattleHubScreen() {
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const wasBlocked = searchParams.get("blocked") === "1";
-  const { stats, history, live, incoming, outgoing, blocking, loadMore } =
+  const inviteStatus = searchParams.get("invite");
+  const inviteEnded = inviteEndedCopy(inviteStatus);
+  const [showInviteEnded, setShowInviteEnded] = useState(Boolean(inviteEnded));
+  const { stats, history, live, outgoing, blocking, loadMore, invalidate } =
     useBattleHub();
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
-  const [forfeiting, setForfeiting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const online = friends.filter((f) => f.online);
 
-  const forfeitBlocking = async () => {
-    if (!blocking || forfeiting) return;
-    setForfeiting(true);
+  useEffect(() => {
+    setShowInviteEnded(Boolean(inviteStatus));
+  }, [inviteStatus]);
+
+  const dismissInviteEnded = () => {
+    setShowInviteEnded(false);
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("invite");
+    const q = next.toString();
+    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+  };
+
+  const cancelBlocking = async () => {
+    if (!blocking || cancelling) return;
+    setCancelling(true);
     try {
-      await battlesApi.forfeit(blocking.id);
+      if (blocking.role === "challenger") {
+        await battlesApi.cancel(blocking.id);
+      } else {
+        await battlesApi.decline(blocking.id);
+      }
+      invalidate();
     } catch {
       /* ignore — hub will re-poll */
     } finally {
-      setForfeiting(false);
+      setCancelling(false);
     }
   };
 
@@ -68,7 +109,7 @@ export default function BattleHubScreen() {
   };
   const historyItems = history.data?.items ?? [];
   const historyCursor = history.data?.nextCursor ?? null;
-  const hasOpen = live.length + incoming.length + outgoing.length > 0;
+  const hasOpen = live.length + outgoing.length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -190,15 +231,58 @@ export default function BattleHubScreen() {
       </section>
 
       <div className="relative -mt-10 px-4 pb-8">
+        <AnimatePresence>
+          {showInviteEnded && inviteEnded ? (
+            <motion.div
+              key="invite-ended"
+              initial={{ opacity: 0, y: 18, rotate: -1.5 }}
+              animate={{ opacity: 1, y: 0, rotate: -0.6 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={snappySpring}
+              className="relative mb-4 -ml-1 w-[calc(100%+4px)] origin-left"
+            >
+              <div className="relative flex items-stretch overflow-hidden rounded-[22px] bg-[#0f1220] shadow-[0_8px_0_#c79a2e,0_18px_36px_rgba(15,18,32,0.28)]">
+                <span
+                  aria-hidden
+                  className="absolute inset-x-0 top-0 h-1 bg-[#ffc928]"
+                />
+                <span className="m-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
+                  <Swords className="h-5 w-5" strokeWidth={2.4} />
+                </span>
+                <div className="min-w-0 flex-1 py-3.5 pr-2">
+                  <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+                    {inviteEnded.eyebrow}
+                  </p>
+                  <p className="mt-0.5 font-display text-[15px] leading-snug font-bold tracking-[-0.02em] text-[#fff8e8]">
+                    {inviteEnded.title}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Dismiss"
+                  onClick={dismissInviteEnded}
+                  className="m-2.5 flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-xl bg-white/10 text-white/55 ring-1 ring-white/10 transition-colors hover:bg-white/15 hover:text-white"
+                >
+                  <X className="h-4 w-4" strokeWidth={2.4} />
+                </button>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+
         {wasBlocked && !blocking && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={softSpring}
-            className="mb-3 rounded-[18px] bg-[#ff8a3d]/40 px-4 py-3 text-[13px] font-bold text-[#d96420]"
+            className="mb-3 flex items-start gap-3 rounded-[22px] border-2 border-dashed border-[#ffc928]/70 bg-[#fff9e6] px-3.5 py-3"
           >
-            You have an open match — resume it below before challenging someone
-            new.
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
+              <Flame className="h-4 w-4" strokeWidth={2.5} />
+            </span>
+            <p className="min-w-0 flex-1 pt-1 text-[13px] leading-snug font-bold text-[#5c4810]">
+              Open match still live — finish it before sending a new challenge.
+            </p>
           </motion.div>
         )}
 
@@ -236,16 +320,14 @@ export default function BattleHubScreen() {
               </span>
               <ArrowRight className="h-5 w-5 shrink-0" strokeWidth={2.5} />
             </Link>
-            {(blocking.status === "invited" ||
-              blocking.status === "accepted" ||
-              blocking.status === "funding") && (
+            {blocking.status === "invited" && (
               <button
                 type="button"
-                onClick={() => void forfeitBlocking()}
-                disabled={forfeiting}
+                onClick={() => void cancelBlocking()}
+                disabled={cancelling}
                 className="mt-1.5 w-full rounded-[14px] bg-[#0f1220]/8 py-2 text-[11px] font-black tracking-[0.08em] text-[#5c4810] uppercase"
               >
-                {forfeiting ? "Leaving…" : "Cancel invite"}
+                {cancelling ? "Leaving…" : "Cancel invite"}
               </button>
             )}
           </motion.div>
@@ -326,50 +408,6 @@ export default function BattleHubScreen() {
                   <span className="rounded-full bg-arc-purple-500 px-3 py-1.5 text-[11px] font-extrabold text-white">
                     Resume
                   </span>
-                </Link>
-              </motion.div>
-            ))}
-
-            {incoming.map((invite, i) => (
-              <motion.div
-                key={invite.id}
-                initial={{ opacity: 0, x: -18 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ ...softSpring, delay: 0.08 + i * 0.04 }}
-              >
-                <Link
-                  href={battleHref(invite)}
-                  className="block overflow-hidden rounded-[20px] border-2 border-dashed border-[#c79a2e] bg-[#fff8e8] shadow-[0_12px_28px_rgba(199,154,46,0.18)]"
-                >
-                  <div className="flex items-stretch">
-                    <div className="flex w-16 shrink-0 flex-col items-center justify-center bg-[#ffc928] px-2 py-4 text-[#1b1730]">
-                      <Coins className="h-5 w-5" strokeWidth={2.5} />
-                      <p className="mt-1 font-display text-[16px] font-bold">
-                        {invite.stakePerPlayer}
-                      </p>
-                      <p className="text-[9px] font-black tracking-wide uppercase">
-                        stake
-                      </p>
-                    </div>
-                    <div className="min-w-0 flex-1 px-3.5 py-3.5">
-                      <p className="text-[10px] font-black tracking-[0.1em] text-[#c79a2e] uppercase">
-                        Incoming invite
-                      </p>
-                      <p className="mt-1 font-display text-[17px] font-bold text-[#1b1730]">
-                        {rivalName(invite)}
-                      </p>
-                      <p className="mt-0.5 text-[12px] font-bold text-[#8a6a1e]">
-                        {invite.subject}
-                        {invite.topic ? ` · ${invite.topic}` : ""} ·{" "}
-                        {invite.questionCount}Q
-                      </p>
-                    </div>
-                    <div className="flex items-center pr-3">
-                      <span className="rounded-full bg-[#1b1730] px-3 py-1.5 text-[11px] font-extrabold text-white">
-                        Open
-                      </span>
-                    </div>
-                  </div>
                 </Link>
               </motion.div>
             ))}

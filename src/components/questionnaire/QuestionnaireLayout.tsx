@@ -72,7 +72,12 @@ export function QuestionnaireLayout({
           ) : null}
         </div>
 
-        <div className="relative mt-5">
+        <motion.div
+          className="relative mt-5"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 380, damping: 28 }}
+        >
           <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
             Intake
           </p>
@@ -84,13 +89,23 @@ export function QuestionnaireLayout({
               {subtitle}
             </p>
           ) : null}
-        </div>
+        </motion.div>
       </section>
 
       <div className="relative z-10 -mt-6 flex min-h-0 flex-1 flex-col rounded-t-[28px] bg-[#f3effc]">
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-4">
+        <motion.div
+          className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-4"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            type: "spring",
+            stiffness: 360,
+            damping: 30,
+            delay: 0.05,
+          }}
+        >
           {children}
-        </div>
+        </motion.div>
         <div className="shrink-0 border-t border-[#ebe4f6]/80 bg-[#f3effc]/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+14px)] backdrop-blur-sm">
           {footer}
         </div>

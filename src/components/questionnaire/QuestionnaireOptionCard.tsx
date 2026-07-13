@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
+import { motion } from "motion/react";
 import type { StepOption } from "@/lib/questionnaire/steps";
 
 type QuestionnaireOptionCardProps = {
@@ -20,9 +21,11 @@ export function QuestionnaireOptionCard({
   const Icon = option.icon;
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onToggle}
+      whileTap={{ scale: 0.985 }}
+      transition={{ type: "spring", stiffness: 420, damping: 28 }}
       className={cn(
         "flex w-full items-center gap-3 rounded-[16px] border-2 px-4 py-3.5 text-left shadow-[0_3px_0_#ebe4f6] transition-colors",
         selected
@@ -72,6 +75,6 @@ export function QuestionnaireOptionCard({
           <Check className="h-3 w-3" strokeWidth={3} />
         ) : null}
       </span>
-    </button>
+    </motion.button>
   );
 }

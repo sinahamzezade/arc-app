@@ -18,6 +18,7 @@ import { formatAnswerValue } from "@/lib/questionnaire/format-answers";
 import { useHydrateQuestionnaire } from "@/lib/questionnaire/api-sync";
 import { getReviewItems } from "@/lib/questionnaire/steps";
 import { useQuestionnaireStore } from "@/store/useQuestionnaireStore";
+import { QuestionnaireReviewSkeleton } from "./QuestionnaireReviewSkeleton";
 
 export default function QuestionnaireReviewScreen() {
   const router = useRouter();
@@ -71,11 +72,7 @@ export default function QuestionnaireReviewScreen() {
   };
 
   if (loading && !schema) {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-[#f3effc] text-[13px] font-bold text-[#7a6fa3]">
-        Loading review…
-      </div>
-    );
+    return <QuestionnaireReviewSkeleton />;
   }
 
   if (!schema) {

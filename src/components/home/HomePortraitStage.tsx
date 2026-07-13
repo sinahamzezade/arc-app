@@ -32,7 +32,7 @@ export function HomePortraitStage({
       transition={soft}
       aria-label="Welcome"
     >
-      <div className="relative flex items-end gap-1">
+      <div className="relative flex items-center gap-1">
         <div className="relative z-2 min-w-0 flex-1 pb-2">
           <p className="text-[10px] font-extrabold tracking-[0.16em] text-[#ffc928] uppercase">
             {greeting}

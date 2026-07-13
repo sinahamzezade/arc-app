@@ -265,10 +265,24 @@ export function mapNotificationDto(dto: NotificationDto): NotificationItem {
       color: "#6b4eff",
     },
     coachBadge: dto.category === "coach",
-    actionUrl: dto.actionUrl,
+    actionUrl: normalizeActionUrl(dto.actionUrl),
     type: dto.type,
     createdAt: dto.createdAt,
   };
+}
+
+/** Map legacy API-shaped deep links to real app routes. */
+function normalizeActionUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (
+    url === "/leagues/current" ||
+    url === "/league/current" ||
+    url === "/leagues" ||
+    url === "/league"
+  ) {
+    return "/leaderboard";
+  }
+  return url;
 }
 
 export function groupNotificationsByDay(

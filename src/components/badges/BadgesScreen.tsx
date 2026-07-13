@@ -11,7 +11,7 @@ import {
   type BadgeItemDto,
   type MyBadgesResponse,
 } from "@/lib/api/badges";
-import { badgeImageFor } from "@/lib/badges/icons";
+import { badgeImageFor, isBadgeUploadSrc } from "@/lib/badges/icons";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
@@ -141,7 +141,9 @@ export default function BadgesScreen() {
 
           <div className="relative flex h-[96px] items-end justify-end">
             <div className="flex -space-x-3">
-              {featured.slice(0, 3).map((b, i) => (
+              {featured.slice(0, 3).map((b, i) => {
+                const src = badgeImageFor(b.iconAssetKey);
+                return (
                 <motion.div
                   key={b.code}
                   className={cn(
@@ -155,14 +157,16 @@ export default function BadgesScreen() {
                   transition={{ ...softSpring, delay: 0.08 + i * 0.05 }}
                 >
                   <Image
-                    src={badgeImageFor(b.iconAssetKey)}
+                    src={src}
                     alt={b.name}
                     width={64}
                     height={64}
+                    unoptimized={isBadgeUploadSrc(src)}
                     className="h-full w-full object-cover"
                   />
                 </motion.div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -257,6 +261,7 @@ function BadgeStamp({
 }) {
   const earned = badge.status === "earned";
   const inProgress = badge.status === "in_progress";
+  const iconSrc = badgeImageFor(badge.iconAssetKey);
   const Icon =
     badge.category === "consistency"
       ? Star
@@ -298,10 +303,11 @@ function BadgeStamp({
         )}
       >
         <Image
-          src={badgeImageFor(badge.iconAssetKey)}
+          src={iconSrc}
           alt=""
           width={88}
           height={88}
+          unoptimized={isBadgeUploadSrc(iconSrc)}
           className={cn(
             "h-full w-full object-cover",
             !earned && "opacity-35 grayscale",

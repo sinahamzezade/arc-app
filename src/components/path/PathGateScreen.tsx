@@ -310,7 +310,7 @@ export default function PathGateScreen({
               {retryError ||
                 message ||
                 (recipeMissing
-                  ? "That goal isn’t in the learning catalog yet — pick Front End or Marketing."
+                  ? "That goal isn’t in the learning catalog yet — pick a role with a learning path, or add one in admin."
                   : "Try again from home.")}
             </span>
           </p>

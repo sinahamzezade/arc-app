@@ -24,14 +24,14 @@ All accounts view synchronized server data.
 
 ## 2. League Tiers
 
-| Tier | Entry gate |
-|---|---|
-| Bronze | all eligible users |
-| Silver | rank level ≥ 3 |
-| Gold | rank level ≥ 4 |
-| Platinum | rank level ≥ 6 |
-| Diamond | rank level ≥ 8 |
-| Master | rank level ≥ 10 and at least 12 weekly seals |
+| Tier     | Entry gate                                   |
+| -------- | -------------------------------------------- |
+| Bronze   | all eligible users                           |
+| Silver   | rank level ≥ 3                               |
+| Gold     | rank level ≥ 4                               |
+| Platinum | rank level ≥ 6                               |
+| Diamond  | rank level ≥ 8                               |
+| Master   | rank level ≥ 10 and at least 12 weekly seals |
 
 Each tier may use divisions III, II, I. Promotion normally moves one division; crossing division I moves to the next tier.
 
@@ -218,13 +218,13 @@ If Redis fails, API falls back to PostgreSQL.
 
 ## 10. API
 
-| Method | Path |
-|---|---|
-| `GET` | `/leagues/current` |
-| `GET` | `/leagues/current/leaderboard?cursor=` |
-| `GET` | `/leagues/current/me` |
-| `GET` | `/leagues/history?cursor=` |
-| `GET` | `/leagues/users/:userId` | privacy filtered |
+| Method | Path                                   |
+| ------ | -------------------------------------- | ---------------- |
+| `GET`  | `/leagues/current`                     |
+| `GET`  | `/leagues/current/leaderboard?cursor=` |
+| `GET`  | `/leagues/current/me`                  |
+| `GET`  | `/leagues/history?cursor=`             |
+| `GET`  | `/leagues/users/:userId`               | privacy filtered |
 
 Response includes:
 
@@ -263,14 +263,14 @@ Late score events are assigned only if their authoritative completion time is be
 
 Example:
 
-| Result | Reward |
-|---|---|
-| 1st | 500 Coins + 25 Gems |
-| 2nd | 350 Coins + 15 Gems |
-| 3rd | 250 Coins + 10 Gems |
-| Promoted | 100 Coins |
-| Stayed active | 25 Coins |
-| Master top 3 | cosmetic/profile reward |
+| Result        | Reward                  |
+| ------------- | ----------------------- |
+| 1st           | 500 Coins + 25 Gems     |
+| 2nd           | 350 Coins + 15 Gems     |
+| 3rd           | 250 Coins + 10 Gems     |
+| Promoted      | 100 Coins               |
+| Stayed active | 25 Coins                |
+| Master top 3  | cosmetic/profile reward |
 
 Rewards do not count as League XP.
 
@@ -361,19 +361,19 @@ Rules:
 
 ## Implementation map (arc-backend + arc-app)
 
-| Doc area | Code |
-|----------|------|
-| Module | `arc-backend/src/leagues/` |
-| Tiers / gates / promo math | `league-tiers.ts`, `league-promotion.ts` |
-| Season bounds (Mon 04:00 regional) | `league-season-bounds.ts` |
-| Score ingest + velocity hold | `league-score.service.ts` ← gamification outbox |
-| Live projection | `league-live-scores.service.ts` — Redis if `REDIS_URL`, else memory |
-| Finalize + rewards + Master cosmetic | `league-finalize.service.ts` |
-| Privacy / blocks / admin exclude | `leagues.service.ts` + `SocialPermissionService` |
-| APIs | `LeaguesController` — current, leaderboard, me, history, users, privacy |
-| FE board | `useCurrentLeague` (20s poll), `LeaderboardScreen` |
-| FE home card | `useHomeLeagueCard` → `HomeExtras` |
-| FE history / privacy | Past tab; Settings hide-league toggle |
-| FE notifs | `map-notification.ts` league_* icons |
+| Doc area                             | Code                                                                    |
+| ------------------------------------ | ----------------------------------------------------------------------- |
+| Module                               | `arc-backend/src/leagues/`                                              |
+| Tiers / gates / promo math           | `league-tiers.ts`, `league-promotion.ts`                                |
+| Season bounds (Mon 04:00 regional)   | `league-season-bounds.ts`                                               |
+| Score ingest + velocity hold         | `league-score.service.ts` ← gamification outbox                         |
+| Live projection                      | `league-live-scores.service.ts` — Redis if `REDIS_URL`, else memory     |
+| Finalize + rewards + Master cosmetic | `league-finalize.service.ts`                                            |
+| Privacy / blocks / admin exclude     | `leagues.service.ts` + `SocialPermissionService`                        |
+| APIs                                 | `LeaguesController` — current, leaderboard, me, history, users, privacy |
+| FE board                             | `useCurrentLeague` (20s poll), `LeaderboardScreen`                      |
+| FE home card                         | `useHomeLeagueCard` → `HomeExtras`                                      |
+| FE history / privacy                 | Past tab; Settings hide-league toggle                                   |
+| FE notifs                            | `map-notification.ts` league\_\* icons                                  |
 
 **Still thin:** true WS/SSE clients (Redis pub ready), bot/test account flag (admin only), analytics bus, minors privacy path, Bull finalize job (admin HTTP trigger exists).

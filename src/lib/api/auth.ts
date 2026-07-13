@@ -70,6 +70,17 @@ export const authApi = {
     return apiFetch<{ ok: boolean }>("/auth/reset-password", { body });
   },
 
+  changePassword(body: {
+    currentPassword: string;
+    password: string;
+    confirmPassword: string;
+  }) {
+    return apiFetch<{ ok: boolean; passwordLastChangedAt: string }>(
+      "/auth/change-password",
+      { body },
+    );
+  },
+
   google(idToken: string) {
     return apiFetch<AuthSessionResponse>("/auth/google", {
       body: { idToken },

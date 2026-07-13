@@ -1,6 +1,12 @@
 import type { QuestionnaireSchema } from "@/lib/api/types";
 import { getOptionLabel } from "@/lib/questionnaire/steps";
-import type { QuestionnaireAnswers } from "@/schemas/questionnaire";
+import {
+  asOptionalString,
+  asSchedule,
+  asString,
+  asStringArray,
+  type QuestionnaireAnswers,
+} from "@/schemas/questionnaire";
 
 function formatList(
   schema: QuestionnaireSchema | null,
@@ -18,91 +24,56 @@ export function formatAnswerValue(
   key: string,
   answers: QuestionnaireAnswers,
 ): string {
-  const scheduleStep = schema?.steps.find((s) => s.id === "schedule");
+  const step = schema?.steps.find((s) => s.id === key);
+  const other = asOptionalString(answers, `${key}Other`);
 
-  switch (key) {
-    case "goal":
-      return formatList(schema, answers.goal, "goal");
-    case "motivation":
-      return formatList(
-        schema,
-        answers.motivation,
-        "motivation",
-        answers.motivationOther,
-      );
-    case "currentJob":
-      return answers.currentJob === "other" && answers.currentJobOther
-        ? answers.currentJobOther
-        : getOptionLabel(schema, "currentJob", answers.currentJob);
-    case "skills":
-      return formatList(schema, answers.skills, "skills", answers.skillsOther);
-    case "studyHours":
-      return getOptionLabel(schema, "studyHours", answers.studyHours);
-    case "schedule": {
-      const days = answers.schedule.days.join(", ");
-      const times = answers.schedule.times
-        .map(
-          (t) =>
-            scheduleStep?.scheduleTimes?.find((s) => s.value === t)?.label ?? t,
-        )
-        .join(", ");
-      return [days, times].filter(Boolean).join(", ");
-    }
-    case "deadline":
-      return getOptionLabel(schema, "deadline", answers.deadline);
-    case "learningStyle":
-      return formatList(
-        schema,
-        answers.learningStyle,
-        "learningStyle",
-        answers.learningStyleOther,
-      );
-    case "confidence":
-      return getOptionLabel(schema, "confidence", answers.confidence);
-    case "quitReasons":
-      return formatList(
-        schema,
-        answers.quitReasons,
-        "quitReasons",
-        answers.quitReasonsOther,
-      );
-    default:
-      return "";
+  if (step?.uiKind === "schedule" || isScheduleShape(answers[key])) {
+    const schedule = asSchedule(answers, key);
+    const days = schedule.days.join(", ");
+    const times = schedule.times
+      .map(
+        (t) =>
+          step?.scheduleTimes?.find((s) => s.value === t)?.label ?? t,
+      )
+      .join(", ");
+    return [days, times].filter(Boolean).join(" · ");
   }
+
+  if (step?.selection === "multi" || Array.isArray(answers[key])) {
+    return formatList(schema, asStringArray(answers, key), key, other);
+  }
+
+  const value = asString(answers, key);
+  if (value === "other" && other) return other;
+  if (!value && other) return other;
+  return value ? getOptionLabel(schema, key, value) : other ?? "";
+}
+
+function isScheduleShape(value: unknown): boolean {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    Array.isArray((value as { days?: unknown }).days) &&
+    Array.isArray((value as { times?: unknown }).times)
+  );
 }
 
 export function isStepComplete(
   key: string,
   answers: QuestionnaireAnswers,
+  schema?: QuestionnaireSchema | null,
 ): boolean {
-  switch (key) {
-    case "goal":
-      return answers.goal.length > 0;
-    case "motivation":
-      return answers.motivation.length > 0;
-    case "currentJob":
-      return Boolean(answers.currentJob);
-    case "skills":
-      return answers.skills.length > 0;
-    case "studyHours":
-      return Boolean(answers.studyHours);
-    case "schedule":
-      return (
-        answers.schedule.days.length > 0 && answers.schedule.times.length > 0
-      );
-    case "deadline":
-      return Boolean(answers.deadline);
-    case "learningStyle":
-      return answers.learningStyle.length > 0;
-    case "confidence":
-      return Boolean(answers.confidence);
-    case "quitReasons":
-      return answers.quitReasons.length > 0;
-    default: {
-      const value = answers[key as keyof QuestionnaireAnswers];
-      if (Array.isArray(value)) return value.length > 0;
-      if (typeof value === "string") return Boolean(value);
-      return false;
-    }
+  const step = schema?.steps.find((s) => s.id === key);
+  const other = asOptionalString(answers, `${key}Other`);
+
+  if (step?.uiKind === "schedule" || isScheduleShape(answers[key])) {
+    const schedule = asSchedule(answers, key);
+    return schedule.days.length > 0 && schedule.times.length > 0;
   }
+
+  if (step?.selection === "multi" || Array.isArray(answers[key])) {
+    return asStringArray(answers, key).length > 0 || Boolean(other);
+  }
+
+  return Boolean(asString(answers, key) || other);
 }

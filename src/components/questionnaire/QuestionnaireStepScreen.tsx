@@ -23,9 +23,18 @@ import {
   type QuestionnaireStepConfig,
 } from "@/lib/questionnaire/steps";
 import type { QuestionnaireAnswers } from "@/schemas/questionnaire";
+import {
+  asOptionalString,
+  asSchedule,
+  asString,
+  asStringArray,
+} from "@/schemas/questionnaire";
 import { useQuestionnaireStore } from "@/store/useQuestionnaireStore";
 import { QuestionnaireLayout } from "./QuestionnaireLayout";
 import { QuestionnaireOptionCard } from "./QuestionnaireOptionCard";
+import { QuestionnaireStepSkeleton } from "./QuestionnaireStepSkeleton";
+
+const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 type QuestionnaireStepScreenProps = {
   stepNumber: number;
@@ -82,11 +91,7 @@ export default function QuestionnaireStepScreen({
   ]);
 
   if (hydrating && !step) {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-[#f3effc] text-[13px] font-bold text-[#7a6fa3]">
-        Loading questions…
-      </div>
-    );
+    return <QuestionnaireStepSkeleton />;
   }
 
   if (!step) {
@@ -112,7 +117,7 @@ export default function QuestionnaireStepScreen({
     );
   }
 
-  const canProceed = isStepComplete(step.id, answers);
+  const canProceed = isStepComplete(step.id, answers, schema);
   const nextVisible = getAdjacentVisibleStep(
     schema,
     answers,
@@ -207,54 +212,114 @@ function StandardStep({
   answers: QuestionnaireAnswers;
   setAnswers: (patch: Partial<QuestionnaireAnswers>) => void;
 }) {
-  const otherKey = `${step.id}Other` as keyof QuestionnaireAnswers;
-  const otherValue = (answers[otherKey] as string | undefined) ?? "";
+  const [query, setQuery] = useState("");
+  const otherKey = `${step.id}Other`;
+  const otherValue = asOptionalString(answers, otherKey) ?? "";
+  const isGoalStep = step.id === "goal";
 
   const selectedValues = useMemo(() => {
-    const value = answers[step.id as keyof QuestionnaireAnswers];
-    if (step.selection === "multi" && Array.isArray(value)) return value;
-    if (step.selection === "single" && typeof value === "string" && value)
-      return [value];
-    return [];
+    if (step.selection === "multi") return asStringArray(answers, step.id);
+    const value = asString(answers, step.id);
+    return value ? [value] : [];
   }, [answers, step.id, step.selection]);
+
+  const filteredOptions = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q || !isGoalStep) return step.options;
+    return step.options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(q) ||
+        o.value.toLowerCase().includes(q),
+    );
+  }, [isGoalStep, query, step.options]);
 
   const toggle = (optionValue: string) => {
     if (step.selection === "single") {
-      setAnswers({ [step.id]: optionValue } as Partial<QuestionnaireAnswers>);
+      setAnswers({ [step.id]: optionValue });
       return;
     }
 
-    const current =
-      (answers[step.id as keyof QuestionnaireAnswers] as string[]) ?? [];
+    const current = asStringArray(answers, step.id);
     const next = current.includes(optionValue)
       ? current.filter((v) => v !== optionValue)
       : [...current, optionValue];
-    setAnswers({ [step.id]: next } as Partial<QuestionnaireAnswers>);
+    setAnswers({ [step.id]: next });
   };
 
   const showIcons = step.options.some((o) => o.icon && o.iconClassName);
 
   return (
-    <div className="space-y-2.5">
-      {step.options.map((option) => (
-        <QuestionnaireOptionCard
-          key={option.value}
-          option={option}
-          selected={selectedValues.includes(option.value)}
-          onToggle={() => toggle(option.value)}
-          showIcon={showIcons}
-        />
-      ))}
+    <motion.div
+      className="space-y-2.5"
+      initial="hidden"
+      animate="show"
+      variants={{
+        hidden: {},
+        show: { transition: { staggerChildren: 0.045 } },
+      }}
+    >
+      {isGoalStep && step.options.length > 4 ? (
+        <motion.div
+          variants={{
+            hidden: { opacity: 0, y: 8 },
+            show: { opacity: 1, y: 0, transition: softSpring },
+          }}
+          className="mb-1"
+        >
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search roles…"
+            className="h-11 w-full rounded-[14px] border-2 border-[#ebe4f6] bg-white px-3.5 text-[13px] font-semibold text-[#0f1220] placeholder:text-[#c3badb] shadow-[0_3px_0_#ebe4f6] focus:border-arc-purple-500 focus:outline-none"
+            aria-label="Search roles"
+          />
+        </motion.div>
+      ) : null}
+
+      {filteredOptions.length === 0 ? (
+        <p className="rounded-[16px] border-2 border-dashed border-[#ebe4f6] bg-white/70 px-4 py-6 text-center text-[13px] font-semibold text-[#7a6fa3]">
+          No roles match — try another search or add your own below.
+        </p>
+      ) : (
+        filteredOptions.map((option) => (
+          <motion.div
+            key={option.value}
+            variants={{
+              hidden: { opacity: 0, y: 10 },
+              show: { opacity: 1, y: 0, transition: softSpring },
+            }}
+          >
+            <QuestionnaireOptionCard
+              option={option}
+              selected={selectedValues.includes(option.value)}
+              onToggle={() => toggle(option.value)}
+              showIcon={showIcons}
+            />
+          </motion.div>
+        ))
+      )}
 
       {step.allowOther ? (
-        <OtherField
-          value={otherValue}
-          onChange={(text) =>
-            setAnswers({ [otherKey]: text } as Partial<QuestionnaireAnswers>)
-          }
-        />
+        <motion.div
+          variants={{
+            hidden: { opacity: 0, y: 10 },
+            show: { opacity: 1, y: 0, transition: softSpring },
+          }}
+        >
+          <OtherField
+            value={otherValue}
+            onChange={(text) => setAnswers({ [otherKey]: text })}
+            label={isGoalStep ? "Something else" : "Other"}
+            placeholder={
+              isGoalStep
+                ? "Type a role that isn’t listed…"
+                : "Write your answer..."
+            }
+          />
+        </motion.div>
       ) : null}
-    </div>
+    </motion.div>
   );
 }
 
@@ -267,20 +332,21 @@ function ScheduleStep({
   answers: QuestionnaireAnswers;
   setAnswers: (patch: Partial<QuestionnaireAnswers>) => void;
 }) {
-  const { days, times } = answers.schedule;
+  const schedule = asSchedule(answers, step.id);
+  const { days, times } = schedule;
 
   const toggleDay = (day: string) => {
     const next = days.includes(day)
       ? days.filter((d) => d !== day)
       : [...days, day];
-    setAnswers({ schedule: { ...answers.schedule, days: next } });
+    setAnswers({ [step.id]: { ...schedule, days: next } });
   };
 
   const toggleTime = (time: string) => {
     const next = times.includes(time)
       ? times.filter((t) => t !== time)
       : [...times, time];
-    setAnswers({ schedule: { ...answers.schedule, times: next } });
+    setAnswers({ [step.id]: { ...schedule, times: next } });
   };
 
   return (
@@ -333,20 +399,24 @@ function ScheduleStep({
 function OtherField({
   value,
   onChange,
+  label = "Other",
+  placeholder = "Write your answer...",
 }: {
   value: string;
   onChange: (value: string) => void;
+  label?: string;
+  placeholder?: string;
 }) {
   return (
     <div className="rounded-[16px] border-2 border-[#ebe4f6] bg-white p-4 shadow-[0_3px_0_#ebe4f6]">
       <p className="mb-2 text-[10px] font-black tracking-[0.1em] text-[#b3a8d6] uppercase">
-        Other
+        {label}
       </p>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Write your answer..."
+        placeholder={placeholder}
         className="h-12 w-full rounded-[12px] border-2 border-[#ebe4f6] bg-[#f3effc] px-3.5 text-[14px] font-bold text-[#0f1220] placeholder:text-[#c3badb] focus:border-arc-purple-500 focus:outline-none"
       />
     </div>

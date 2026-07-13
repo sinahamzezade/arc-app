@@ -16,7 +16,7 @@ function fieldValues(
   answers: QuestionnaireAnswers,
   field: string,
 ): string[] {
-  const value = answers[field as keyof QuestionnaireAnswers];
+  const value = answers[field];
   if (Array.isArray(value)) {
     return value.filter((item): item is string => typeof item === "string");
   }
@@ -27,7 +27,14 @@ function fieldValues(
     "days" in value &&
     "times" in value
   ) {
-    return [...value.days, ...value.times];
+    const schedule = value as { days: unknown; times: unknown };
+    const days = Array.isArray(schedule.days)
+      ? schedule.days.filter((d): d is string => typeof d === "string")
+      : [];
+    const times = Array.isArray(schedule.times)
+      ? schedule.times.filter((t): t is string => typeof t === "string")
+      : [];
+    return [...days, ...times];
   }
   return [];
 }

@@ -20,6 +20,10 @@ export function messageForCode(code: string, fallback: string): string {
       return "Email or password is incorrect";
     case "PASSWORD_TOO_WEAK":
       return "Password needs 8+ characters, a number, and a special character";
+    case "PASSWORD_NOT_SET":
+      return "This account has no password — sign in with social instead";
+    case "CURRENT_PASSWORD_INVALID":
+      return "Current password is incorrect";
     case "OTP_INVALID":
       return "That code is incorrect";
     case "OTP_EXPIRED":
@@ -44,11 +48,22 @@ export function messageForCode(code: string, fallback: string): string {
       return "No questionnaire found";
     case "ROADMAP_GENERATION_FAILED":
       return "Could not start roadmap generation";
+    case "ROADMAP_ROLE_NOT_FOUND":
+      return "No learning recipe for that goal yet — pick a catalog role with a path, then redraw";
+    case "ROADMAP_GRAPH_INVALID":
+      return "Skill prerequisites form a loop — content needs a fix";
+    case "ROADMAP_PREREQUISITE_FAILED":
+    case "ROADMAP_CONTENT_NOT_FOUND":
+      return "Some required learning content is missing";
+    case "ROADMAP_DEADLINE_UNREALISTIC":
+      return "That deadline is too tight for the required skills";
+    case "ROADMAP_REPLAN_CONFLICT":
+      return "A roadmap update is already in progress — try again shortly";
     case "GOAL_NOT_FOUND":
       return "Goal not found";
     case "ROLE_RECIPE_MISSING":
     case "CONTENT_ROLE_RECIPE_MISSING":
-      return "No learning recipe for that goal yet — pick Front End or Marketing, then redraw";
+      return "No learning recipe for that goal yet — pick a catalog role with a path, then redraw";
     case "CATALOG_EMPTY":
       return "Skill catalog is empty for this path";
     case "CONTENT_VERSION_NOT_PUBLISHED":

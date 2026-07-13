@@ -36,10 +36,10 @@ export default function QuestionnaireIntroScreen() {
 
   const resumeStep =
     hydrated &&
-    steps.find((step) => !isStepComplete(step.id, answers))?.stepNumber;
+    steps.find((step) => !isStepComplete(step.id, answers, schema))?.stepNumber;
 
   const hasProgress =
-    hydrated && steps.some((step) => isStepComplete(step.id, answers));
+    hydrated && steps.some((step) => isStepComplete(step.id, answers, schema));
 
   const ctaLabel = hasProgress ? "Continue intake" : "Start intake";
   const ctaPath = resumeStep

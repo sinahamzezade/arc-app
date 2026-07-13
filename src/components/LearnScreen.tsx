@@ -46,8 +46,7 @@ export default function LearnScreen() {
   );
 
   const firstUnit = data.nodes.find((n) => n.unit === 1 && n.kind === "lesson");
-  const unitTitle =
-    data.rank.title || firstUnit?.title || "Foundations";
+  const unitTitle = data.rank.title || firstUnit?.title || "Foundations";
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -163,7 +162,7 @@ export default function LearnScreen() {
               {unitTitle}
             </h2>
           </div>
-          <span className="rounded-full bg-[#0f1220] px-2.5 py-1 text-[10px] font-black tracking-wide text-[#ffc928] uppercase">
+          <span className="whitespace-nowrap rounded-full bg-[#0f1220] px-2.5 py-1 text-[10px] font-black tracking-wide text-[#ffc928] uppercase">
             {unitLessons.filter((n) => n.status === "current").length} live
           </span>
         </div>
@@ -174,9 +173,7 @@ export default function LearnScreen() {
               key={node.id}
               node={node}
               index={i + 1}
-              href={
-                node.status === "current" ? `/learn/${node.id}` : undefined
-              }
+              href={node.status === "current" ? `/learn/${node.id}` : undefined}
               minutes={
                 node.status === "current" ? data.upNext.minutes : undefined
               }

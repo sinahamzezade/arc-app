@@ -17,12 +17,12 @@ Backend owns **all question copy, options, selection rules, branching, and revie
 
 ## 0. Place in the four-engine system
 
-| Engine | This doc? | Role |
-| --- | --- | --- |
-| **Question Engine** | **Yes** | Adaptive questions + branching → validated answer tokens → `goals` |
-| Skill Graph Engine | No (03) | Domain content DAG (skills / lessons / assessments) |
-| Roadmap Generator | No (03) | One-shot plan from `goals` + skill graph |
-| AI Coach | No (03) | Ongoing roadmap updates from progress |
+| Engine              | This doc? | Role                                                               |
+| ------------------- | --------- | ------------------------------------------------------------------ |
+| **Question Engine** | **Yes**   | Adaptive questions + branching → validated answer tokens → `goals` |
+| Skill Graph Engine  | No (03)   | Domain content DAG (skills / lessons / assessments)                |
+| Roadmap Generator   | No (03)   | One-shot plan from `goals` + skill graph                           |
+| AI Coach            | No (03)   | Ongoing roadmap updates from progress                              |
 
 **Hard boundary:** Question Engine does **not** know React vs Marketing curricula. It only emits tokens (`front-end-developer`, `html-css`, `5-8`, …). Roadmap Generator + Skill Graph turn those into a path. Adding SEO / DevOps / AI domains = new question options (optional) + skill-graph content — **not** new questionnaire business logic.
 
@@ -95,11 +95,11 @@ Prerequisite: user authenticated (`JwtAuthGuard`) on all questionnaire routes in
 
 Profile flags:
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `questionnaire_status` | `enum` | `not_started` \| `in_progress` \| `completed` |
-| `questionnaire_completed_at` | `timestamptz` nullable | |
-| `onboarding_completed_at` | `timestamptz` nullable | |
+| Column                       | Type                   | Notes                                         |
+| ---------------------------- | ---------------------- | --------------------------------------------- |
+| `questionnaire_status`       | `enum`                 | `not_started` \| `in_progress` \| `completed` |
+| `questionnaire_completed_at` | `timestamptz` nullable |                                               |
+| `onboarding_completed_at`    | `timestamptz` nullable |                                               |
 
 Exposed on `GET /me` profile payload.
 
@@ -109,11 +109,11 @@ Exposed on `GET /me` profile payload.
 
 ### 4.1 Question catalog (source of truth)
 
-| Table | Purpose |
-| --- | --- |
-| `questionnaire_definitions` | Versioned schema (`version`, `is_active`) |
-| `questionnaire_steps` | Steps: `field_key`, `step_number`, title/subtitle, `selection`, `allow_other`, `ui_kind`, review labels, schedule jsonb, **`visible_when`** |
-| `questionnaire_options` | Choice rows per step: `value`, `label`, `icon`, `icon_class_name`, `sort_order` |
+| Table                       | Purpose                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `questionnaire_definitions` | Versioned schema (`version`, `is_active`)                                                                                                   |
+| `questionnaire_steps`       | Steps: `field_key`, `step_number`, title/subtitle, `selection`, `allow_other`, `ui_kind`, review labels, schedule jsonb, **`visible_when`** |
+| `questionnaire_options`     | Choice rows per step: `value`, `label`, `icon`, `icon_class_name`, `sort_order`                                                             |
 
 On boot, `QuestionnaireSchemaService` seeds v1 from `schema/seed-data.ts` if missing, then caches active definition for `GET /questionnaire/schema` + answer validation.
 
@@ -123,9 +123,9 @@ Adaptive path = **data**, not frontend if/else.
 
 ```ts
 type StepVisibleWhen = {
-  field: string;                 // prior step id, e.g. "goal"
+  field: string; // prior step id, e.g. "goal"
   op: "eq" | "neq" | "includes" | "excludes";
-  value: string | string[];      // token(s) from that step's options
+  value: string | string[]; // token(s) from that step's options
 };
 ```
 
@@ -150,16 +150,16 @@ Example (future domain skills — not required in v1 seed):
 
 ### 4.3 `questionnaire_responses`
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | `uuid` PK | |
-| `user_id` | `uuid` unique FK | One active row per user (MVP) |
-| `status` | `enum` | `draft` \| `submitted` |
-| `answers` | `jsonb` | Validated against active definition |
-| `schema_version` | `int` | Definition version at save |
-| `goal_id` | `uuid` nullable FK → `goals.id` | |
-| `submitted_at` | `timestamptz` nullable | |
-| `created_at` / `updated_at` | `timestamptz` | |
+| Column                      | Type                            | Notes                               |
+| --------------------------- | ------------------------------- | ----------------------------------- |
+| `id`                        | `uuid` PK                       |                                     |
+| `user_id`                   | `uuid` unique FK                | One active row per user (MVP)       |
+| `status`                    | `enum`                          | `draft` \| `submitted`              |
+| `answers`                   | `jsonb`                         | Validated against active definition |
+| `schema_version`            | `int`                           | Definition version at save          |
+| `goal_id`                   | `uuid` nullable FK → `goals.id` |                                     |
+| `submitted_at`              | `timestamptz` nullable          |                                     |
+| `created_at` / `updated_at` | `timestamptz`                   |                                     |
 
 ### 4.4 `goals`
 
@@ -220,20 +220,20 @@ Optional per step: `"visibleWhen": { "field": "goal", "op": "includes", "value":
 
 ### 5.2 Step fields
 
-| Field | Meaning |
-| --- | --- |
-| `id` | Answer key (`goal`, `motivation`, …) |
-| `stepNumber` | Route `/questionnaire/{n}` |
-| `selection` | `single` \| `multi` |
-| `allowOther` | Show free-text `*Other` field |
-| `uiKind` | `options` (choice cards) \| `schedule` (days + times) |
-| `visibleWhen` | Optional branch rule(s); omit = always show |
-| `reviewLabel` / `reviewIcon` | Review screen row |
-| `options[].value` | Stored answer token (validated server-side) |
-| `options[].label` | Display copy |
-| `options[].icon` | Icon key for frontend Lucide map (optional) |
-| `options[].iconClassName` | Tailwind classes for icon chip (optional) |
-| `scheduleDays` / `scheduleTimes` | Only when `uiKind === "schedule"` |
+| Field                            | Meaning                                               |
+| -------------------------------- | ----------------------------------------------------- |
+| `id`                             | Answer key (`goal`, `motivation`, …)                  |
+| `stepNumber`                     | Route `/questionnaire/{n}`                            |
+| `selection`                      | `single` \| `multi`                                   |
+| `allowOther`                     | Show free-text `*Other` field                         |
+| `uiKind`                         | `options` (choice cards) \| `schedule` (days + times) |
+| `visibleWhen`                    | Optional branch rule(s); omit = always show           |
+| `reviewLabel` / `reviewIcon`     | Review screen row                                     |
+| `options[].value`                | Stored answer token (validated server-side)           |
+| `options[].label`                | Display copy                                          |
+| `options[].icon`                 | Icon key for frontend Lucide map (optional)           |
+| `options[].iconClassName`        | Tailwind classes for icon chip (optional)             |
+| `scheduleDays` / `scheduleTimes` | Only when `uiKind === "schedule"`                     |
 
 ### 5.3 Frontend rules
 
@@ -292,13 +292,13 @@ Errors: `{ statusCode, code, message }`.
 
 ### 6.1 Error codes
 
-| Code | When |
-| --- | --- |
-| `VALIDATION_ERROR` | Bad / incomplete body, unknown enum |
-| `QUESTIONNAIRE_NOT_FOUND` | Reserved |
-| `QUESTIONNAIRE_ALREADY_SUBMITTED` | Draft update after submit |
-| `UNAUTHORIZED` | Missing/invalid JWT |
-| `QUESTIONNAIRE_VERSION_CONFLICT` | Stale draft/submission version |
+| Code                                | When                                |
+| ----------------------------------- | ----------------------------------- |
+| `VALIDATION_ERROR`                  | Bad / incomplete body, unknown enum |
+| `QUESTIONNAIRE_NOT_FOUND`           | Reserved                            |
+| `QUESTIONNAIRE_ALREADY_SUBMITTED`   | Draft update after submit           |
+| `UNAUTHORIZED`                      | Missing/invalid JWT                 |
+| `QUESTIONNAIRE_VERSION_CONFLICT`    | Stale draft/submission version      |
 | `ROADMAP_GENERATION_ALREADY_QUEUED` | Existing job for same goal revision |
 
 ### 6.2 `GET /questionnaire/schema`
@@ -326,7 +326,11 @@ Current user response (or empty `not_started`).
 Upsert draft. Soft-validate against schema (strip unknown; allow incomplete).
 
 ```json
-{ "answers": { /* partial or full */ } }
+{
+  "answers": {
+    /* partial or full */
+  }
+}
 ```
 
 Sets profile `questionnaire_status = in_progress` if was `not_started`.  
@@ -335,7 +339,11 @@ Does **not** create goals / roadmap.
 ### 6.5 `POST /questionnaire/submit`
 
 ```json
-{ "answers": { /* complete QuestionnaireAnswers */ } }
+{
+  "answers": {
+    /* complete QuestionnaireAnswers */
+  }
+}
 ```
 
 Transaction:
@@ -370,19 +378,19 @@ Idempotent for the same `Idempotency-Key` and answer hash: return the existing s
 
 ## 7. Mapping answers → `goals`
 
-| Questionnaire field | Goal column |
-| --- | --- |
-| `goal` | `target_roles` |
-| `motivation` + other | `motivation` jsonb |
-| `currentJob` (+ other) | `current_profession` / `current_profession_other` |
-| `skills` + other | `skills` jsonb |
-| `studyHours` | `weekly_hours` |
-| `schedule` | `availability` |
-| `deadline` | `target_deadline` |
-| `learningStyle` + other | `learning_styles` |
-| `confidence` | `confidence` |
-| `quitReasons` + other | `quit_reasons` |
-| full object | `raw_answers` |
+| Questionnaire field     | Goal column                                       |
+| ----------------------- | ------------------------------------------------- |
+| `goal`                  | `target_roles`                                    |
+| `motivation` + other    | `motivation` jsonb                                |
+| `currentJob` (+ other)  | `current_profession` / `current_profession_other` |
+| `skills` + other        | `skills` jsonb                                    |
+| `studyHours`            | `weekly_hours`                                    |
+| `schedule`              | `availability`                                    |
+| `deadline`              | `target_deadline`                                 |
+| `learningStyle` + other | `learning_styles`                                 |
+| `confidence`            | `confidence`                                      |
+| `quitReasons` + other   | `quit_reasons`                                    |
+| full object             | `raw_answers`                                     |
 
 Roadmap Generator reads **`goals`**, not questionnaire UI rows (except audit via `raw_answers` / `schema_version`).
 
@@ -390,12 +398,12 @@ Roadmap Generator reads **`goals`**, not questionnaire UI rows (except audit via
 
 ## 8. Frontend screen map
 
-| UI | Route | Backend |
-| --- | --- | --- |
-| Intro | `/questionnaire` | `GET /schema` + `GET /` |
-| Steps | `/questionnaire/[n]` | Schema-driven UI + branching; `PUT` on Next |
-| Review | `/questionnaire/review` | Visible steps only; `POST /submit` |
-| Bootstrap | Splash / login / middleware | `GET /me` + `profile.questionnaireStatus` |
+| UI        | Route                       | Backend                                     |
+| --------- | --------------------------- | ------------------------------------------- |
+| Intro     | `/questionnaire`            | `GET /schema` + `GET /`                     |
+| Steps     | `/questionnaire/[n]`        | Schema-driven UI + branching; `PUT` on Next |
+| Review    | `/questionnaire/review`     | Visible steps only; `POST /submit`          |
+| Bootstrap | Splash / login / middleware | `GET /me` + `profile.questionnaireStatus`   |
 
 Client helpers:
 

@@ -3,6 +3,8 @@ export type AuthUser = {
   email: string;
   emailVerified: boolean;
   createdAt?: string;
+  hasPassword?: boolean;
+  passwordLastChangedAt?: string | null;
 };
 
 export type QuestionnaireStatus = "not_started" | "in_progress" | "completed";
@@ -26,26 +28,7 @@ export type Profile = {
   onboardingCompletedAt?: string | null;
 };
 
-export type QuestionnaireAnswersPayload = {
-  goal: string[];
-  motivation: string[];
-  motivationOther?: string;
-  currentJob: string;
-  currentJobOther?: string;
-  skills: string[];
-  skillsOther?: string;
-  studyHours: string;
-  schedule: {
-    days: string[];
-    times: string[];
-  };
-  deadline: string;
-  learningStyle: string[];
-  learningStyleOther?: string;
-  confidence: string;
-  quitReasons: string[];
-  quitReasonsOther?: string;
-};
+export type QuestionnaireAnswersPayload = Record<string, unknown>;
 
 export type QuestionnaireResponse = {
   id: string | null;
