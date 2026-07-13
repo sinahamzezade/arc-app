@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Bell, Coins, Gem, Zap } from "lucide-react";
+import { Bell, Coins, Gem, UserPlus, Zap } from "lucide-react";
 import { Skeleton } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ type HomeHeaderProps = {
   xp: number;
   gems: number;
   notificationCount: number;
+  friendRequestCount?: number;
   loading?: boolean;
 };
 
@@ -34,6 +35,7 @@ export function HomeHeader({
   xp,
   gems,
   notificationCount,
+  friendRequestCount = 0,
   loading = false,
 }: HomeHeaderProps) {
   return (
@@ -78,22 +80,41 @@ export function HomeHeader({
         )}
       </div>
 
-      <Link
-        href="/notifications"
-        aria-label={
-          notificationCount > 0
-            ? `Notifications, ${notificationCount} unread`
-            : "Notifications"
-        }
-        className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
-      >
-        <Bell className="h-4 w-4" strokeWidth={2.25} />
-        {notificationCount > 0 ? (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-arc-orange-400 px-[3px] text-[9px] font-extrabold text-white">
-            {notificationCount > 99 ? "99+" : notificationCount}
-          </span>
-        ) : null}
-      </Link>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Link
+          href="/friends?tab=requests"
+          aria-label={
+            friendRequestCount > 0
+              ? `Friend requests, ${friendRequestCount} pending`
+              : "Friend requests"
+          }
+          className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+        >
+          <UserPlus className="h-4 w-4" strokeWidth={2.25} />
+          {friendRequestCount > 0 ? (
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-arc-orange-400 px-[3px] text-[9px] font-extrabold text-white">
+              {friendRequestCount > 99 ? "99+" : friendRequestCount}
+            </span>
+          ) : null}
+        </Link>
+
+        <Link
+          href="/notifications"
+          aria-label={
+            notificationCount > 0
+              ? `Notifications, ${notificationCount} unread`
+              : "Notifications"
+          }
+          className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+        >
+          <Bell className="h-4 w-4" strokeWidth={2.25} />
+          {notificationCount > 0 ? (
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-arc-orange-400 px-[3px] text-[9px] font-extrabold text-white">
+              {notificationCount > 99 ? "99+" : notificationCount}
+            </span>
+          ) : null}
+        </Link>
+      </div>
     </div>
   );
 }

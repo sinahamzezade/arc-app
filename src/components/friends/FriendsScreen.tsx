@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { BackButton } from "@/components/BackButton";
 import { Copy, Gift, Search, Swords, UserPlus, Users } from "lucide-react";
@@ -10,6 +11,7 @@ import {
   referralStatusLabel,
   type ReferralMeResponse,
 } from "@/lib/api/referrals";
+import { toPublicReferralUrl } from "@/lib/referrals/public-url";
 import {
   socialApi,
   type FriendRequestDto,
@@ -27,7 +29,11 @@ const filters = ["Crew", "Following", "Requests"] as const;
  * Battle rail → /battle/create?opponent=<uuid> (friends-only).
  */
 export default function FriendsScreen() {
-  const [filter, setFilter] = useState<(typeof filters)[number]>("Crew");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab");
+  const [filter, setFilter] = useState<(typeof filters)[number]>(
+    initialTab === "requests" ? "Requests" : "Crew",
+  );
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState(false);
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
@@ -115,7 +121,9 @@ export default function FriendsScreen() {
     f.name.toLowerCase().includes(query.toLowerCase()),
   );
 
-  const referralUrl = referral?.defaultUrl ?? "Loading link…";
+  const referralUrl = referral?.defaultUrl
+    ? toPublicReferralUrl(referral.defaultUrl)
+    : "Loading link…";
   const inviterCoins =
     referral?.rewardPreview.perQualifiedFriend.coins ?? 300;
   const friendCoins = referral?.rewardPreview.friendGets.coins ?? 150;
@@ -134,14 +142,15 @@ export default function FriendsScreen() {
           campaign: "friends_hub",
         });
         linkId = created.linkId;
+        const shareUrl = toPublicReferralUrl(created.url);
         if (typeof navigator !== "undefined" && navigator.share) {
           await navigator.share({
             title: created.share.title,
             text: created.share.text,
-            url: created.url,
+            url: shareUrl,
           });
         } else {
-          await navigator.clipboard.writeText(created.url);
+          await navigator.clipboard.writeText(shareUrl);
         }
         if (linkId) {
           void referralsApi.shareEvent(linkId, {
@@ -154,7 +163,9 @@ export default function FriendsScreen() {
           });
         }
       } catch {
-        await navigator.clipboard.writeText(referral.defaultUrl);
+        await navigator.clipboard.writeText(
+          toPublicReferralUrl(referral.defaultUrl),
+        );
       }
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);

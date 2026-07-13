@@ -24,6 +24,7 @@ import { HomeWeekLockVault } from "@/components/home/HomeWeekLockVault";
 import { useCourseTiming } from "@/hooks/useCourseTiming";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { useCurrentWeek } from "@/hooks/useCurrentWeek";
+import { useIncomingFriendRequestCount } from "@/hooks/useIncomingFriendRequestCount";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { paceMeta } from "@/lib/course-timing/format";
 import { useEconomyStore } from "@/store/useEconomyStore";
@@ -45,6 +46,7 @@ export default function HomeScreen({
   const { week, isLoading: weekLoading } = useCurrentWeek();
   const { timing } = useCourseTiming();
   const { data: unreadCount } = useUnreadNotificationCount();
+  const { data: friendRequestCount } = useIncomingFriendRequestCount();
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
@@ -133,6 +135,7 @@ export default function HomeScreen({
             xp={data.stats.xp}
             gems={data.stats.gems}
             notificationCount={data.notificationCount}
+            friendRequestCount={friendRequestCount ?? 0}
             loading={sessionStatus === "authenticated" && !economyHydrated}
           />
           <HomePortraitStage
