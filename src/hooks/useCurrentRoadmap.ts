@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { roadmapsApi } from "@/lib/api/roadmaps";
 
@@ -9,6 +10,7 @@ export function useCurrentRoadmap() {
   const accessToken = session?.accessToken;
   const queryClient = useQueryClient();
   const queryKey = ["roadmaps", "current", accessToken ?? "anon"] as const;
+  const qStatus = session?.profile?.questionnaireStatus;
 
   const query = useQuery({
     queryKey,
@@ -21,6 +23,16 @@ export function useCurrentRoadmap() {
       return false;
     },
   });
+
+  // Admin questionnaire reset clears path — drop stale roadmap cache once.
+  const prevQStatusRef = useRef(qStatus);
+  useEffect(() => {
+    const prev = prevQStatusRef.current;
+    prevQStatusRef.current = qStatus;
+    if (prev === "completed" && qStatus !== "completed") {
+      void queryClient.invalidateQueries({ queryKey: ["roadmaps", "current"] });
+    }
+  }, [qStatus, queryClient]);
 
   const retry = useMutation({
     mutationFn: () => roadmapsApi.retry(accessToken),

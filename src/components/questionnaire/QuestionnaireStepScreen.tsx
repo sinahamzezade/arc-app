@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,6 @@ import type { QuestionnaireAnswers } from "@/schemas/questionnaire";
 import {
   asOptionalString,
   asSchedule,
-  asString,
   asStringArray,
 } from "@/schemas/questionnaire";
 import { useQuestionnaireStore } from "@/store/useQuestionnaireStore";
@@ -44,6 +43,9 @@ export default function QuestionnaireStepScreen({
   stepNumber,
 }: QuestionnaireStepScreenProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const changeGoal = searchParams.get("change") === "1";
+  const changeQ = changeGoal ? "?change=1" : "";
   const { data: session } = useSession();
   const { answers, setAnswers, schema } = useQuestionnaireStore();
   const { loading: hydrating, error: hydrateError } = useHydrateQuestionnaire();
@@ -72,11 +74,11 @@ export default function QuestionnaireStepScreen({
       const next = getAdjacentVisibleStep(schema, answers, stepNumber, "next");
       const prev = getAdjacentVisibleStep(schema, answers, stepNumber, "prev");
       if (next !== null) {
-        router.replace(`/questionnaire/${next}`);
+        router.replace(`/questionnaire/${next}${changeQ}`);
       } else if (prev !== null) {
-        router.replace(`/questionnaire/${prev}`);
+        router.replace(`/questionnaire/${prev}${changeQ}`);
       } else {
-        router.replace("/questionnaire/review");
+        router.replace(`/questionnaire/review${changeQ}`);
       }
     }
   }, [
@@ -88,6 +90,7 @@ export default function QuestionnaireStepScreen({
     router,
     hydrating,
     hydrateError,
+    changeQ,
   ]);
 
   if (hydrating && !step) {
@@ -132,12 +135,12 @@ export default function QuestionnaireStepScreen({
   );
   const nextPath =
     nextVisible === null
-      ? "/questionnaire/review"
-      : `/questionnaire/${nextVisible}`;
+      ? `/questionnaire/review${changeQ}`
+      : `/questionnaire/${nextVisible}${changeQ}`;
 
   const handleBack = () => {
     if (prevVisible === null) router.push("/questionnaire");
-    else router.push(`/questionnaire/${prevVisible}`);
+    else router.push(`/questionnaire/${prevVisible}${changeQ}`);
   };
 
   const handleNext = async () => {
@@ -164,9 +167,18 @@ export default function QuestionnaireStepScreen({
       totalSteps={progressTotal}
       onBack={handleBack}
       title={step.title}
-      subtitle={step.subtitle}
+      subtitle={
+        changeGoal && step.id === "goal"
+          ? "Pick a catalog role that has a learning path, then rebuild."
+          : step.subtitle
+      }
       footer={
         <div className="space-y-2">
+          {changeGoal ? (
+            <p className="text-center text-[11px] font-bold text-arc-purple-500">
+              Change goal · save through to rebuild path
+            </p>
+          ) : null}
           {saveError ? (
             <p className="text-center text-[12px] font-bold text-red-500">
               {saveError}
@@ -218,10 +230,9 @@ function StandardStep({
   const isGoalStep = step.id === "goal";
 
   const selectedValues = useMemo(() => {
-    if (step.selection === "multi") return asStringArray(answers, step.id);
-    const value = asString(answers, step.id);
-    return value ? [value] : [];
-  }, [answers, step.id, step.selection]);
+    // Coerce string|array so UI stays checked after hydrate.
+    return asStringArray(answers, step.id);
+  }, [answers, step.id]);
 
   const filteredOptions = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -234,7 +245,9 @@ function StandardStep({
   }, [isGoalStep, query, step.options]);
 
   const toggle = (optionValue: string) => {
-    if (step.selection === "single") {
+    // Goal step always stores string[] — backend upsert + recipes expect arrays.
+    // (Schema may say single after AI rewrite; UI still multi-toggle.)
+    if (step.selection === "single" && !isGoalStep) {
       setAnswers({ [step.id]: optionValue });
       return;
     }
@@ -242,7 +255,9 @@ function StandardStep({
     const current = asStringArray(answers, step.id);
     const next = current.includes(optionValue)
       ? current.filter((v) => v !== optionValue)
-      : [...current, optionValue];
+      : step.selection === "single"
+        ? [optionValue]
+        : [...current, optionValue];
     setAnswers({ [step.id]: next });
   };
 

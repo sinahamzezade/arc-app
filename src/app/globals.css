@@ -8,3 +8,19 @@
 .checkbox__content {
   @apply items-center justify-center;
 }
+
+/**
+ * iOS Safari auto-zooms focused fields when font-size < 16px.
+ * Keep controls ≥16px on touch devices even if utility classes set smaller.
+ */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="file"]
+    ):not([type="button"]):not([type="submit"]):not([type="reset"]):not(
+      [type="image"]
+    ):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

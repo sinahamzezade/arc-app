@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { BackButton } from "@/components/BackButton";
 import { Pencil } from "lucide-react";
 import { motion } from "motion/react";
@@ -23,6 +24,7 @@ import { QuestionnaireReviewSkeleton } from "./QuestionnaireReviewSkeleton";
 export default function QuestionnaireReviewScreen() {
   const router = useRouter();
   const { data: session, update } = useSession();
+  const queryClient = useQueryClient();
   const { answers, schema } = useQuestionnaireStore();
   const { loading, error: hydrateError } = useHydrateQuestionnaire();
   const [submitting, setSubmitting] = useState(false);
@@ -30,6 +32,8 @@ export default function QuestionnaireReviewScreen() {
   const reviewItems = getReviewItems(schema, answers);
   const visibleLast =
     reviewItems[reviewItems.length - 1]?.stepNumber ?? schema?.totalSteps ?? 10;
+  const isRebuild =
+    session?.profile?.questionnaireStatus === "completed";
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -54,6 +58,7 @@ export default function QuestionnaireReviewScreen() {
           });
         }
       }
+      await queryClient.invalidateQueries({ queryKey: ["roadmaps"] });
       // Prefer path so user sees Roadmap Generator result (polls while queued)
       if (result.roadmap?.jobId) {
         router.push(`/path`);
@@ -177,7 +182,11 @@ export default function QuestionnaireReviewScreen() {
                 void handleSubmit();
               }}
             >
-              {submitting ? "Building…" : "Looks good — build roadmap"}
+              {submitting
+                ? "Building…"
+                : isRebuild
+                  ? "Looks good — rebuild path"
+                  : "Looks good — build roadmap"}
             </Button>
           </motion.div>
           <button

@@ -275,7 +275,7 @@ export default function PathGateScreen({
               {recipeMissing ? (
                 <motion.div whileTap={{ scale: 0.98 }}>
                   <Link
-                    href="/questionnaire"
+                    href="/questionnaire/1?change=1"
                     className={`${authCtaClassName} inline-flex items-center justify-center gap-2 !bg-white !text-[#0f1220] border border-[#d9d0f0]`}
                   >
                     <ClipboardList className="size-5" aria-hidden />
@@ -291,7 +291,7 @@ export default function PathGateScreen({
             <>
               <motion.div whileTap={{ scale: 0.98 }}>
                 <Link
-                  href="/questionnaire"
+                  href="/questionnaire/1?change=1"
                   className={`${authCtaClassName} inline-flex items-center justify-center gap-2`}
                 >
                   <ClipboardList className="size-5" aria-hidden />

@@ -279,6 +279,7 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
           </LessonPrimaryButton>
           <button
             type="button"
+            onClick={() => router.push("/home")}
             className="w-full py-3 text-center font-display text-[14px] font-semibold text-white/50"
           >
             Go Home

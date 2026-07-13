@@ -7,11 +7,13 @@ import {
   ArrowRight,
   Check,
   Clock,
+  Coins,
   Columns2,
   Compass,
   Flag,
   Link2,
   Lock,
+  MapPin,
   Palette,
   Tag,
   TrendingUp,
@@ -21,7 +23,7 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import PathGateScreen from "@/components/path/PathGateScreen";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
-import { messageForCode } from "@/lib/api/errors";
+import { ApiError, messageForCode } from "@/lib/api/errors";
 import { mapRoadmapToPathData } from "@/lib/path/map-roadmap";
 import {
   pathMockData,
@@ -30,6 +32,7 @@ import {
   type PathNode,
 } from "@/lib/path/mock-data";
 import { cn } from "@/lib/utils";
+import { useEconomyStore } from "@/store/useEconomyStore";
 
 const iconMap: Record<PathIconName, LucideIcon> = {
   flag: Flag,
@@ -273,9 +276,11 @@ export default function PathScreen({
         onRetry={() => retry.mutate()}
         retryError={
           retry.isError
-            ? retry.error instanceof Error
-              ? retry.error.message
-              : "Redraw failed"
+            ? retry.error instanceof ApiError
+              ? messageForCode(retry.error.code, retry.error.message)
+              : retry.error instanceof Error
+                ? retry.error.message
+                : "Redraw failed"
             : undefined
         }
       />
@@ -304,6 +309,7 @@ export default function PathScreen({
 
 function RoadMap({ data }: { data: PathMockData }) {
   const reduceMotion = useReducedMotion();
+  const coins = useEconomyStore((s) => s.coins);
   const progress =
     data.lessonsTotal > 0
       ? Math.round((data.lessonsDone / data.lessonsTotal) * 100)
@@ -336,7 +342,7 @@ function RoadMap({ data }: { data: PathMockData }) {
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
-      <RouteHero data={data} progress={progress} />
+      <RouteHero data={data} progress={progress} coins={coins} />
 
       {/* The atlas sheet */}
       <div
@@ -403,134 +409,150 @@ function RoadMap({ data }: { data: PathMockData }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Hero — night navigation header with route summary                   */
+/* Hero — night dispatch sheet: title + wallet + one route strip       */
 /* ------------------------------------------------------------------ */
 
 function RouteHero({
   data,
   progress,
+  coins,
 }: {
   data: PathMockData;
   progress: number;
+  coins: number;
 }) {
   const reduceMotion = useReducedMotion();
+  const pct = Math.min(Math.max(progress, 0), 100);
+  const markerLeft = `max(14px, calc(${Math.max(pct, 4)}% - 10px))`;
 
   return (
-    <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+16px)] pb-14 text-white">
+    <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-16 text-white">
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-16 -right-10 h-56 w-56 rounded-full bg-arc-purple-500/35 blur-3xl"
+        className="pointer-events-none absolute -top-20 right-[-48px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute top-24 -left-16 h-40 w-40 rounded-full bg-[#ffc928]/18 blur-3xl"
+        className="pointer-events-none absolute top-28 -left-20 h-44 w-44 rounded-full bg-[#ffc928]/14 blur-3xl"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-40"
+        className="pointer-events-none absolute inset-0 opacity-35"
         style={{
           backgroundImage:
-            "radial-gradient(1.5px 1.5px at 12% 28%, #fff, transparent), radial-gradient(1px 1px at 78% 18%, #fff, transparent), radial-gradient(1.5px 1.5px at 62% 52%, #fff, transparent), radial-gradient(1px 1px at 30% 70%, #fff, transparent)",
+            "radial-gradient(1.5px 1.5px at 14% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1.5px at 48% 58%, #fff, transparent), radial-gradient(1px 1px at 28% 78%, #fff, transparent)",
         }}
       />
 
-      {/* Off-axis watermark — route sheet mark */}
       <motion.p
         aria-hidden
-        className="pointer-events-none absolute -right-2 top-8 select-none font-display text-[92px] leading-none font-bold tracking-[-0.08em] text-white/[0.06]"
-        initial={reduceMotion ? false : { opacity: 0, rotate: 6 }}
-        animate={{ opacity: 1, rotate: 10 }}
+        className="pointer-events-none absolute -right-3 top-10 select-none font-display text-[100px] leading-none font-bold tracking-[-0.08em] text-white/[0.05]"
+        initial={reduceMotion ? false : { opacity: 0, rotate: 4 }}
+        animate={{ opacity: 1, rotate: 8 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       >
         ROUTE
       </motion.p>
 
       <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={softSpring}
         className="relative"
       >
-        <div className="grid grid-cols-12 items-start gap-2">
-          <div className="col-span-8 min-w-0">
-            <p className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
-              <Compass className="h-3.5 w-3.5" strokeWidth={2.5} />
-              Career road map
-            </p>
-            <h1 className="mt-2 font-display text-[36px] leading-[0.92] font-bold tracking-[-0.045em]">
-              Your Path
-            </h1>
-            <p className="mt-2 max-w-[14rem] text-[13px] font-bold text-white/55">
-              {data.trackTitle}
-            </p>
-          </div>
-
-          <div className="col-span-4 flex flex-col items-end gap-2">
-            <div className="rotate-[6deg] rounded-md border-2 border-[#ffc928]/55 bg-[#ffc928]/12 px-2 py-1 text-right">
-              <p className="font-display text-[16px] leading-none font-bold text-[#ffc928]">
-                {Math.max(progress, 0)}%
-              </p>
-              <p className="mt-0.5 text-[9px] font-black tracking-[0.1em] text-[#ffc928]/80 uppercase">
-                paved
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/15 bg-white/10 px-2.5 py-2 text-right backdrop-blur-sm">
-              <p className="font-display text-[16px] leading-none font-bold">
-                {data.lessonsDone}/{data.lessonsTotal}
-              </p>
-              <p className="mt-1 text-[9px] font-bold text-white/50">stops</p>
-            </div>
-          </div>
+        {/* Top rail — stamp + wallet */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-[0.16em] text-[#ffc928] uppercase">
+            <Compass className="h-3.5 w-3.5" strokeWidth={2.5} />
+            Career road map
+          </p>
+          <motion.div whileTap={{ scale: 0.94 }} transition={snappySpring}>
+            <Link
+              href="/wallet"
+              aria-label={`${coins.toLocaleString()} coins — open wallet`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#ffc928]/30 bg-[#ffc928]/12 py-1.5 pr-3 pl-1.5"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ffc928] text-[#0f1220] shadow-[0_2px_0_#c79a2e]">
+                <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
+              </span>
+              <span className="font-display text-[15px] leading-none font-bold tracking-[-0.02em] tabular-nums">
+                {coins.toLocaleString()}
+              </span>
+            </Link>
+          </motion.div>
         </div>
 
-        {/* Mini route line: origin → you → finish */}
-        <div className="mt-6">
-          <div className="mb-2 flex items-center justify-between text-[11px] font-extrabold">
-            <span className="text-white/50">Route paved</span>
-            <span className="text-white/70">{data.rank.title}</span>
+        {/* Title block — one job */}
+        <h1 className="mt-5 font-display text-[40px] leading-[0.9] font-bold tracking-[-0.05em]">
+          Your Path
+        </h1>
+        <p className="mt-2.5 max-w-[18rem] text-[13px] leading-snug font-bold text-white/50">
+          {data.trackTitle}
+        </p>
+
+        {/* Single strip — paved + stops + current unit live here */}
+        <div className="mt-7">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black tracking-[0.12em] text-white/35 uppercase">
+                Route paved
+              </p>
+              <p className="mt-1 font-display text-[28px] leading-none font-bold tracking-[-0.04em] text-[#ffc928]">
+                {pct}
+                <span className="ml-0.5 text-[16px] text-[#ffc928]/70">%</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black tracking-[0.12em] text-white/35 uppercase">
+                Stops
+              </p>
+              <p className="mt-1 font-display text-[22px] leading-none font-bold tracking-[-0.03em] tabular-nums">
+                {data.lessonsDone}
+                <span className="text-white/35">/{data.lessonsTotal}</span>
+              </p>
+            </div>
           </div>
-          <div className="relative h-6">
-            {/* dashed planned line */}
+
+          <div className="relative mt-4 h-8">
             <div
               aria-hidden
-              className="absolute top-1/2 right-5 left-2 h-[3px] -translate-y-1/2 rounded-full"
+              className="absolute top-1/2 right-6 left-3 h-[3px] -translate-y-1/2 rounded-full"
               style={{
                 backgroundImage:
-                  "repeating-linear-gradient(90deg, rgba(255,255,255,0.28) 0 7px, transparent 7px 15px)",
+                  "repeating-linear-gradient(90deg, rgba(255,255,255,0.22) 0 6px, transparent 6px 13px)",
               }}
             />
-            {/* paved line */}
             <motion.div
-              className="absolute top-1/2 left-2 h-[3px] -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,#6b4eff,#ffc928)]"
+              className="absolute top-1/2 left-3 h-[4px] -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,#6b4eff_0%,#ffc928_100%)]"
               initial={reduceMotion ? false : { width: 0 }}
               animate={{
-                width: `max(10px, calc(${Math.max(progress, 3)}% - 20px))`,
+                width: `max(12px, calc(${Math.max(pct, 4)}% - 28px))`,
               }}
-              transition={{ ...softSpring, delay: 0.2 }}
+              transition={{ ...softSpring, delay: 0.15 }}
             />
-            {/* origin dot */}
             <span
               aria-hidden
-              className="absolute top-1/2 left-0 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-white/70 bg-[#0f1220]"
+              className="absolute top-1/2 left-0 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white/60 bg-[#0f1220]"
             />
-            {/* position marker */}
             <motion.span
               aria-hidden
-              className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffc928] shadow-[0_0_0_4px_rgba(255,201,40,0.22)]"
-              initial={reduceMotion ? false : { left: "2%", opacity: 0 }}
-              animate={{
-                left: `max(12px, calc(${Math.max(progress, 3)}% - 14px))`,
-                opacity: 1,
-              }}
-              transition={{ ...softSpring, delay: 0.25 }}
-            />
-            {/* finish flag */}
+              className="absolute top-1/2 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-arc-purple-500 text-white ring-[3px] ring-white/90 shadow-[0_4px_12px_rgba(107,78,255,0.45)]"
+              initial={reduceMotion ? false : { left: "4%", opacity: 0 }}
+              animate={{ left: markerLeft, opacity: 1 }}
+              transition={{ ...softSpring, delay: 0.22 }}
+            >
+              <MapPin className="h-3.5 w-3.5" strokeWidth={2.75} />
+            </motion.span>
             <Flag
               aria-hidden
-              className="absolute top-1/2 right-0 h-4 w-4 -translate-y-1/2 text-white/70"
+              className="absolute top-1/2 right-0 h-4 w-4 -translate-y-1/2 text-white/55"
               strokeWidth={2.5}
             />
           </div>
+
+          <p className="mt-3 truncate text-[12px] font-bold text-white/45">
+            Now · {data.rank.title}
+          </p>
         </div>
       </motion.div>
     </header>

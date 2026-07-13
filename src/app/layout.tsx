@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -19,6 +19,15 @@ export const metadata: Metadata = {
   title: "Arc",
   description: "Arc is an AI personal coach for career transformation.",
   manifest: "/manifest.json",
+};
+
+/** Lock scale — iOS Safari otherwise zooms on <16px inputs. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

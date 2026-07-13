@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   emptyQuestionnaireAnswers,
@@ -26,7 +26,6 @@ function mergeAnswers(
       };
     }
   }
-  // Ensure schedule-shaped steps always have an object
   for (const step of schemaSteps ?? []) {
     if (step.uiKind === "schedule" && !isScheduleAnswer(merged[step.id])) {
       merged[step.id] = { days: [], times: [] };
@@ -40,11 +39,22 @@ export function useHydrateQuestionnaire() {
   const { data: session, status } = useSession();
   const hydrated = useQuestionnaireStore((s) => s.hydrated);
   const schema = useQuestionnaireStore((s) => s.schema);
-  const replaceAnswers = useQuestionnaireStore((s) => s.replaceAnswers);
-  const setSchema = useQuestionnaireStore((s) => s.setSchema);
-  const setHydrated = useQuestionnaireStore((s) => s.setHydrated);
+  const reset = useQuestionnaireStore((s) => s.reset);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const qStatus = session?.profile?.questionnaireStatus;
+  const prevQStatusRef = useRef<string | null | undefined>(undefined);
+  /** Prevents re-fetch storms when schema/hydrated flip mid-flight. */
+  const inFlightTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const prev = prevQStatusRef.current;
+    prevQStatusRef.current = qStatus;
+    if (prev === "completed" && qStatus !== "completed") {
+      inFlightTokenRef.current = null;
+      reset();
+    }
+  }, [qStatus, reset]);
 
   useEffect(() => {
     if (status === "loading") {
@@ -64,33 +74,40 @@ export function useHydrateQuestionnaire() {
       return;
     }
 
-    let cancelled = false;
     const token = session.accessToken;
+    if (inFlightTokenRef.current === token) {
+      return;
+    }
+    inFlightTokenRef.current = token;
+
+    let cancelled = false;
     setLoading(true);
     setError(null);
 
-    (async () => {
+    void (async () => {
       try {
         const [schemaRes, answersRes] = await Promise.all([
           questionnaireApi.getSchema(token),
           questionnaireApi.get(token),
         ]);
         if (cancelled) return;
-        setSchema(schemaRes);
-        if (answersRes.answers) {
-          replaceAnswers(mergeAnswers(answersRes.answers, schemaRes.steps));
-        } else {
-          replaceAnswers(emptyQuestionnaireAnswers(schemaRes.steps));
-        }
+        // Atomic write — avoids setSchema→re-render→re-fetch before hydrated.
+        useQuestionnaireStore.setState({
+          schema: schemaRes,
+          answers: answersRes.answers
+            ? mergeAnswers(answersRes.answers, schemaRes.steps)
+            : emptyQuestionnaireAnswers(schemaRes.steps),
+          hydrated: true,
+        });
         setError(null);
       } catch (err) {
         if (cancelled) return;
+        inFlightTokenRef.current = null;
         if (err instanceof ApiError) {
           setError(messageForCode(err.code, err.message));
         } else {
           setError("Could not load questionnaire");
         }
-        // Allow retry; do not fake hydrated without schema
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -99,15 +116,7 @@ export function useHydrateQuestionnaire() {
     return () => {
       cancelled = true;
     };
-  }, [
-    status,
-    session?.accessToken,
-    hydrated,
-    schema,
-    replaceAnswers,
-    setSchema,
-    setHydrated,
-  ]);
+  }, [status, session?.accessToken, hydrated, schema, qStatus]);
 
   return { loading, error, hydrated, schema, status };
 }

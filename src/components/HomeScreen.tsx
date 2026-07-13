@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Route } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSession } from "next-auth/react";
 import {
@@ -9,9 +12,11 @@ import {
   type HomeMockData,
 } from "@/lib/home/mock-data";
 import { mapHomeFromBackend } from "@/lib/home/map-home";
+import { isQuestionnaireComplete } from "@/lib/auth/post-auth-route";
 import { HomeExtras } from "@/components/home/HomeExtras";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { HomeMissionStage } from "@/components/home/HomeMissionStage";
+import { HomeQuestionnaireCta } from "@/components/home/HomeQuestionnaireCta";
 import { HomePaceStrip } from "@/components/home/HomePaceStrip";
 import { HomePortraitStage } from "@/components/home/HomePortraitStage";
 import { HomeSheetSkeleton } from "@/components/home/HomeSheetSkeleton";
@@ -26,13 +31,14 @@ import { useEconomyStore } from "@/store/useEconomyStore";
 /**
  * Home — night dispatch hero + light sheet.
  * Mission + week seal from `/roadmaps/current` + `/weeks/current`.
- * Pace / ETA from `/course-timing/current`.
+ * No live roadmap → never show mock Next Stop (admin reset / pre-path).
  */
 export default function HomeScreen({
   data: dataProp = homeMockData,
 }: {
   data?: HomeMockData;
 }) {
+  const router = useRouter();
   const reduceMotion = useReducedMotion();
   const { data: session, status: sessionStatus } = useSession();
   const { data: roadmapRes, isLoading: roadmapLoading } = useCurrentRoadmap();
@@ -43,6 +49,15 @@ export default function HomeScreen({
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
   const economyHydrated = useEconomyStore((s) => s.hydrated);
+
+  const qDone = isQuestionnaireComplete(session?.profile ?? null);
+  const liveRoadmap = roadmapRes?.roadmap ?? null;
+
+  useEffect(() => {
+    if (sessionStatus !== "authenticated") return;
+    if (qDone) return;
+    router.replace("/questionnaire");
+  }, [sessionStatus, qDone, router]);
 
   const sheetLoading =
     sessionStatus === "loading" ||
@@ -55,7 +70,7 @@ export default function HomeScreen({
     () =>
       mapHomeFromBackend({
         base: dataProp,
-        roadmap: roadmapRes?.roadmap ?? null,
+        roadmap: liveRoadmap,
         week: week ?? null,
         userName:
           session?.profile?.displayName ||
@@ -71,7 +86,7 @@ export default function HomeScreen({
       coins,
       dataProp,
       gems,
-      roadmapRes?.roadmap,
+      liveRoadmap,
       session?.profile?.displayName,
       session?.profile?.weeklyStreak,
       session?.user?.name,
@@ -82,9 +97,10 @@ export default function HomeScreen({
   );
 
   const greeting = useMemo(() => greetingForHour(new Date().getHours()), []);
-  const askArloHref = data.mission.href.startsWith("/learn/")
-    ? `${data.mission.href}/arlo`
-    : "/learn";
+  const askArloHref =
+    liveRoadmap && data.mission.href.startsWith("/learn/")
+      ? `${data.mission.href}/arlo`
+      : "/learn";
   const timingPace = timing ? paceMeta(timing.pace) : null;
   const estimateMinutes =
     timing?.nextSession?.minutes ??
@@ -142,19 +158,47 @@ export default function HomeScreen({
           <HomeSheetSkeleton />
         ) : (
           <>
-            <HomeMissionStage mission={data.mission} unit={unit} />
-            <HomeWeekLockVault
-              weeklyProgress={data.weeklyProgress}
-              weeklyStreak={data.weeklyStreak}
-              replanHref={week?.replanHref ?? "/week/plan"}
-              estimateMinutes={estimateMinutes}
-              sealed={week?.sealed}
-              sessionsLeft={week?.sessionsLeft}
-              targetWeek={week?.targetWeek}
-              paceLabel={timingPace?.label}
-              paceTone={timingPace?.tone}
-            />
-            <HomePaceStrip timing={timing} />
+            {liveRoadmap ? (
+              <HomeMissionStage mission={data.mission} unit={unit} />
+            ) : !qDone ? (
+              <HomeQuestionnaireCta />
+            ) : (
+              <section className="relative overflow-hidden rounded-[26px] bg-white p-4 shadow-[0_16px_32px_rgba(70,40,150,0.16)] ring-1 ring-[#ebe4f6]">
+                <p className="text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
+                  Path · Building
+                </p>
+                <h2 className="mt-1.5 font-display text-[22px] leading-[1.05] font-bold tracking-[-0.03em] text-[#1b1730]">
+                  Your trail is cooking
+                </h2>
+                <p className="mt-1.5 text-[13px] font-bold text-[#8a7cb8]">
+                  Open Path to watch generation or retry if it stalled.
+                </p>
+                <Link
+                  href="/path"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_6px_0_#4b2fd6]"
+                >
+                  <Route className="h-4 w-4" strokeWidth={2.5} />
+                  Open path
+                  <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
+                </Link>
+              </section>
+            )}
+            {liveRoadmap ? (
+              <>
+                <HomePaceStrip timing={timing} />
+                <HomeWeekLockVault
+                  weeklyProgress={data.weeklyProgress}
+                  weeklyStreak={data.weeklyStreak}
+                  replanHref={week?.replanHref ?? "/week/plan"}
+                  estimateMinutes={estimateMinutes}
+                  sealed={week?.sealed}
+                  sessionsLeft={week?.sessionsLeft}
+                  targetWeek={week?.targetWeek}
+                  paceLabel={timingPace?.label}
+                  paceTone={timingPace?.tone}
+                />
+              </>
+            ) : null}
             <HomeExtras
               stats={data.stats}
               dailyBonus={data.dailyBonus}

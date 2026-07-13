@@ -24,41 +24,58 @@ function hasRewards(
 function EconomyBridge() {
   const { data, status, update } = useSession();
   const fetchingRef = useRef(false);
+  const syncedTokenRef = useRef<string | null>(null);
+  const updateRef = useRef(update);
+  updateRef.current = update;
 
   useEffect(() => {
     if (status === "unauthenticated") {
       useEconomyStore.getState().reset();
       fetchingRef.current = false;
+      syncedTokenRef.current = null;
       return;
     }
 
-    if (status !== "authenticated") return;
+    if (status !== "authenticated" || !data?.accessToken) return;
 
-    const profile = data?.profile;
-    if (hasRewards(profile)) {
-      useEconomyStore.getState().hydrateFromProfile(profile!);
-      return;
-    }
+    let cancelled = false;
+    const token = data.accessToken;
 
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
+    const syncProfile = (force: boolean) => {
+      if (fetchingRef.current) return;
+      if (!force && syncedTokenRef.current === token) {
+        const profile = data.profile;
+        if (hasRewards(profile)) {
+          useEconomyStore.getState().hydrateFromProfile(profile!);
+        }
+        return;
+      }
 
-    void meApi
-      .get()
-      .then((res) => {
-        useEconomyStore.getState().hydrateFromProfile(res.profile);
-        void update({ profile: res.profile });
-      })
-      .catch(() => {
-        fetchingRef.current = false;
-      });
-  }, [
-    status,
-    data?.profile?.totalXp,
-    data?.profile?.gems,
-    data?.profile?.coins,
-    update,
-  ]);
+      fetchingRef.current = true;
+      void meApi
+        .get()
+        .then((res) => {
+          if (cancelled) return;
+          syncedTokenRef.current = token;
+          useEconomyStore.getState().hydrateFromProfile(res.profile);
+          void updateRef.current({ profile: res.profile });
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          fetchingRef.current = false;
+        });
+    };
+
+    syncProfile(false);
+
+    const onFocus = () => syncProfile(true);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+    };
+    // Only re-bind when auth token changes — not on every profile patch.
+  }, [status, data?.accessToken]);
 
   return null;
 }
