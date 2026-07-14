@@ -2,51 +2,39 @@ import type { BattleSetup } from "./types";
 
 /** Fallback chips when catalog API unavailable (dev / offline). */
 export const battleSubjects = [
-  "Web Foundations",
-  "HTML & CSS",
-  "JavaScript",
-  "React",
+  "SQL",
+  "Python",
+  "Excel",
+  "Data Analysis",
+  "Frontend",
 ] as const;
 
 export const battleTopics: Record<string, string[]> = {
-  "Web Foundations": [
-    "What Is the Web?",
-    "How Browsers Turn Code into Pixels",
-    "Your Developer Setup",
-  ],
-  "HTML & CSS": [
-    "Your First HTML Page",
-    "Text, Links, Images & Lists",
-    "CSS Basics: Selectors & the Cascade",
-  ],
-  JavaScript: [
-    "Variables, Types & Operators",
-    "Conditionals & Loops",
-    "Functions & Scope",
-  ],
-  React: [
-    "Why React & Thinking in Components",
-    "JSX & Props",
-    "State & Events",
-  ],
+  SQL: ["SELECT", "WHERE", "JOIN", "GROUP BY", "Aggregations"],
+  Python: ["Lists", "Dicts", "Pandas", "Loops"],
+  Excel: ["VLOOKUP", "Pivot", "Charts"],
+  "Data Analysis": ["Cleaning", "EDA", "Metrics"],
+  Frontend: ["HTML", "CSS", "JS Basics"],
 };
 
 export type BattleCatalogTopic = {
   slug: string;
   name: string;
   skillNodeId: string;
+  publishedCount?: number;
 };
 
 export type BattleCatalogSubject = {
   slug: string;
   name: string;
+  publishedCount?: number;
   topics: BattleCatalogTopic[];
 };
 
 export const defaultBattleSetup: BattleSetup = {
   opponentId: "",
-  subject: "javascript",
-  topic: "js-first-steps",
+  subject: "sql",
+  topic: "select",
   difficulty: "medium",
   questions: 5,
   seconds: 30,

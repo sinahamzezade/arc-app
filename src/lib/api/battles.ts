@@ -265,10 +265,12 @@ export const battlesApi = {
       subjects: Array<{
         slug: string;
         name: string;
+        publishedCount: number;
         topics: Array<{
           slug: string;
           name: string;
           skillNodeId: string;
+          publishedCount: number;
         }>;
       }>;
     }>("/battles/catalog", { accessToken });

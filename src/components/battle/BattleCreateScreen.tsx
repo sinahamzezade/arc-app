@@ -146,10 +146,12 @@ export default function BattleCreateScreen() {
       : battleSubjects.map((name) => ({
           slug: name.toLowerCase().replace(/\s+/g, "-").replace(/&/g, ""),
           name,
+          publishedCount: undefined,
           topics: (battleTopics[name] ?? []).map((t) => ({
             slug: t.toLowerCase().replace(/\s+/g, "-"),
             name: t,
             skillNodeId: "",
+            publishedCount: undefined,
           })),
         }));
   const activeSubject =
@@ -161,7 +163,9 @@ export default function BattleCreateScreen() {
     topics.find((t) => t.slug === setup.topic || t.name === setup.topic) ??
     topics[0];
   const effectiveStake = Math.min(setup.stake, maxStake);
-  const canStake = coins >= effectiveStake && effectiveStake > 0;
+  const hasArena = Boolean(activeSubject && topics.length > 0);
+  const canStake =
+    hasArena && coins >= effectiveStake && effectiveStake > 0;
   const pot = effectiveStake * 2;
   const opponentIsUuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -174,6 +178,10 @@ export default function BattleCreateScreen() {
 
   const challenge = async () => {
     if (!canStake || busy) return;
+    if (!hasArena) {
+      setError("Pick a subject with enough published questions.");
+      return;
+    }
     if (!opponentIsUuid) {
       setError("Pick a crew member to challenge.");
       return;
@@ -308,57 +316,122 @@ export default function BattleCreateScreen() {
       </section>
 
       <div className="relative -mt-6 px-4 pb-[calc(env(safe-area-inset-bottom)+110px)]">
-        {/* Subject strip */}
+        {/* Arena chips — wrap grid so every backed subject stays visible */}
         <div className="overflow-hidden rounded-[24px] border border-[#ebe4f6] bg-white shadow-[0_12px_28px_rgba(70,40,150,0.08)]">
-          <div className="border-b border-[#f0ecf7] px-4 py-3">
-            <p className="text-[10px] font-black tracking-[0.1em] text-[#8a7cb8] uppercase">
-              Subject
-            </p>
-            <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
-              {subjects.map((s) => (
-                <button
-                  key={s.slug}
-                  type="button"
-                  onClick={() =>
-                    setSetup({
-                      subject: s.slug,
-                      topic: s.topics[0]?.slug ?? "",
-                    })
-                  }
-                  className={cn(
-                    "shrink-0 rounded-xl px-3 py-2 font-display text-[13px] font-semibold",
-                    activeSubject?.slug === s.slug
-                      ? "bg-[#1b1433] text-white"
-                      : "bg-[#f6f2ff] text-[#8a7cb8]",
-                  )}
-                >
-                  {s.name}
-                </button>
-              ))}
+          <div className="relative border-b border-[#f0ecf7] px-4 py-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[10px] font-black tracking-[0.1em] text-[#8a7cb8] uppercase">
+                Subject
+              </p>
+              {activeSubject?.publishedCount ? (
+                <p className="font-display text-[11px] font-bold tabular-nums text-[#8a7cb8]">
+                  {activeSubject.publishedCount} in pool
+                </p>
+              ) : null}
             </div>
+            {subjects.length === 0 ? (
+              <p className="mt-3 text-[12px] font-bold text-[#8a7cb8]">
+                No battle-ready subjects yet. Pool needs published questions.
+              </p>
+            ) : (
+              <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+                {subjects.map((s, i) => {
+                  const active = activeSubject?.slug === s.slug;
+                  return (
+                    <button
+                      key={s.slug}
+                      type="button"
+                      onClick={() =>
+                        setSetup({
+                          subject: s.slug,
+                          topic: s.topics[0]?.slug ?? "",
+                        })
+                      }
+                      className={cn(
+                        "relative min-h-[52px] overflow-hidden rounded-2xl px-3 py-2.5 text-left transition-transform",
+                        active
+                          ? "bg-[#1b1433] text-white shadow-[0_4px_0_#0f0c1c]"
+                          : "bg-[#f6f2ff] text-[#5c4f8a]",
+                        i % 2 === 1 && !active && "translate-y-0.5",
+                      )}
+                    >
+                      {active ? (
+                        <span
+                          aria-hidden
+                          className="absolute top-0 bottom-0 left-0 w-1 bg-[#ffc928]"
+                        />
+                      ) : null}
+                      <span className="block font-display text-[13px] leading-tight font-semibold text-balance">
+                        {s.name}
+                      </span>
+                      {typeof s.publishedCount === "number" ? (
+                        <span
+                          className={cn(
+                            "mt-1 block text-[10px] font-extrabold tabular-nums tracking-wide uppercase",
+                            active ? "text-[#ffc928]/90" : "text-[#8a7cb8]",
+                          )}
+                        >
+                          {s.publishedCount} Qs
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="px-4 py-3">
-            <p className="text-[10px] font-black tracking-[0.1em] text-[#8a7cb8] uppercase">
-              Topic
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {topics.map((t) => (
-                <button
-                  key={t.slug}
-                  type="button"
-                  onClick={() => setSetup({ topic: t.slug })}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-[12px] font-extrabold",
-                    (activeTopic?.slug ?? setup.topic) === t.slug
-                      ? "bg-arc-purple-500 text-white"
-                      : "bg-[#f0ecf7] text-[#8a7cb8]",
-                  )}
-                >
-                  {t.name}
-                </button>
-              ))}
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[10px] font-black tracking-[0.1em] text-[#8a7cb8] uppercase">
+                Topic
+              </p>
+              {activeTopic &&
+              typeof activeTopic.publishedCount === "number" ? (
+                <p className="font-display text-[11px] font-bold tabular-nums text-[#8a7cb8]">
+                  {activeTopic.publishedCount} ready
+                </p>
+              ) : null}
             </div>
+            {topics.length === 0 ? (
+              <p className="mt-2 text-[12px] font-bold text-[#8a7cb8]">
+                No topics with enough published versions for this subject.
+              </p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {topics.map((t) => {
+                  const active =
+                    (activeTopic?.slug ?? setup.topic) === t.slug;
+                  return (
+                    <button
+                      key={t.slug || "all"}
+                      type="button"
+                      onClick={() => setSetup({ topic: t.slug })}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-extrabold",
+                        active
+                          ? "bg-arc-purple-500 text-white"
+                          : "bg-[#f0ecf7] text-[#8a7cb8]",
+                      )}
+                    >
+                      {t.name}
+                      {typeof t.publishedCount === "number" ? (
+                        <span
+                          className={cn(
+                            "rounded-md px-1 py-0.5 text-[9px] font-black tabular-nums",
+                            active
+                              ? "bg-white/20 text-white"
+                              : "bg-white text-[#8a7cb8]",
+                          )}
+                        >
+                          {t.publishedCount}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
