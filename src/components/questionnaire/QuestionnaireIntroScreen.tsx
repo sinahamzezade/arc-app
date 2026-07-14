@@ -21,7 +21,7 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Questionnaire intro — editorial mission brief.
- * Primary CTA opens chat intake; form kept as fallback if chat disabled.
+ * Primary CTA follows effectiveMode (form | chat). Chat option only when enabled.
  */
 export default function QuestionnaireIntroScreen() {
   const router = useRouter();
@@ -65,6 +65,14 @@ export default function QuestionnaireIntroScreen() {
     };
   }, [session?.accessToken]);
 
+  // Admin default=chat → go straight to chat (don't sit on form intro).
+  useEffect(() => {
+    if (!intake) return;
+    if (intake.chatEnabled && intake.effectiveMode === "chat") {
+      router.replace("/intake/chat");
+    }
+  }, [intake, router]);
+
   const resumeStep =
     hydrated &&
     steps.find((step) => !isStepComplete(step.id, answers, schema))?.stepNumber;
@@ -81,11 +89,14 @@ export default function QuestionnaireIntroScreen() {
 
   const pickMode = async (mode: "form" | "chat") => {
     if (modeBusy) return;
+    if (mode === "chat" && !intake?.chatEnabled) {
+      setModeError("Conversational intake is disabled");
+      return;
+    }
     if (mode === "form" && (loading || !schema)) return;
     setModeError(null);
     setModeBusy(true);
     try {
-      // Persist preference (soft); navigation should not wait on schema hydrate.
       await questionnaireApi.setIntakeMode(mode, session?.accessToken);
       if (mode === "chat") {
         router.push("/intake/chat");
@@ -93,11 +104,6 @@ export default function QuestionnaireIntroScreen() {
         router.push(formPath);
       }
     } catch (err) {
-      if (mode === "chat") {
-        // Prefer entering chat even if preference write fails (e.g. column lag).
-        router.push("/intake/chat");
-        return;
-      }
       if (err instanceof ApiError) {
         setModeError(messageForCode(err.code, err.message));
       } else {
@@ -109,6 +115,20 @@ export default function QuestionnaireIntroScreen() {
   };
 
   const chatEnabled = Boolean(intake?.chatEnabled);
+  const preferChat = chatEnabled && intake?.effectiveMode === "chat";
+  const preferForm = !preferChat;
+  const primaryLabel = preferChat
+    ? modeBusy
+      ? "Starting…"
+      : "Let's chart your path"
+    : loading
+      ? "Loading form…"
+      : hasProgress
+        ? formCtaLabel
+        : "Let's chart your path";
+  const primaryDisabled = preferChat
+    ? modeBusy
+    : loading || !schema || modeBusy;
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#f3effc] font-rounded">
@@ -145,7 +165,9 @@ export default function QuestionnaireIntroScreen() {
               your future
             </h1>
             <p className="mt-3 max-w-[16rem] text-[13px] leading-snug font-bold text-white/50">
-              Form steps or a short chat — both feed the same roadmap engine.
+              {chatEnabled
+                ? "Form steps or a short chat — both feed the same roadmap engine."
+                : "A short form feeds the roadmap engine — working adults, not homework."}
             </p>
           </div>
 
@@ -214,14 +236,20 @@ export default function QuestionnaireIntroScreen() {
                 transition={{ ...softSpring, delay: 0.05 }}
               >
                 <span className="relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]">
-                  <MessageCircle className="h-4 w-4" strokeWidth={2.5} />
+                  {chatEnabled ? (
+                    <MessageCircle className="h-4 w-4" strokeWidth={2.5} />
+                  ) : (
+                    <Pencil className="h-4 w-4" strokeWidth={2.5} />
+                  )}
                 </span>
                 <div className="min-w-0 pt-0.5">
                   <p className="font-display text-[20px] leading-none font-bold tracking-[-0.03em] text-[#0f1220]">
-                    Form or chat
+                    {chatEnabled ? "Form or chat" : "Form intake"}
                   </p>
                   <p className="mt-1.5 text-[13px] font-bold text-[#8a7cb8]">
-                    Same tokens, same roadmap — pick how you answer.
+                    {chatEnabled
+                      ? "Same tokens, same roadmap — pick how you answer."
+                      : "Answer a few fields — we build your path from there."}
                   </p>
                 </div>
               </motion.li>
@@ -263,13 +291,11 @@ export default function QuestionnaireIntroScreen() {
                 ? "Starting"
                 : error
                   ? "Error"
-                  : chatEnabled
-                    ? "Ready"
-                    : loading
-                      ? "Loading"
-                      : hasProgress
-                        ? "Resume"
-                        : "Ready"}
+                  : loading
+                    ? "Loading"
+                    : hasProgress
+                      ? "Resume"
+                      : "Ready"}
             </span>
           </div>
           {(error && error !== "Sign in to continue") || modeError ? (
@@ -277,29 +303,16 @@ export default function QuestionnaireIntroScreen() {
               {modeError || error}
             </p>
           ) : null}
-          {chatEnabled ? (
-            <motion.div whileTap={{ scale: 0.98 }}>
-              <Button
-                type="button"
-                className={authCtaClassName}
-                isDisabled={modeBusy}
-                onPress={() => void pickMode("chat")}
-              >
-                {modeBusy ? "Starting…" : "Let's chart your path"}
-              </Button>
-            </motion.div>
-          ) : (
-            <motion.div whileTap={{ scale: 0.98 }}>
-              <Button
-                type="button"
-                className={authCtaClassName}
-                isDisabled={loading || !schema || modeBusy}
-                onPress={() => void pickMode("form")}
-              >
-                {loading ? "Loading form…" : formCtaLabel}
-              </Button>
-            </motion.div>
-          )}
+          <motion.div whileTap={{ scale: 0.98 }}>
+            <Button
+              type="button"
+              className={authCtaClassName}
+              isDisabled={primaryDisabled}
+              onPress={() => void pickMode(preferForm ? "form" : "chat")}
+            >
+              {primaryLabel}
+            </Button>
+          </motion.div>
         </div>
       </div>
     </div>

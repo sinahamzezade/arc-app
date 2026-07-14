@@ -12,6 +12,7 @@ type QuestionnaireOptionCardProps = {
   showIcon?: boolean;
 };
 
+/** Option chips match IntakeChat suggestion chip style. */
 export function QuestionnaireOptionCard({
   option,
   selected,
@@ -27,10 +28,10 @@ export function QuestionnaireOptionCard({
       whileTap={{ scale: 0.985 }}
       transition={{ type: "spring", stiffness: 420, damping: 28 }}
       className={cn(
-        "flex w-full items-center gap-3 rounded-[16px] border-2 px-4 py-3.5 text-left shadow-[0_3px_0_#ebe4f6] transition-colors",
+        "flex w-full items-center gap-3 rounded-2xl border-2 px-3.5 py-3 text-left transition-colors",
         selected
-          ? "border-arc-purple-500 bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
-          : "border-[#ebe4f6] bg-white text-[#0f1220]",
+          ? "border-[#0f1220] bg-[#0f1220] text-[#ffc928] shadow-[0_3px_0_#05060c]"
+          : "border-[#0f1220]/12 bg-white text-[#0f1220] shadow-[0_3px_0_#ebe4f6] hover:border-[#0f1220]/35",
       )}
     >
       {showIcon && Icon ? (
@@ -38,7 +39,7 @@ export function QuestionnaireOptionCard({
           className={cn(
             "flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]",
             selected
-              ? "bg-white/15 text-white"
+              ? "bg-white/10 text-[#ffc928]"
               : (option.iconClassName ??
                 "bg-arc-purple-100 text-arc-purple-600"),
           )}
@@ -52,7 +53,7 @@ export function QuestionnaireOptionCard({
           className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]",
             selected
-              ? "bg-white/15 text-white"
+              ? "bg-white/10 text-[#ffc928]"
               : "bg-[#f3effc] text-arc-purple-500",
           )}
         >
@@ -60,20 +61,18 @@ export function QuestionnaireOptionCard({
         </span>
       ) : null}
 
-      <span className="flex-1 text-[14px] font-bold">{option.label}</span>
+      <span className="flex-1 text-[13px] font-bold">{option.label}</span>
 
       <span
         className={cn(
           "flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border-2 transition-colors",
           selected
-            ? "border-white bg-white text-arc-purple-500"
+            ? "border-[#ffc928] bg-[#ffc928] text-[#0f1220]"
             : "border-[#d8d0ea] bg-white",
         )}
         aria-hidden
       >
-        {selected ? (
-          <Check className="h-3 w-3" strokeWidth={3} />
-        ) : null}
+        {selected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
       </span>
     </motion.button>
   );

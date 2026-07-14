@@ -203,11 +203,7 @@ export default function QuestionnaireStepScreen({
       }
     >
       {step.uiKind === "schedule" ? (
-        <ScheduleStep
-          step={step}
-          answers={answers}
-          setAnswers={setAnswers}
-        />
+        <ScheduleStep step={step} answers={answers} setAnswers={setAnswers} />
       ) : (
         <StandardStep step={step} answers={answers} setAnswers={setAnswers} />
       )}
@@ -239,8 +235,7 @@ function StandardStep({
     if (!q || !isGoalStep) return step.options;
     return step.options.filter(
       (o) =>
-        o.label.toLowerCase().includes(q) ||
-        o.value.toLowerCase().includes(q),
+        o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
     );
   }, [isGoalStep, query, step.options]);
 

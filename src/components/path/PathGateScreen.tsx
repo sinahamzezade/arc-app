@@ -291,7 +291,7 @@ export default function PathGateScreen({
             <>
               <motion.div whileTap={{ scale: 0.98 }}>
                 <Link
-                  href="/intake/chat"
+                  href="/questionnaire"
                   className={`${authCtaClassName} inline-flex items-center justify-center gap-2`}
                 >
                   <ClipboardList className="size-5" aria-hidden />

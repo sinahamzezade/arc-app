@@ -80,6 +80,12 @@ export default function IntakeChatScreen() {
       setLoading(true);
       setError(null);
       try {
+        const cfg = await questionnaireApi.getIntakeConfig(session.accessToken);
+        if (cancelled) return;
+        if (!cfg.chatEnabled) {
+          router.replace("/questionnaire");
+          return;
+        }
         const state = await questionnaireApi.chatState(session.accessToken);
         if (cancelled) return;
         if (state.transcript.length === 0) {
@@ -94,7 +100,12 @@ export default function IntakeChatScreen() {
         if (cancelled) return;
         started.current = false;
         if (err instanceof ApiError) {
-          setError(messageForCode(err.code, err.message));
+          const msg = messageForCode(err.code, err.message);
+          if (/disabled|not enabled|conversational intake/i.test(msg)) {
+            router.replace("/questionnaire");
+            return;
+          }
+          setError(msg);
         } else {
           setError("Could not start chat intake");
         }
@@ -105,7 +116,7 @@ export default function IntakeChatScreen() {
     return () => {
       cancelled = true;
     };
-  }, [session?.accessToken]);
+  }, [session?.accessToken, router]);
 
   const sendSelection = async (selection: IntakeChatSelection) => {
     if (sending) return;
@@ -268,7 +279,8 @@ export default function IntakeChatScreen() {
     } catch {
       /* still navigate */
     }
-    router.push("/questionnaire");
+    // Skip intro — admin default may still be chat and would bounce back.
+    router.push("/questionnaire/1");
   };
 
   const filled =

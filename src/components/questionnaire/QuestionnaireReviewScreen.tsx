@@ -32,8 +32,7 @@ export default function QuestionnaireReviewScreen() {
   const reviewItems = getReviewItems(schema, answers);
   const visibleLast =
     reviewItems[reviewItems.length - 1]?.stepNumber ?? schema?.totalSteps ?? 10;
-  const isRebuild =
-    session?.profile?.questionnaireStatus === "completed";
+  const isRebuild = session?.profile?.questionnaireStatus === "completed";
 
   const handleSubmit = async () => {
     if (submitting) return;
