@@ -21,7 +21,7 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Questionnaire intro — editorial mission brief.
- * Form vs chat CTAs when conversational intake enabled.
+ * Primary CTA opens chat intake; form kept as fallback if chat disabled.
  */
 export default function QuestionnaireIntroScreen() {
   const router = useRouter();
@@ -248,8 +248,8 @@ export default function QuestionnaireIntroScreen() {
           </div>
 
           <p className="mt-8 max-w-[18rem] text-[12px] leading-relaxed font-bold text-[#b3a8d6]">
-            {totalSteps || "…"} fields in the schema. Working adults —
-            not a homework trap.
+            {totalSteps || "…"} fields in the schema. Working adults — not a
+            homework trap.
           </p>
         </div>
 
@@ -277,34 +277,29 @@ export default function QuestionnaireIntroScreen() {
               {modeError || error}
             </p>
           ) : null}
-          <div className="flex flex-col gap-2">
-            {chatEnabled ? (
-              <motion.div whileTap={{ scale: 0.98 }}>
-                <Button
-                  type="button"
-                  className={authCtaClassName}
-                  isDisabled={modeBusy}
-                  onPress={() => void pickMode("chat")}
-                >
-                  {modeBusy ? "Starting…" : "Chat intake"}
-                </Button>
-              </motion.div>
-            ) : null}
+          {chatEnabled ? (
             <motion.div whileTap={{ scale: 0.98 }}>
               <Button
                 type="button"
-                className={
-                  chatEnabled
-                    ? "h-12 w-full rounded-2xl border-2 border-[#0f1220] bg-white text-[15px] font-black text-[#0f1220]"
-                    : authCtaClassName
-                }
+                className={authCtaClassName}
+                isDisabled={modeBusy}
+                onPress={() => void pickMode("chat")}
+              >
+                {modeBusy ? "Starting…" : "Let's chart your path"}
+              </Button>
+            </motion.div>
+          ) : (
+            <motion.div whileTap={{ scale: 0.98 }}>
+              <Button
+                type="button"
+                className={authCtaClassName}
                 isDisabled={loading || !schema || modeBusy}
                 onPress={() => void pickMode("form")}
               >
                 {loading ? "Loading form…" : formCtaLabel}
               </Button>
             </motion.div>
-          </div>
+          )}
         </div>
       </div>
     </div>
