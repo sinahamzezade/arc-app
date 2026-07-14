@@ -10,8 +10,10 @@ const tapSpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 export type BackButtonTone = "dark" | "light";
 
 type BackButtonProps = {
-  /** Defaults to router.back() when omitted */
+  /** Defaults to router.back(), then fallbackHref if history is empty */
   onClick?: () => void;
+  /** Used when history can't go back (deep link / refresh) */
+  fallbackHref?: string;
   /** dark = frosted on navy heroes; light = white on lavender sheets */
   tone?: BackButtonTone;
   className?: string;
@@ -24,17 +26,30 @@ type BackButtonProps = {
  */
 export function BackButton({
   onClick,
+  fallbackHref = "/home",
   tone = "dark",
   className,
   "aria-label": ariaLabel = "Go back",
 }: BackButtonProps) {
   const router = useRouter();
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push(fallbackHref);
+  };
+
   return (
     <motion.button
       type="button"
       aria-label={ariaLabel}
-      onClick={onClick ?? (() => router.back())}
+      onClick={handleClick}
       whileTap={{ scale: 0.92 }}
       transition={tapSpring}
       className={cn(

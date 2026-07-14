@@ -2,7 +2,7 @@
 
 import { Check, ClipboardCheck } from "lucide-react";
 import { motion } from "motion/react";
-import type { LeagueQuest } from "@/lib/leaderboard/mock-data";
+import type { LeagueQuest } from "@/lib/leaderboard/types";
 import { cn } from "@/lib/utils";
 import { softSpring } from "./motion";
 

@@ -23,13 +23,15 @@ import {
   signInWithOAuth,
   signInWithPassword,
 } from "@/lib/auth/session";
-import { resolvePostAuthPath } from "@/lib/auth/post-auth-route";
+import { resolvePostAuthPathWithFlags } from "@/lib/auth/resolve-post-auth";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { assets } from "@/lib/assets";
 import { loginSchema, type LoginFormData } from "@/schemas/login";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { update } = useSession();
+  const { flags } = useSystemFlags();
   const [formError, setFormError] = useState<string | null>(null);
   const [oauthBusy, setOauthBusy] = useState(false);
 
@@ -44,10 +46,11 @@ export default function LoginScreen() {
 
   const afterSignIn = async () => {
     const session = await update();
-    const dest = resolvePostAuthPath({
+    const dest = await resolvePostAuthPathWithFlags({
       emailVerified: Boolean(session?.user?.emailVerified),
       email: session?.user?.email,
       profile: session?.profile,
+      accessToken: session?.accessToken,
     });
     router.push(dest);
   };
@@ -165,22 +168,26 @@ export default function LoginScreen() {
           </Button>
         </motion.div>
 
-        <div className="my-2 flex items-center gap-3">
-          <div className="h-px flex-1 bg-[#ebe4f6]" />
-          <span className="text-[11px] font-black tracking-wide text-[#b3a8d6] uppercase">
-            or
-          </span>
-          <div className="h-px flex-1 bg-[#ebe4f6]" />
-        </div>
+        {flags.sso_enabled ? (
+          <>
+            <div className="my-2 flex items-center gap-3">
+              <div className="h-px flex-1 bg-[#ebe4f6]" />
+              <span className="text-[11px] font-black tracking-wide text-[#b3a8d6] uppercase">
+                or
+              </span>
+              <div className="h-px flex-1 bg-[#ebe4f6]" />
+            </div>
 
-        <div className="flex gap-2.5">
-          <SocialButton label="Apple" onPress={onApple} disabled={oauthBusy}>
-            <AppleIcon />
-          </SocialButton>
-          <SocialButton label="Google" onPress={onGoogle} disabled={oauthBusy}>
-            <GoogleIcon />
-          </SocialButton>
-        </div>
+            <div className="flex gap-2.5">
+              <SocialButton label="Apple" onPress={onApple} disabled={oauthBusy}>
+                <AppleIcon />
+              </SocialButton>
+              <SocialButton label="Google" onPress={onGoogle} disabled={oauthBusy}>
+                <GoogleIcon />
+              </SocialButton>
+            </div>
+          </>
+        ) : null}
       </form>
     </AuthShell>
   );

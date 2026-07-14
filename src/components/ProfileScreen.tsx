@@ -27,11 +27,13 @@ import { useBattleStats } from "@/hooks/useBattles";
 import { useArcDay } from "@/hooks/useArcDay";
 import { useRankMe } from "@/hooks/useRanks";
 import {
-  profileMockData,
-  type ProfileMockData,
-} from "@/lib/profile/mock-data";
+  emptyProfileData,
+  type ProfileData,
+} from "@/lib/profile/types";
 import { cn } from "@/lib/utils";
 import { useEconomyStore } from "@/store/useEconomyStore";
+import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
@@ -41,12 +43,14 @@ const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
  * Giant identity + overlapping stats chips.
  */
 export default function ProfileScreen({
-  data = profileMockData,
+  data: dataProp,
 }: {
-  data?: ProfileMockData;
+  data?: ProfileData;
 }) {
-  const { data: session } = useSession();
-  const { data: rankMe } = useRankMe();
+  const data = dataProp ?? emptyProfileData();
+  const { data: session, status: sessionStatus } = useSession();
+  const { flags } = useSystemFlags();
+  const { data: rankMe, isLoading: rankLoading } = useRankMe();
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
@@ -56,7 +60,8 @@ export default function ProfileScreen({
   const userName =
     session?.profile?.displayName ||
     session?.user?.name ||
-    data.userName;
+    data.userName ||
+    "—";
 
   const level = rankMe?.current.level ?? data.level;
   const xpIntoLevel =
@@ -67,6 +72,9 @@ export default function ProfileScreen({
     100,
     Math.round((xpIntoLevel / Math.max(1, xpForNextLevel)) * 100),
   );
+
+  const fromRole = data.fromRole;
+  const becoming = data.becoming;
 
   const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [followingCount, setFollowingCount] = useState<number | null>(null);
@@ -105,6 +113,20 @@ export default function ProfileScreen({
     };
   }, [session?.user?.id, data.badgesEarned]);
 
+  const waitingOnSocial =
+    Boolean(session?.user?.id) &&
+    (followerCount == null || badgesEarned == null);
+
+  const profileLoading =
+    sessionStatus === "loading" ||
+    (!dataProp &&
+      sessionStatus === "authenticated" &&
+      ((rankLoading && !rankMe) || waitingOnSocial));
+
+  if (profileLoading) {
+    return <ProfileSkeleton />;
+  }
+
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
       {/* PASSPORT HERO */}
@@ -135,9 +157,19 @@ export default function ProfileScreen({
               {userName}
             </h1>
             <p className="mt-2.5 max-w-[15rem] text-[13px] leading-snug font-bold text-white/50">
-              <span>{data.fromRole}</span>
-              <span className="mx-1.5 text-[#ffc928]">→</span>
-              <span className="text-white">{data.becoming}</span>
+              {fromRole || becoming ? (
+                <>
+                  {fromRole ? <span>{fromRole}</span> : null}
+                  {fromRole && becoming ? (
+                    <span className="mx-1.5 text-[#ffc928]">→</span>
+                  ) : null}
+                  {becoming ? (
+                    <span className="text-white">{becoming}</span>
+                  ) : null}
+                </>
+              ) : (
+                <span>Your Arc</span>
+              )}
             </p>
           </div>
 
@@ -293,11 +325,11 @@ export default function ProfileScreen({
           <ArrowRight className="h-4 w-4 text-[#b3a8d6]" strokeWidth={2.5} />
         </Link>
 
-        <ActionTwinRow coins={coins} />
+        <ActionTwinRow coins={coins} studioEnabled={flags.avatar_studio_enabled} />
 
         <BattleArenaCard />
 
-        <UtilityList plan={data.plan} />
+        <UtilityList />
         </div>
       </div>
     </div>
@@ -353,28 +385,41 @@ function XpRing({ percent, level }: { percent: number; level: number }) {
   );
 }
 
-function ActionTwinRow({ coins }: { coins: number }) {
+function ActionTwinRow({
+  coins,
+  studioEnabled,
+}: {
+  coins: number;
+  studioEnabled: boolean;
+}) {
   return (
-    <div className="grid grid-cols-2 gap-2.5">
-      <motion.div whileTap={{ scale: 0.98 }} transition={snappySpring}>
-        <Link
-          href="/avatar-studio"
-          className="flex min-h-[132px] flex-col items-start justify-between overflow-hidden rounded-[22px] bg-[#0f1220] p-4 text-left text-white shadow-[0_10px_24px_rgba(15,18,32,0.25)]"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-arc-purple-500">
-            <WandSparkles className="h-5 w-5" strokeWidth={2.3} />
-          </span>
-          <span>
-            <span className="block font-display text-[15px] font-semibold">
-              Avatar Studio
+    <div
+      className={cn(
+        "grid gap-2.5",
+        studioEnabled ? "grid-cols-2" : "grid-cols-1",
+      )}
+    >
+      {studioEnabled ? (
+        <motion.div whileTap={{ scale: 0.98 }} transition={snappySpring}>
+          <Link
+            href="/avatar-studio"
+            className="flex min-h-[132px] flex-col items-start justify-between overflow-hidden rounded-[22px] bg-[#0f1220] p-4 text-left text-white shadow-[0_10px_24px_rgba(15,18,32,0.25)]"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-arc-purple-500">
+              <WandSparkles className="h-5 w-5" strokeWidth={2.3} />
             </span>
-            <span className="mt-0.5 flex items-center gap-1 text-[12px] font-bold text-white/50">
-              <Coins className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
-              {coins.toLocaleString()} coins
+            <span>
+              <span className="block font-display text-[15px] font-semibold">
+                Avatar Studio
+              </span>
+              <span className="mt-0.5 flex items-center gap-1 text-[12px] font-bold text-white/50">
+                <Coins className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
+                {coins.toLocaleString()} coins
+              </span>
             </span>
-          </span>
-        </Link>
-      </motion.div>
+          </Link>
+        </motion.div>
+      ) : null}
 
       <motion.div whileTap={{ scale: 0.98 }} transition={snappySpring}>
         <Link
@@ -479,7 +524,7 @@ function StatChip({
   );
 }
 
-function UtilityList({ plan: _plan }: { plan: ProfileMockData["plan"] }) {
+function UtilityList() {
   const items: {
     icon: LucideIcon;
     title: string;
@@ -487,12 +532,6 @@ function UtilityList({ plan: _plan }: { plan: ProfileMockData["plan"] }) {
     href: string;
   }[] = [
     // TEMP: hide Core plan row until billing ships
-    // {
-    //   icon: CreditCard,
-    //   title: `${_plan.name} · ${_plan.price}`,
-    //   subtitle: _plan.teaser,
-    //   href: "/plan",
-    // },
     {
       icon: Settings,
       title: "Settings",

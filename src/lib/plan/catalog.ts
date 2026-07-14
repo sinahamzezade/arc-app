@@ -5,7 +5,7 @@ export type PlanPerk = {
   included: boolean;
 };
 
-export type PlanMockData = {
+export type PlanCatalog = {
   name: string;
   price: string;
   billingNote: string;
@@ -21,12 +21,13 @@ export type PlanMockData = {
   }[];
 };
 
-export const planMockData: PlanMockData = {
+/** Static pricing tiers until a billing API ships. */
+export const planCatalog: PlanCatalog = {
   name: "Core plan",
   price: "$29/mo",
   billingNote: "Billed monthly · cancel anytime",
   status: "active",
-  renewsOn: "Aug 11, 2026",
+  renewsOn: "",
   teaser: "Add commitment stakes & a human coach",
   perks: [
     {

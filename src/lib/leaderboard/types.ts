@@ -68,9 +68,6 @@ export type LeaderboardData = {
   footerNote: string;
 };
 
-/** @deprecated Prefer LeaderboardData */
-export type LeaderboardMockData = LeaderboardData;
-
 export type LeaguePeerProfile = LeaderboardEntry & {
   leagueName: string;
   leagueTier: LeaderboardData["leagueTier"];

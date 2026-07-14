@@ -172,7 +172,7 @@ The cookie stores no user-readable inviter details. It resolves server-side to t
 
 Each inviter has:
 
-1. one stable, human-readable referral code, for example `SOHEIL-A7K2`
+1. one stable, human-readable referral code, for example `ALEX-A7K2`
 2. many generated share links, each with its own public token and metadata
 
 A generated link can store:
@@ -649,7 +649,7 @@ Response:
 ```json
 {
   "linkId": "uuid",
-  "referralCode": "SOHEIL-A7K2",
+  "referralCode": "ALEX-A7K2",
   "url": "https://arc.app/r/4Tx8kPzQ...",
   "share": {
     "title": "Join me on Arc",
@@ -667,7 +667,7 @@ Response:
 
 ```json
 {
-  "code": "SOHEIL-A7K2",
+  "code": "ALEX-A7K2",
   "defaultUrl": "https://arc.app/r/...",
   "rewardPreview": {
     "perQualifiedFriend": {

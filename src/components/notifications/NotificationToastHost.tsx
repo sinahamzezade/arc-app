@@ -20,7 +20,7 @@ import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { notificationsApi } from "@/lib/api/notifications";
 import { mapNotificationDto } from "@/lib/notifications/map-notification";
-import type { NotificationItem } from "@/lib/notifications/mock-data";
+import type { NotificationItem } from "@/lib/notifications/types";
 import { assets } from "@/lib/assets";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { cn } from "@/lib/utils";

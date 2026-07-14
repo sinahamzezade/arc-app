@@ -28,7 +28,7 @@ export type AvatarItem = {
   clear?: boolean;
 };
 
-export type AvatarStudioMockData = {
+export type AvatarStudioCatalog = {
   coins: number;
   categories: { id: AvatarCategory; label: string }[];
   items: AvatarItem[];
@@ -237,7 +237,7 @@ const categoryIds: AvatarCategory[] = [
   "backgrounds",
 ];
 
-export const avatarStudioMockData: AvatarStudioMockData = {
+export const avatarStudioCatalog: AvatarStudioCatalog = {
   coins: 2450,
   categories: [
     { id: "hair", label: "Hair" },
@@ -301,7 +301,7 @@ export const avatarStudioMockData: AvatarStudioMockData = {
 };
 
 export function getAvatarItem(id: string) {
-  return avatarStudioMockData.items.find((i) => i.id === id);
+  return avatarStudioCatalog.items.find((i) => i.id === id);
 }
 
 export function itemFitsGender(

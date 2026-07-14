@@ -5,7 +5,7 @@ import { ArrowRight, Lightbulb, Terminal } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
-import type { LessonContentBlock } from "@/lib/lesson/mock-data";
+import type { LessonContentBlock } from "@/lib/lesson/types";
 import { InlineMarkdown } from "@/lib/lesson/inline-markdown";
 import { lessonsApi } from "@/lib/api/lessons";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
@@ -92,29 +92,31 @@ export default function LessonContentScreen({
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={softSpring}
-        className="flex flex-1 flex-col"
+        className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="grid grid-cols-[auto_1fr] items-start gap-3">
-          <span className="mt-1 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0f1220] font-display text-[15px] font-bold text-[#ffc928] shadow-[0_3px_0_#2a2f45]">
-            {contentStep + 1}
-          </span>
-          <div className="min-w-0 pt-0.5">
-            <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
-              Beat {contentStep + 1} of {total}
-            </p>
-            <h1 className="mt-1 font-display text-[28px] leading-[0.95] font-bold tracking-[-0.035em] text-[#0f1220] text-balance">
-              {page.title}
-            </h1>
+        <div className="min-h-0 flex-1 overflow-y-auto pb-2">
+          <div className="grid grid-cols-[auto_1fr] items-start gap-3">
+            <span className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0f1220] font-display text-[15px] font-bold text-[#ffc928] shadow-[0_3px_0_#2a2f45]">
+              {contentStep + 1}
+            </span>
+            <div className="min-w-0 pt-0.5">
+              <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
+                Beat {contentStep + 1} of {total}
+              </p>
+              <h1 className="mt-1 font-display text-[28px] leading-[0.95] font-bold tracking-[-0.035em] text-[#0f1220] text-balance">
+                {page.title}
+              </h1>
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {(page.blocks ?? []).map((block, i) => (
+              <ContentBlock key={i} block={block} />
+            ))}
           </div>
         </div>
 
-        <div className="mt-5 space-y-3">
-          {page.blocks.map((block, i) => (
-            <ContentBlock key={i} block={block} />
-          ))}
-        </div>
-
-        <div className="mt-auto pt-8">
+        <div className="shrink-0 pt-6">
           <motion.div whileTap={{ scale: 0.98, y: 2 }} transition={softSpring}>
             {isLast ? (
               <LessonPrimaryButton href={`/learn/${lesson.id}/practice`}>
@@ -135,6 +137,7 @@ export default function LessonContentScreen({
 }
 
 function ContentBlock({ block }: { block: LessonContentBlock }) {
+  console.log("block", block);
   if (block.type === "text") {
     return (
       <InlineMarkdown

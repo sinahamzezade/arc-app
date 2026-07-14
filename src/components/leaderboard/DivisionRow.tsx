@@ -2,7 +2,7 @@
 
 import { Award } from "lucide-react";
 import { motion } from "motion/react";
-import type { LeagueDivision } from "@/lib/leaderboard/mock-data";
+import type { LeagueDivision } from "@/lib/leaderboard/types";
 import { cn } from "@/lib/utils";
 import { softSpring } from "./motion";
 

@@ -14,11 +14,7 @@ import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { mapRoadmapToPathData } from "@/lib/path/map-roadmap";
-import {
-  pathMockData,
-  type PathMockData,
-  type PathNode,
-} from "@/lib/path/mock-data";
+import type { PathNode } from "@/lib/path/types";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
@@ -29,10 +25,38 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
  */
 export default function LearnScreen() {
   const { data: roadmapRes, isLoading } = useCurrentRoadmap();
-  const data: PathMockData =
-    roadmapRes?.roadmap != null
-      ? mapRoadmapToPathData(roadmapRes.roadmap)
-      : pathMockData;
+  const roadmap = roadmapRes?.roadmap ?? null;
+
+  if (isLoading && !roadmap) {
+    return (
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center bg-[#f3effc] font-rounded">
+        <p className="font-display text-[18px] font-bold text-[#1b1730]">
+          Loading path…
+        </p>
+      </div>
+    );
+  }
+
+  if (!roadmap) {
+    return (
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-4 bg-[#f3effc] px-6 font-rounded">
+        <p className="text-center font-display text-[20px] font-bold text-[#1b1730]">
+          No learning path yet
+        </p>
+        <p className="text-center text-[13px] font-semibold text-[#8a7cb8]">
+          Finish the questionnaire to generate your path.
+        </p>
+        <Link
+          href="/path"
+          className="rounded-full bg-[#0f1220] px-5 py-2.5 text-[13px] font-black text-white"
+        >
+          Open Path
+        </Link>
+      </div>
+    );
+  }
+
+  const data = mapRoadmapToPathData(roadmap);
 
   const progress =
     data.lessonsTotal > 0

@@ -1,10 +1,10 @@
 import type { RoadmapLessonDto, RoadmapTreeDto } from "@/lib/api/types";
 import type {
   PathIconName,
-  PathMockData,
+  PathData,
   PathNode,
   PathNodeStatus,
-} from "@/lib/path/mock-data";
+} from "@/lib/path/types";
 
 const ICONS: PathIconName[] = [
   "flag",
@@ -23,7 +23,7 @@ function lessonStatus(lesson: RoadmapLessonDto): PathNodeStatus {
 }
 
 /** Map Roadmap Generator tree → Path screen trail model. */
-export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathMockData {
+export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathData {
   const nodes: PathNode[] = [];
   let lessonOrdinal = 0;
   let lessonsDone = 0;

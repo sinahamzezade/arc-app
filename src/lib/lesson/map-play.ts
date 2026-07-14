@@ -1,5 +1,5 @@
 import type { LessonPlayDto } from "@/lib/api/types";
-import type { LessonContentBlock, LessonContentPage } from "@/lib/lesson/mock-data";
+import type { LessonContentBlock, LessonContentPage } from "@/lib/lesson/types";
 
 /** UI playable lesson — no grading keys (server owns those). */
 export type PlayableLesson = {

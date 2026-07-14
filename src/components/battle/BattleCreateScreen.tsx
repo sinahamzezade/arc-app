@@ -12,9 +12,9 @@ import { socialApi, type SocialFriendDto } from "@/lib/api/social";
 import {
   battleSubjects,
   battleTopics,
-  type BattleDifficulty,
-  type BattleMode,
-} from "@/lib/battle/mock-data";
+  type BattleCatalogSubject,
+} from "@/lib/battle/catalog";
+import type { BattleDifficulty, BattleMode } from "@/lib/battle/types";
 import {
   maxStakeForRankLevel,
   stakeOptionsForRank,
@@ -63,6 +63,7 @@ export default function BattleCreateScreen() {
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
   const [rankLevel, setRankLevel] = useState(1);
   const [customStake, setCustomStake] = useState("");
+  const [catalog, setCatalog] = useState<BattleCatalogSubject[]>([]);
 
   useEffect(() => {
     const opponent = searchParams.get("opponent");
@@ -73,13 +74,39 @@ export default function BattleCreateScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const [crew, me] = await Promise.all([
+        const [crew, me, catalogRes] = await Promise.all([
           socialApi.friends(),
           leaguesApi.getMe().catch(() => null),
+          battlesApi.catalog().catch(() => null),
         ]);
         if (cancelled) return;
         setFriends(crew.items);
         if (me?.rankLevel) setRankLevel(me.rankLevel);
+        if (catalogRes?.subjects?.length) {
+          setCatalog(catalogRes.subjects);
+          const current =
+            catalogRes.subjects.find(
+              (s) =>
+                s.slug === setup.subject ||
+                s.name === setup.subject ||
+                s.topics.some(
+                  (t) => t.slug === setup.topic || t.name === setup.topic,
+                ),
+            ) ?? catalogRes.subjects[0]!;
+          const topic =
+            current.topics.find(
+              (t) => t.slug === setup.topic || t.name === setup.topic,
+            ) ?? current.topics[0];
+          if (
+            setup.subject !== current.slug ||
+            (topic && setup.topic !== topic.slug)
+          ) {
+            setSetup({
+              subject: current.slug,
+              topic: topic?.slug ?? "",
+            });
+          }
+        }
         if (
           !searchParams.get("opponent") &&
           crew.items[0] &&
@@ -109,7 +136,27 @@ export default function BattleCreateScreen() {
           initial: "R",
         }
       : (friends[0] ?? fallbackOpponent));
-  const topics = battleTopics[setup.subject] ?? [];
+
+  const subjects: BattleCatalogSubject[] =
+    catalog.length > 0
+      ? catalog
+      : battleSubjects.map((name) => ({
+          slug: name.toLowerCase().replace(/\s+/g, "-").replace(/&/g, ""),
+          name,
+          topics: (battleTopics[name] ?? []).map((t) => ({
+            slug: t.toLowerCase().replace(/\s+/g, "-"),
+            name: t,
+            skillNodeId: "",
+          })),
+        }));
+  const activeSubject =
+    subjects.find(
+      (s) => s.slug === setup.subject || s.name === setup.subject,
+    ) ?? subjects[0];
+  const topics = activeSubject?.topics ?? [];
+  const activeTopic =
+    topics.find((t) => t.slug === setup.topic || t.name === setup.topic) ??
+    topics[0];
   const effectiveStake = Math.min(setup.stake, maxStake);
   const canStake = coins >= effectiveStake && effectiveStake > 0;
   const pot = effectiveStake * 2;
@@ -133,8 +180,8 @@ export default function BattleCreateScreen() {
     try {
       const battle = await battlesApi.create({
         opponentId: setup.opponentId,
-        subject: setup.subject,
-        topic: setup.topic || undefined,
+        subject: activeSubject?.slug ?? setup.subject,
+        topic: (activeTopic?.slug ?? setup.topic) || undefined,
         difficulty: setup.difficulty,
         questions: setup.questions,
         secondsPerQuestion: setup.seconds,
@@ -257,24 +304,24 @@ export default function BattleCreateScreen() {
               Subject
             </p>
             <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
-              {battleSubjects.map((s) => (
+              {subjects.map((s) => (
                 <button
-                  key={s}
+                  key={s.slug}
                   type="button"
                   onClick={() =>
                     setSetup({
-                      subject: s,
-                      topic: battleTopics[s]?.[0] ?? "",
+                      subject: s.slug,
+                      topic: s.topics[0]?.slug ?? "",
                     })
                   }
                   className={cn(
                     "shrink-0 rounded-xl px-3 py-2 font-display text-[13px] font-semibold",
-                    setup.subject === s
+                    activeSubject?.slug === s.slug
                       ? "bg-[#1b1433] text-white"
                       : "bg-[#f6f2ff] text-[#8a7cb8]",
                   )}
                 >
-                  {s}
+                  {s.name}
                 </button>
               ))}
             </div>
@@ -287,17 +334,17 @@ export default function BattleCreateScreen() {
             <div className="mt-2 flex flex-wrap gap-1.5">
               {topics.map((t) => (
                 <button
-                  key={t}
+                  key={t.slug}
                   type="button"
-                  onClick={() => setSetup({ topic: t })}
+                  onClick={() => setSetup({ topic: t.slug })}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-[12px] font-extrabold",
-                    setup.topic === t
+                    (activeTopic?.slug ?? setup.topic) === t.slug
                       ? "bg-arc-purple-500 text-white"
                       : "bg-[#f0ecf7] text-[#8a7cb8]",
                   )}
                 >
-                  {t}
+                  {t.name}
                 </button>
               ))}
             </div>

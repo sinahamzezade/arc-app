@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp } from "lucide-react";
-import type { LeaderboardData } from "@/lib/leaderboard/mock-data";
+import type { LeaderboardData } from "@/lib/leaderboard/types";
 import { StandingsRow } from "./StandingsRow";
 
 export function StandingsTable({ data }: { data: LeaderboardData }) {

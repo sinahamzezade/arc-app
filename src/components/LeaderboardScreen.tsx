@@ -9,7 +9,7 @@ import { ApiError, messageForCode } from "@/lib/api/errors";
 import type {
   LeaderboardData,
   LeaderboardTab,
-} from "@/lib/leaderboard/mock-data";
+} from "@/lib/leaderboard/types";
 import { cn } from "@/lib/utils";
 import { DivisionsPanel } from "@/components/leaderboard/DivisionsPanel";
 import { HistoryPanel } from "@/components/leaderboard/HistoryPanel";

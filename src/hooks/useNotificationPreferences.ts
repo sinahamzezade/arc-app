@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { notificationsApi } from "@/lib/api/notifications";
 import type { NotificationPreferenceToggleId } from "@/lib/api/types";
-import { settingsMockData } from "@/lib/settings/mock-data";
+import { settingsToggleDefs } from "@/lib/settings/toggle-defs";
 
 export function useNotificationPreferences() {
   const { data: session, status } = useSession();
@@ -20,9 +20,9 @@ export function useNotificationPreferences() {
     },
     placeholderData: {
       preferences: Object.fromEntries(
-        settingsMockData.toggles.map((t) => [t.id, t.on]),
+        settingsToggleDefs.map((t) => [t.id, t.on]),
       ) as Record<NotificationPreferenceToggleId, boolean>,
-      toggles: settingsMockData.toggles,
+      toggles: settingsToggleDefs,
     },
   });
 

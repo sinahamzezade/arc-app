@@ -10,7 +10,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { planMockData, type PlanMockData } from "@/lib/plan/mock-data";
+import { planCatalog, type PlanCatalog } from "@/lib/plan/catalog";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
@@ -20,9 +20,9 @@ const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
  * Plan vault — night hero + perk tickets + upgrade lanes.
  */
 export default function PlanScreen({
-  data = planMockData,
+  data = planCatalog,
 }: {
-  data?: PlanMockData;
+  data?: PlanCatalog;
 }) {
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">

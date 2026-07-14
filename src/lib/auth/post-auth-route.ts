@@ -4,6 +4,8 @@ export type PostAuthInput = {
   emailVerified?: boolean;
   email?: string | null;
   profile?: Profile | null;
+  /** When false, skip email-verify gate (OTP flag off). Default true. */
+  otpVerificationEnabled?: boolean;
 };
 
 /** True when intake questionnaire finished. Missing status = incomplete. */
@@ -18,9 +20,15 @@ export function isQuestionnaireComplete(
  * Order: verify email → questionnaire → home.
  */
 export function resolvePostAuthPath(input: PostAuthInput): string {
-  const { emailVerified, email, profile } = input;
+  const {
+    emailVerified,
+    email,
+    profile,
+    otpVerificationEnabled = true,
+  } = input;
 
-  if (!emailVerified) {
+  const needsVerify = otpVerificationEnabled && !emailVerified;
+  if (needsVerify) {
     if (email) {
       return `/verify-email?email=${encodeURIComponent(email)}&purpose=verify`;
     }
@@ -36,6 +44,8 @@ export function resolvePostAuthPath(input: PostAuthInput): string {
 
 export function isAuthPublicPath(pathname: string): boolean {
   if (pathname === "/") return true;
+  // Referral landing — keep out of prefix list (`/r` would match `/rank` etc.)
+  if (pathname === "/r" || pathname.startsWith("/r/")) return true;
   const prefixes = [
     "/login",
     "/register",

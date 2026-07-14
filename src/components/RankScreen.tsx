@@ -17,11 +17,8 @@ import { motion } from "motion/react";
 import { useRankLadder } from "@/hooks/useRanks";
 import { formatRequirementLabel } from "@/lib/api/ranks";
 import { assets } from "@/lib/assets";
-import {
-  rankMockData,
-  type RankMockData,
-  type RankTier,
-} from "@/lib/rank/mock-data";
+import { rankHowToEarn, rankWalletTips } from "@/lib/rank/catalog";
+import type { RankTier } from "@/lib/rank/types";
 import { cn } from "@/lib/utils";
 import { useEconomyStore } from "@/store/useEconomyStore";
 
@@ -29,28 +26,24 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Rank stage — night hero family (Home/Wallet/League).
- * Live from GET /ranks/me/ladder; mock fallback when signed out.
+ * Live from GET /ranks/me/ladder.
  */
-export default function RankScreen({
-  data = rankMockData,
-}: {
-  data?: RankMockData;
-}) {
+export default function RankScreen() {
   const { data: ladder, isLoading } = useRankLadder();
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
 
   const me = ladder?.me;
-  const rankTitle = me?.current.title ?? data.stats.rank;
-  const level = me?.current.level ?? data.stats.level;
-  const nextTitle = me?.next?.title ?? data.nextRank;
-  const xpInto = me?.next?.xp.intoLevel ?? data.stats.xpIntoLevel;
-  const xpFor = me?.next?.xp.forLevel ?? data.stats.xpForLevel;
+  const rankTitle = me?.current.title ?? (isLoading ? "…" : "—");
+  const level = me?.current.level ?? 1;
+  const nextTitle = me?.next?.title ?? "—";
+  const xpInto = me?.next?.xp.intoLevel ?? 0;
+  const xpFor = me?.next?.xp.forLevel ?? 1;
   const xpToNext =
     me?.next != null
       ? Math.max(0, me.next.xp.required - me.current.lifetimeXp)
-      : data.xpToNextRank;
+      : 0;
   const levelPct = Math.round((xpInto / Math.max(1, xpFor)) * 100);
   const requirements = me?.next?.requirements ?? [];
   const tiers: RankTier[] =
@@ -60,7 +53,9 @@ export default function RankScreen({
       levelRequired: t.level,
       blurb: t.blurb,
       status: t.status,
-    })) ?? data.tiers;
+    })) ?? [];
+  const howToEarn = rankHowToEarn;
+  const walletTips = rankWalletTips;
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -156,7 +151,7 @@ export default function RankScreen({
             className="min-w-0 flex-1"
             label="XP"
             value={me?.current.lifetimeXp ?? xp}
-            tip={data.walletTips[0].tip}
+            tip={walletTips[0].tip}
             tone="xp"
             icon={<Star className="h-4 w-4 fill-white text-white" />}
           />
@@ -164,7 +159,7 @@ export default function RankScreen({
             className="min-w-0 flex-1"
             label="Gems"
             value={gems}
-            tip={data.walletTips[1].tip}
+            tip={walletTips[1].tip}
             tone="gem"
             icon={<Gem className="h-4 w-4 text-white" strokeWidth={2.5} />}
           />
@@ -172,7 +167,7 @@ export default function RankScreen({
             className="min-w-0 flex-1"
             label="Coins"
             value={coins}
-            tip={data.walletTips[2].tip}
+            tip={walletTips[2].tip}
             tone="coin"
             icon={
               <Coins className="h-4 w-4 text-[#0f1220]" strokeWidth={2.5} />
@@ -243,12 +238,12 @@ export default function RankScreen({
               <Zap className="h-4 w-4 text-arc-purple-500" strokeWidth={2.5} />
             </div>
             <ul className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white shadow-[0_10px_24px_rgba(70,40,150,0.06)]">
-              {data.howToEarn.map((row, i) => (
+              {howToEarn.map((row, i) => (
                 <li
                   key={row.label}
                   className={cn(
                     "relative flex items-center justify-between gap-3 px-4 py-3.5",
-                    i < data.howToEarn.length - 1 &&
+                    i < howToEarn.length - 1 &&
                       "border-b border-[#f0ecf7]",
                     i === 1 && "bg-[#faf8ff]",
                   )}

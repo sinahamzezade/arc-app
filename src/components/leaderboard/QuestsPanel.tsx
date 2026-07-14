@@ -1,6 +1,6 @@
 "use client";
 
-import type { LeagueQuest } from "@/lib/leaderboard/mock-data";
+import type { LeagueQuest } from "@/lib/leaderboard/types";
 import { QuestCard } from "./QuestCard";
 
 export function QuestsPanel({ quests }: { quests: LeagueQuest[] }) {

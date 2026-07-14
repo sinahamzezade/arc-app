@@ -4,7 +4,6 @@ import { use } from "react";
 import Link from "next/link";
 import LeaguePeerProfileScreen from "@/components/LeaguePeerProfileScreen";
 import { useLeagueUser } from "@/hooks/useCurrentLeague";
-import { getLeaguePeerProfile } from "@/lib/leaderboard/mock-data";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 
 export default function LeaguePeerPage({
@@ -22,11 +21,23 @@ export default function LeaguePeerPage({
     isUuid ? id : "",
   );
 
-  // Mock standings ids (priya, marcus, …) still work offline.
-  const mockPeer = !isUuid ? getLeaguePeerProfile(id) : null;
-  const resolved = peer ?? mockPeer;
+  if (!isUuid) {
+    return (
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-4 bg-[#f3effc] px-6 font-rounded">
+        <p className="font-display text-[20px] font-bold text-[#1b1730]">
+          Learner not found
+        </p>
+        <Link
+          href="/leaderboard"
+          className="rounded-full bg-[#0f1220] px-5 py-2.5 text-[13px] font-black text-white"
+        >
+          Back to league
+        </Link>
+      </div>
+    );
+  }
 
-  if (isUuid && isLoading) {
+  if (isLoading) {
     return (
       <div className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center bg-[#f3effc] font-rounded">
         <p className="font-display text-[18px] font-bold text-[#1b1730]">
@@ -36,7 +47,7 @@ export default function LeaguePeerPage({
     );
   }
 
-  if (isUuid && (isError || !resolved)) {
+  if (isError || !peer) {
     const msg =
       error instanceof ApiError
         ? messageForCode(error.code, error.message)
@@ -68,21 +79,5 @@ export default function LeaguePeerPage({
     );
   }
 
-  if (!resolved) {
-    return (
-      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-4 bg-[#f3effc] px-6 font-rounded">
-        <p className="font-display text-[20px] font-bold text-[#1b1730]">
-          Learner not found
-        </p>
-        <Link
-          href="/leaderboard"
-          className="rounded-full bg-[#0f1220] px-5 py-2.5 text-[13px] font-black text-white"
-        >
-          Back to league
-        </Link>
-      </div>
-    );
-  }
-
-  return <LeaguePeerProfileScreen peer={resolved} />;
+  return <LeaguePeerProfileScreen peer={peer} />;
 }

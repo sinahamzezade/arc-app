@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
-import type { LeaderboardEntry } from "@/lib/leaderboard/mock-data";
+import type { LeaderboardEntry } from "@/lib/leaderboard/types";
 import { softSpring, snappySpring } from "./motion";
 
 export function YouDock({

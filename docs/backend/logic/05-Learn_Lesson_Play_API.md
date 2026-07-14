@@ -598,8 +598,8 @@ DTOs: class-validator for bodies; serializers strip `correct` / `correctOptionId
 | `arc-app/src/app/(routes)/learn/**`                              | Routes                             |
 | `arc-app/src/components/lesson/*`                                | Screens                            |
 | `arc-app/src/lib/lesson/mock-data.ts`                            | Playable types + golden `lesson-1` |
-| `arc-app/src/lib/lesson/map-play.ts`                              | Map GET play DTO → UI lesson |
-| `arc-app/src/hooks/usePlayableLesson.ts`                          | Live play loader + hydrate   |
+| `arc-app/src/lib/lesson/map-play.ts`                             | Map GET play DTO → UI lesson       |
+| `arc-app/src/hooks/usePlayableLesson.ts`                         | Live play loader + hydrate         |
 | `arc-app/src/store/useLessonStore.ts`                            | Ephemeral session                  |
 | `arc-app/src/schemas/lesson.ts`                                  | Zod progress shape (unused)        |
 | `arc-app/src/lib/api/types.ts`                                   | `RoadmapLessonDto` metadata        |
@@ -693,3 +693,246 @@ If the completion transaction fails, no reward, weekly completion, or unlock rem
 - weekly progress cannot double count one completion
 - reward ledger is the economy source of truth
 - event replay cannot re-award or re-complete the lesson
+
+---
+
+## 16. Adaptive Remediation — Failure-Driven Scenarios
+
+**Version:** added in 2.1  
+**Purpose:** A wrong answer is the single most valuable teaching signal a lesson produces. Today the flow ignores it (§4.4: "wrong answers still allow continue"). This section defines **remediation scenarios**: when a learner fails, the server generates a targeted, lower-stakes recovery path instead of silently advancing. This raises mastery, reduces silent drop-off, and keeps the economy honest (mastery-gated rewards).
+
+This section is additive. It introduces no breaking change to §4.1–4.6; it layers on top of the practice/quiz check endpoints and the completion transaction.
+
+### 16.1 Concepts
+
+| Term                     | Meaning                                                                                                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Concept tag**          | A short skill token attached to each practice/quiz item (e.g. `html-tag-closing`, `head-vs-body`). A missed item points at the concept the learner has not yet grasped.    |
+| **Remediation scenario** | A server-generated, short recovery unit targeting one failed concept: a micro-explanation + one fresh check item drawn from the same concept but NOT the item just failed. |
+| **Mastery state**        | Per-(user, lesson, concept) status: `unseen → attempting → shaky → mastered`. Drives whether remediation triggers and whether full reward is eligible.                     |
+| **Attempt budget**       | Max remediation rounds per concept per attempt (default 2). Exhausting it does not hard-block the lesson; it flags the concept `shaky` and applies a reward adjustment.    |
+
+### 16.2 Content additions (extends §6.1 `content_outline`)
+
+Each practice option and each quiz question gains a `conceptTag`. Each authored concept gains an optional remediation pool. Answer keys and remediation bodies are **server-only** (stripped on `GET …/play`, exactly like §4.1 grading keys).
+
+```json
+{
+  "practice": {
+    "id": "p1",
+    "prompt": "Which snippet correctly opens a paragraph?",
+    "conceptTag": "html-tag-closing",
+    "hint": "Opening tag, text, closing tag.",
+    "options": [
+      { "id": "a", "label": "<p>Hello Arc</p>", "correct": true },
+      { "id": "b", "label": "<p>Hello Arc<p>", "correct": false }
+    ],
+    "feedbackCorrect": "Nailed it — tags closed clean.",
+    "feedbackIncorrect": "Close: the closing tag needs a slash."
+  },
+  "quiz": [
+    {
+      "id": "q1",
+      "prompt": "Where does visible page content live?",
+      "conceptTag": "head-vs-body",
+      "options": [
+        { "id": "a", "label": "<head>" },
+        { "id": "b", "label": "<body>" }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Body is the stage. Head is backstage metadata."
+    }
+  ],
+  "remediation": {
+    "html-tag-closing": {
+      "microExplanation": [
+        {
+          "type": "text",
+          "body": "Every element you open, you must close. The closing tag repeats the name with a leading slash: </p>."
+        },
+        { "type": "code", "label": "correct.html", "code": "<p>Hello</p>" }
+      ],
+      "recoveryItems": [
+        {
+          "id": "r-tagclose-1",
+          "prompt": "Which line correctly closes a heading?",
+          "options": [
+            { "id": "a", "label": "<h1>Title<h1>" },
+            { "id": "b", "label": "<h1>Title</h1>", "correct": true }
+          ],
+          "explanation": "The closing tag adds the slash: </h1>."
+        }
+      ]
+    },
+    "head-vs-body": {
+      "microExplanation": [
+        {
+          "type": "callout",
+          "title": "Arlo says",
+          "body": "Think theater: <body> is the stage the audience sees; <head> is backstage — title, metadata, links."
+        }
+      ],
+      "recoveryItems": [
+        {
+          "id": "r-headbody-1",
+          "prompt": "Where does a <title> tag belong?",
+          "options": [
+            { "id": "a", "label": "<head>", "correct": true },
+            { "id": "b", "label": "<body>" }
+          ],
+          "explanation": "Title is metadata → head."
+        }
+      ]
+    }
+  }
+}
+```
+
+Authoring rules:
+
+- Every practice/quiz item MUST carry a `conceptTag`.
+- A concept referenced by any item SHOULD have at least one `recoveryItem`. If it has none, remediation degrades gracefully to "explanation only, no recovery item" (§16.4 step 3b).
+- `recoveryItems` must differ from the primary item (no verbatim repeat of the just-failed question).
+
+### 16.3 Schema additions (extends §8)
+
+```text
+lesson_attempts
+  + concept_mastery jsonb NOT NULL DEFAULT '{}'
+      -- { "<conceptTag>": { "state": "shaky", "misses": 2, "recoveries": 1 } }
+
+remediation_events            -- append-only, analytics + reward input
+  id                uuid pk
+  attempt_id        uuid fk -> lesson_attempts
+  user_id           uuid
+  lesson_id         uuid
+  concept_tag       text
+  trigger_item_id   text            -- the practice/quiz item that was failed
+  recovery_item_id  text null       -- item served (null if explanation-only)
+  round             int             -- 1-based remediation round for this concept in this attempt
+  outcome           text            -- 'served' | 'recovered' | 'failed_again' | 'budget_exhausted'
+  created_at        timestamptz
+  UNIQUE(attempt_id, concept_tag, round)
+```
+
+No answer keys are ever stored in `remediation_events`; only outcomes and IDs.
+
+### 16.4 Flow — practice/quiz check with remediation
+
+Extends §4.4 and §4.5. The check endpoints gain a remediation branch. `attemptId` is required (§15.2).
+
+```
+POST /lessons/:id/practice/check   (or /quiz/check)
+body: { attemptId, itemId, optionId }   // itemId = practice id or questionId
+
+server:
+1. Validate attempt + content version (§15.2). Resolve conceptTag for itemId.
+2. Grade against server-held key.
+3. If CORRECT:
+     - mark concept mastered (unless it was previously shaky via remediation → 'recovered')
+     - return { correct: true, correctOptionId, feedback|explanation, remediation: null }
+4. If WRONG:
+     a. Load concept_mastery[conceptTag]; misses += 1; state → attempting/shaky.
+     b. If misses <= attemptBudget AND a recoveryItem exists that hasn't been served this attempt:
+          - pick next unseen recoveryItem for conceptTag
+          - write remediation_events(outcome='served', round, recovery_item_id)
+          - return {
+              correct: false,
+              correctOptionId,               // reveal is allowed AFTER a check (§4.1 only forbids pre-check)
+              feedback|explanation,
+              remediation: {
+                conceptTag,
+                round,
+                microExplanation: [ ...blocks... ],
+                recoveryItem: { id, prompt, options[] }   // NO correct flag
+              }
+            }
+        Else (budget exhausted OR no recovery item left):
+          - state → 'shaky'; write remediation_events(outcome='budget_exhausted' | 'served')
+          - return { correct:false, correctOptionId, explanation, remediation: { conceptTag, exhausted:true, microExplanation } }
+```
+
+Recovery items are graded by the SAME endpoint with `itemId` = the recovery item id:
+
+```
+POST /lessons/:id/quiz/check   body: { attemptId, itemId: "r-headbody-1", optionId }
+  - if correct  → concept_mastery[tag].recoveries += 1; state → 'mastered'; outcome='recovered'
+  - if wrong    → loop back to step 4 (respecting attemptBudget)
+```
+
+The learner is never hard-blocked: after the budget is exhausted the UI shows the explanation and a "Continue anyway" affordance. Mastery is recorded as `shaky`, which the reward calculator sees.
+
+### 16.5 Completion integration (extends §4.6 and §5)
+
+The completion transaction (§4.6 step 5) already sends score + assistance to Gamification. Add two verified inputs derived from `concept_mastery`:
+
+- `conceptsMastered` / `conceptsTotal`
+- `remediationRoundsUsed` (assistance signal, already conceptually covered by "assistance used" in §5)
+
+Reward implication (final numbers owned by gamification.md):
+
+- All concepts `mastered` with **zero** remediation → eligible for full/perfect reward and any perfect-run badge.
+- Concepts recovered via remediation → full learning credit, mild reward damping (remediation counts as assistance, exactly like hints).
+- Concepts left `shaky` (budget exhausted) → lesson still completes, but perfect-score bonuses and mastery badges are withheld; base reward still granted so the learner is not punished into churn.
+
+This keeps §11 acceptance ("repeat completion does not farm full XP") consistent: mastery, not mere click-through, gates the top reward.
+
+### 16.6 GET /play additions
+
+`GET /lessons/:id/play` gains (secrets still stripped — no keys, no remediation bodies):
+
+```json
+{
+  "adaptive": {
+    "enabled": true,
+    "attemptBudgetPerConcept": 2,
+    "concepts": ["html-tag-closing", "head-vs-body"]
+  }
+}
+```
+
+Remediation `microExplanation` and `recoveryItem` bodies are delivered ONLY in check responses (§16.4), never on play GET.
+
+### 16.7 Event contract additions (extends §15.5)
+
+New optional facts on `lesson.completed.v1`:
+
+```json
+{
+  "conceptsTotal": 2,
+  "conceptsMastered": 2,
+  "remediationRoundsUsed": 1,
+  "shakyConcepts": []
+}
+```
+
+New event `lesson.remediation.v1` (fire-and-forget analytics; failure never rolls back a lesson, per §15.6):
+
+```json
+{
+  "attemptId": "uuid",
+  "lessonId": "uuid",
+  "conceptTag": "head-vs-body",
+  "round": 1,
+  "outcome": "recovered"
+}
+```
+
+### 16.8 Acceptance criteria (extends §11)
+
+- [ ] Every practice/quiz item resolves a `conceptTag`; items missing one fail seed validation.
+- [ ] A wrong answer within budget returns a `remediation` block with a fresh recovery item (never the failed item verbatim).
+- [ ] Recovery item answer keys never appear on `GET /play` or in any event/notification.
+- [ ] A correct recovery flips concept state to `mastered` (recorded as `recovered`) and stops further remediation for that concept.
+- [ ] Exhausting the attempt budget marks the concept `shaky`, allows "Continue anyway", and does NOT hard-block completion.
+- [ ] Completion with any `shaky` concept withholds perfect-run bonus/badge but still grants base reward.
+- [ ] `remediation_events` is append-only and idempotent under duplicate check requests (unique on attempt+concept+round).
+- [ ] Remediation analytics failure does not roll back a successful completion.
+- [ ] Two open devices cannot double-count remediation rounds for the same attempt+concept+round.
+
+### 16.9 Priority order (extends §14)
+
+7. Add `conceptTag` to seed content + seed one remediation pool for the golden HTML lesson.
+8. Remediation branch in practice/quiz check (§16.4) + `remediation_events`.
+9. Concept-mastery inputs into completion → Gamification (§16.5).
+10. `adaptive` block on play GET + `lesson.remediation.v1` event.

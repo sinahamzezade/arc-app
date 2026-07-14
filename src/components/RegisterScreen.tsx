@@ -23,15 +23,24 @@ import {
   signInWithOAuth,
   signUpWithPassword,
 } from "@/lib/auth/session";
-import { resolvePostAuthPath } from "@/lib/auth/post-auth-route";
+import { resolvePostAuthPathWithFlags } from "@/lib/auth/resolve-post-auth";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { assets } from "@/lib/assets";
 import { registerSchema, type RegisterFormData } from "@/schemas/register";
 
-export default function RegisterScreen() {
+type Props = {
+  lockedReferralCode?: string | null;
+};
+
+export default function RegisterScreen({
+  lockedReferralCode = null,
+}: Props) {
   const router = useRouter();
   const { update } = useSession();
+  const { flags } = useSystemFlags();
   const [formError, setFormError] = useState<string | null>(null);
   const [oauthBusy, setOauthBusy] = useState(false);
+  const referralLocked = Boolean(lockedReferralCode);
 
   const {
     register,
@@ -45,21 +54,20 @@ export default function RegisterScreen() {
       email: "",
       password: "",
       confirmPassword: "",
-      referralCode: "",
+      referralCode: lockedReferralCode ?? "",
       agreeToTerms: false,
     },
   });
 
-  const goVerify = async () => {
+  const afterAuth = async () => {
     const session = await update();
-    const email = session?.user?.email;
-    if (email) {
-      router.push(
-        `/verify-email?email=${encodeURIComponent(email)}&purpose=verify`,
-      );
-    } else {
-      router.push("/questionnaire");
-    }
+    const dest = await resolvePostAuthPathWithFlags({
+      emailVerified: Boolean(session?.user?.emailVerified),
+      email: session?.user?.email,
+      profile: session?.profile,
+      accessToken: session?.accessToken,
+    });
+    router.push(dest);
   };
 
   const onSubmit = async (data: RegisterFormData) => {
@@ -70,9 +78,11 @@ export default function RegisterScreen() {
         email: data.email,
         password: data.password,
         agreeToTerms: data.agreeToTerms,
-        referralCode: data.referralCode?.trim() || undefined,
+        referralCode:
+          (referralLocked ? lockedReferralCode : data.referralCode)?.trim() ||
+          undefined,
       });
-      await goVerify();
+      await afterAuth();
     } catch (err) {
       setFormError(authErrorMessage(err, "Could not create account"));
     }
@@ -84,14 +94,7 @@ export default function RegisterScreen() {
     try {
       const idToken = await getGoogleIdToken();
       await signInWithOAuth("google", idToken);
-      const session = await update();
-      router.push(
-        resolvePostAuthPath({
-          emailVerified: Boolean(session?.user?.emailVerified),
-          email: session?.user?.email,
-          profile: session?.profile,
-        }),
-      );
+      await afterAuth();
     } catch (err) {
       setFormError(authErrorMessage(err, "Google sign-in failed"));
     } finally {
@@ -105,14 +108,7 @@ export default function RegisterScreen() {
     try {
       const idToken = await getAppleIdToken();
       await signInWithOAuth("apple", idToken);
-      const session = await update();
-      router.push(
-        resolvePostAuthPath({
-          emailVerified: Boolean(session?.user?.emailVerified),
-          email: session?.user?.email,
-          profile: session?.profile,
-        }),
-      );
+      await afterAuth();
     } catch (err) {
       setFormError(authErrorMessage(err, "Apple sign-in failed"));
     } finally {
@@ -192,12 +188,15 @@ export default function RegisterScreen() {
         />
         <ArcField
           id="referralCode"
-          label="Referral code (optional)"
+          label={referralLocked ? "Referral code" : "Referral code (optional)"}
           type="text"
           autoComplete="off"
           placeholder="FRIEND-A7K2"
           error={errors.referralCode?.message}
+          className={referralLocked ? "text-[#5a5278]" : undefined}
           {...register("referralCode")}
+          readOnly={referralLocked}
+          disabled={referralLocked}
         />
 
         <Controller
@@ -258,22 +257,26 @@ export default function RegisterScreen() {
           </Button>
         </motion.div>
 
-        <div className="my-1 flex items-center gap-3">
-          <div className="h-px flex-1 bg-[#ebe4f6]" />
-          <span className="text-[11px] font-black tracking-wide text-[#b3a8d6] uppercase">
-            or
-          </span>
-          <div className="h-px flex-1 bg-[#ebe4f6]" />
-        </div>
+        {flags.sso_enabled ? (
+          <>
+            <div className="my-1 flex items-center gap-3">
+              <div className="h-px flex-1 bg-[#ebe4f6]" />
+              <span className="text-[11px] font-black tracking-wide text-[#b3a8d6] uppercase">
+                or
+              </span>
+              <div className="h-px flex-1 bg-[#ebe4f6]" />
+            </div>
 
-        <div className="flex gap-2.5">
-          <SocialButton label="Apple" onPress={onApple} disabled={oauthBusy}>
-            <AppleIcon />
-          </SocialButton>
-          <SocialButton label="Google" onPress={onGoogle} disabled={oauthBusy}>
-            <GoogleIcon />
-          </SocialButton>
-        </div>
+            <div className="flex gap-2.5">
+              <SocialButton label="Apple" onPress={onApple} disabled={oauthBusy}>
+                <AppleIcon />
+              </SocialButton>
+              <SocialButton label="Google" onPress={onGoogle} disabled={oauthBusy}>
+                <GoogleIcon />
+              </SocialButton>
+            </div>
+          </>
+        ) : null}
       </form>
     </AuthShell>
   );

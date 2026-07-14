@@ -225,7 +225,7 @@ Auth error codes (minimum):
 
 ```json
 {
-  "email": "soheil@arc.app",
+  "email": "alex@arc.app",
   "password": "Secret1!",
   "agreeToTerms": true
 }
@@ -245,7 +245,7 @@ Auth error codes (minimum):
 {
   "user": {
     "id": "uuid",
-    "email": "soheil@arc.app",
+    "email": "alex@arc.app",
     "emailVerified": false
   },
   "profile": {
@@ -272,7 +272,7 @@ Auth error codes (minimum):
 
 ```json
 {
-  "email": "soheil@arc.app",
+  "email": "alex@arc.app",
   "password": "Secret1!"
 }
 ```
@@ -297,14 +297,14 @@ Auth required. Current user + profile for app bootstrap (home, settings, identit
 {
   "user": {
     "id": "uuid",
-    "email": "soheil@arc.app",
+    "email": "alex@arc.app",
     "emailVerified": true,
     "createdAt": "ISO-8601"
   },
   "profile": {
     "id": "uuid",
-    "displayName": "Soheil",
-    "username": "soheil",
+    "displayName": "Alex",
+    "username": "alex",
     "avatarUrl": null,
     "timezone": "Asia/Tehran",
     "language": "en",
@@ -373,8 +373,8 @@ Auth required.
 
 ```json
 {
-  "displayName": "Soheil",
-  "username": "soheil",
+  "displayName": "Alex",
+  "username": "alex",
   "timezone": "Asia/Tehran",
   "language": "en",
   "currentRole": "Office worker",
@@ -498,7 +498,7 @@ Recommended after token refresh/login:
 ```json
 {
   "user": {"id": "uuid", "emailVerified": true},
-  "profile": {"displayName": "Soheil", "timezone": "Europe/Berlin"},
+  "profile": {"displayName": "Alex", "timezone": "Europe/Berlin"},
   "routing": {
     "onboardingStatus": "completed",
     "questionnaireStatus": "completed",

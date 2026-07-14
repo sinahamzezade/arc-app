@@ -17,7 +17,8 @@ import { ApiError, messageForCode } from "@/lib/api/errors";
 import { assets } from "@/lib/assets";
 import { useArcDay } from "@/hooks/useArcDay";
 import { useRankMe } from "@/hooks/useRanks";
-import { profileMockData, type ProfileMockData } from "@/lib/profile/mock-data";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
+import { emptyProfileData, type ProfileData } from "@/lib/profile/types";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
@@ -27,18 +28,20 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
  * Night hero with giant username + Arlo stage + name edit + Studio CTA.
  */
 export default function IdentityScreen({
-  data = profileMockData,
+  data: dataProp,
 }: {
-  data?: ProfileMockData;
+  data?: ProfileData;
 }) {
+  const data = dataProp ?? emptyProfileData();
   const { data: session, update } = useSession();
+  const { flags } = useSystemFlags();
   const { data: rankMe } = useRankMe();
   const profile = session?.profile;
   const level = rankMe?.current.level ?? data.level;
   const day = useArcDay(data.day);
 
   const initialName =
-    profile?.username || profile?.displayName || data.userName;
+    profile?.username || profile?.displayName || data.userName || "";
 
   const [userName, setUserName] = useState(initialName);
   const [editing, setEditing] = useState(false);
@@ -49,7 +52,7 @@ export default function IdentityScreen({
 
   useEffect(() => {
     const next =
-      profile?.username || profile?.displayName || data.userName;
+      profile?.username || profile?.displayName || data.userName || "";
     setUserName(next);
     setDraft(next);
   }, [profile?.username, profile?.displayName, data.userName]);
@@ -58,7 +61,7 @@ export default function IdentityScreen({
   const becoming = data.becoming;
 
   const saveName = async () => {
-    const next = draft.trim() || data.userName;
+    const next = draft.trim() || userName || "learner";
     setSaving(true);
     setSaveError(null);
     try {
@@ -124,9 +127,19 @@ export default function IdentityScreen({
               {userName}
             </h1>
             <p className="mt-3 max-w-[14rem] text-[13px] leading-snug font-bold text-white/50">
-              <span>{fromRole}</span>
-              <span className="mx-1.5 text-[#ffc928]">→</span>
-              <span className="text-white">{becoming}</span>
+              {fromRole || becoming ? (
+                <>
+                  {fromRole ? <span>{fromRole}</span> : null}
+                  {fromRole && becoming ? (
+                    <span className="mx-1.5 text-[#ffc928]">→</span>
+                  ) : null}
+                  {becoming ? (
+                    <span className="text-white">{becoming}</span>
+                  ) : null}
+                </>
+              ) : (
+                <span>How you show up in Arc</span>
+              )}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black tracking-wide ring-1 ring-white/15">
@@ -236,36 +249,38 @@ export default function IdentityScreen({
         </div>
 
         {/* Studio CTA */}
-        <motion.div
-          className="mt-4"
-          whileTap={{ scale: 0.98 }}
-          transition={softSpring}
-        >
-          <Link
-            href="/avatar-studio"
-            className="relative flex items-center gap-3 overflow-hidden rounded-[20px] bg-[#0f1220] p-4 text-white shadow-[0_10px_28px_rgba(15,18,32,0.28)]"
+        {flags.avatar_studio_enabled ? (
+          <motion.div
+            className="mt-4"
+            whileTap={{ scale: 0.98 }}
+            transition={softSpring}
           >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-arc-purple-500/50 blur-2xl"
-            />
-            <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-arc-purple-500 shadow-[0_3px_0_#4b2fd6]">
-              <WandSparkles className="h-5 w-5" strokeWidth={2.4} />
-            </span>
-            <span className="relative min-w-0 flex-1">
-              <span className="block font-display text-[16px] font-bold">
-                Open Avatar Studio
+            <Link
+              href="/avatar-studio"
+              className="relative flex items-center gap-3 overflow-hidden rounded-[20px] bg-[#0f1220] p-4 text-white shadow-[0_10px_28px_rgba(15,18,32,0.28)]"
+            >
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-arc-purple-500/50 blur-2xl"
+              />
+              <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-arc-purple-500 shadow-[0_3px_0_#4b2fd6]">
+                <WandSparkles className="h-5 w-5" strokeWidth={2.4} />
               </span>
-              <span className="mt-0.5 block text-[12px] font-bold text-white/45">
-                Hair, glasses, tees — dress your chibi
+              <span className="relative min-w-0 flex-1">
+                <span className="block font-display text-[16px] font-bold">
+                  Open Avatar Studio
+                </span>
+                <span className="mt-0.5 block text-[12px] font-bold text-white/45">
+                  Hair, glasses, tees — dress your chibi
+                </span>
               </span>
-            </span>
-            <Sparkles
-              className="relative h-5 w-5 shrink-0 text-[#ffc928]"
-              strokeWidth={2.5}
-            />
-          </Link>
-        </motion.div>
+              <Sparkles
+                className="relative h-5 w-5 shrink-0 text-[#ffc928]"
+                strokeWidth={2.5}
+              />
+            </Link>
+          </motion.div>
+        ) : null}
 
         {/* Preview plate */}
         <div className="mt-5 rounded-[20px] border-2 border-dashed border-[#d8d0ea] bg-white/60 px-4 py-5">
@@ -287,7 +302,8 @@ export default function IdentityScreen({
                 {userName}
               </p>
               <p className="text-[12px] font-bold text-[#8a7cb8]">
-                Lv {level} · {data.becoming}
+                Lv {level}
+                {becoming ? ` · ${becoming}` : ""}
               </p>
             </div>
             <span

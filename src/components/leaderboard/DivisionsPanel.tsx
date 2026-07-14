@@ -1,6 +1,6 @@
 "use client";
 
-import type { LeagueDivision } from "@/lib/leaderboard/mock-data";
+import type { LeagueDivision } from "@/lib/leaderboard/types";
 import { DivisionRow } from "./DivisionRow";
 
 export function DivisionsPanel({ divisions }: { divisions: LeagueDivision[] }) {

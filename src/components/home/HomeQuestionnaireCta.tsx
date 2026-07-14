@@ -6,7 +6,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { pop, sectionVariants } from "./motion";
 
 /**
- * Shown on home when questionnaire reset / incomplete — replaces Next Stop mock.
+ * Shown on home when questionnaire reset / incomplete — replaces Next Stop.
  */
 export function HomeQuestionnaireCta() {
   const reduceMotion = useReducedMotion();

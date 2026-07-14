@@ -20,7 +20,7 @@ import {
   socialApi,
   type SocialProfileDto,
 } from "@/lib/api/social";
-import type { LeaguePeerProfile } from "@/lib/leaderboard/mock-data";
+import type { LeaguePeerProfile } from "@/lib/leaderboard/types";
 import { cn } from "@/lib/utils";
 
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
@@ -99,6 +99,9 @@ export default function LeaguePeerProfileScreen({
   const canUnfollow = Boolean(social?.canUnfollow ?? isFollowing);
   const canBattle = Boolean(social?.canBattle);
   const canStudy = Boolean(social?.canStudy);
+  const isFriend = Boolean(social?.relationship.isFriend);
+  const friendPending =
+    friendSent || social?.relationship.requestDirection === "outgoing";
   const displayName = social?.name ?? peer.name;
 
   async function toggleFollow() {
@@ -123,13 +126,21 @@ export default function LeaguePeerProfileScreen({
     }
   }
 
-  async function addFriend() {
-    if (!liveId || friendBusy || friendSent) return;
+  /** Friend request + follow in one tap when both available. */
+  async function connect() {
+    if (!liveId || friendBusy || friendPending || isFriend) return;
     setFriendBusy(true);
     setActionError(null);
     try {
       await socialApi.sendFriendRequest(liveId);
       setFriendSent(true);
+      if (!isFollowing && canFollow) {
+        try {
+          await socialApi.follow(liveId);
+        } catch {
+          /* friend request landed — follow optional */
+        }
+      }
       await loadSocial();
     } catch (err) {
       setActionError(
@@ -307,88 +318,89 @@ export default function LeaguePeerProfileScreen({
           </div>
         </div>
 
-        {/* Social actions — follow is one-way; battle/study need friendship */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {liveId ? (
-            <motion.button
-              type="button"
-              aria-label={
-                isFollowing
-                  ? `Unfollow ${displayName}`
-                  : `Follow ${displayName}`
-              }
-              disabled={
-                followBusy ||
-                socialLoading ||
-                (!isFollowing && !canFollow) ||
-                (isFollowing && !canUnfollow)
-              }
-              onClick={() => void toggleFollow()}
-              whileTap={
-                !followBusy && (isFollowing ? canUnfollow : canFollow)
-                  ? { scale: 0.97, y: 2 }
-                  : undefined
-              }
-              transition={snappySpring}
-              className={cn(
-                "flex h-[52px] items-center justify-center gap-2 rounded-[18px] font-display text-[15px] font-bold disabled:opacity-50",
-                isFollowing
-                  ? "border-2 border-[#ebe4f6] bg-white text-[#1b1730] shadow-[0_4px_0_#ebe4f6]"
-                  : "bg-[#ffc928] text-[#0f1220] shadow-[0_4px_0_#c79a2e]",
-              )}
-            >
-              {isFollowing ? (
-                <UserMinus className="h-4 w-4" strokeWidth={2.5} />
-              ) : (
-                <UserPlus className="h-4 w-4" strokeWidth={2.5} />
-              )}
-              {followBusy
-                ? "…"
-                : socialLoading
-                  ? "…"
-                  : isFollowing
-                    ? "Unfollow"
-                    : canFollow
-                      ? "Follow"
-                      : "Follow off"}
-            </motion.button>
-          ) : (
-            <div className="flex h-[52px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#ebe4f6] bg-white text-[12px] font-extrabold text-arc-lavender-600">
-              Demo peer
-            </div>
-          )}
-
-          {canBattle ? (
-            <Link
-              href={`/battle/create?opponent=${liveId ?? ""}`}
-              className="flex h-[52px] items-center justify-center gap-2 rounded-[18px] bg-arc-purple-500 font-display text-[15px] font-bold text-white shadow-[0_4px_0_var(--color-arc-purple-700)]"
-            >
-              <Swords className="h-4 w-4" strokeWidth={2.5} />
-              Battle
-            </Link>
-          ) : (
-            <motion.button
-              type="button"
-              disabled={!liveId || friendBusy || friendSent}
-              onClick={() => void addFriend()}
-              whileTap={
-                liveId && !friendBusy && !friendSent
-                  ? { scale: 0.97, y: 2 }
-                  : undefined
-              }
-              transition={snappySpring}
-              className={cn(
-                "flex h-[52px] items-center justify-center gap-2 rounded-[18px] font-display text-[15px] font-bold text-white disabled:opacity-50",
-                friendSent
-                  ? "bg-[#16a56b] shadow-[0_4px_0_#0e7a4c]"
-                  : "bg-arc-purple-500 shadow-[0_4px_0_var(--color-arc-purple-700)]",
-              )}
-            >
+        {/* One social CTA: battle if friends, else connect (friend + follow), else follow/unfollow */}
+        {!liveId ? (
+          <div className="flex h-[52px] items-center justify-center rounded-[18px] border-2 border-dashed border-[#ebe4f6] bg-white text-[12px] font-extrabold text-arc-lavender-600">
+            Demo peer
+          </div>
+        ) : canBattle ? (
+          <Link
+            href={`/battle/create?opponent=${liveId}`}
+            className="flex h-[52px] items-center justify-center gap-2 rounded-[18px] bg-arc-purple-500 font-display text-[15px] font-bold text-white shadow-[0_4px_0_var(--color-arc-purple-700)]"
+          >
+            <Swords className="h-4 w-4" strokeWidth={2.5} />
+            Battle
+          </Link>
+        ) : !isFriend ? (
+          <motion.button
+            type="button"
+            aria-label={
+              friendPending
+                ? `Friend request sent to ${displayName}`
+                : `Connect with ${displayName}`
+            }
+            disabled={friendBusy || socialLoading || friendPending}
+            onClick={() => void connect()}
+            whileTap={
+              !friendBusy && !friendPending ? { scale: 0.97, y: 2 } : undefined
+            }
+            transition={snappySpring}
+            className={cn(
+              "flex h-[52px] w-full items-center justify-center gap-2 rounded-[18px] font-display text-[15px] font-bold text-white disabled:opacity-50",
+              friendPending
+                ? "bg-[#16a56b] shadow-[0_4px_0_#0e7a4c]"
+                : "bg-arc-purple-500 shadow-[0_4px_0_var(--color-arc-purple-700)]",
+            )}
+          >
+            <UserPlus className="h-4 w-4" strokeWidth={2.5} />
+            {friendBusy || socialLoading
+              ? "…"
+              : friendPending
+                ? "Request sent"
+                : "Add friend"}
+          </motion.button>
+        ) : (
+          <motion.button
+            type="button"
+            aria-label={
+              isFollowing
+                ? `Unfollow ${displayName}`
+                : `Follow ${displayName}`
+            }
+            disabled={
+              followBusy ||
+              socialLoading ||
+              (!isFollowing && !canFollow) ||
+              (isFollowing && !canUnfollow)
+            }
+            onClick={() => void toggleFollow()}
+            whileTap={
+              !followBusy && (isFollowing ? canUnfollow : canFollow)
+                ? { scale: 0.97, y: 2 }
+                : undefined
+            }
+            transition={snappySpring}
+            className={cn(
+              "flex h-[52px] w-full items-center justify-center gap-2 rounded-[18px] font-display text-[15px] font-bold disabled:opacity-50",
+              isFollowing
+                ? "border-2 border-[#ebe4f6] bg-white text-[#1b1730] shadow-[0_4px_0_#ebe4f6]"
+                : "bg-[#ffc928] text-[#0f1220] shadow-[0_4px_0_#c79a2e]",
+            )}
+          >
+            {isFollowing ? (
+              <UserMinus className="h-4 w-4" strokeWidth={2.5} />
+            ) : (
               <UserPlus className="h-4 w-4" strokeWidth={2.5} />
-              {friendBusy ? "…" : friendSent ? "Sent" : "Add friend"}
-            </motion.button>
-          )}
-        </div>
+            )}
+            {followBusy || socialLoading
+              ? "…"
+              : isFollowing
+                ? "Unfollow"
+                : canFollow
+                  ? "Follow"
+                  : "Follow off"}
+          </motion.button>
+        )}
 
         {canStudy && liveId ? (
           <Link

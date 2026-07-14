@@ -259,4 +259,18 @@ export const battlesApi = {
   statsMe(accessToken?: string | null) {
     return apiFetch<BattleStatsDto>("/battles/stats/me", { accessToken });
   },
+
+  catalog(accessToken?: string | null) {
+    return apiFetch<{
+      subjects: Array<{
+        slug: string;
+        name: string;
+        topics: Array<{
+          slug: string;
+          name: string;
+          skillNodeId: string;
+        }>;
+      }>;
+    }>("/battles/catalog", { accessToken });
+  },
 };

@@ -4,12 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { assets } from "@/lib/assets";
-import type { HomeMockData } from "@/lib/home/mock-data";
+import type { HomeData } from "@/lib/home/types";
 import { soft } from "./motion";
 
 type HomePortraitStageProps = {
   greeting: string;
-  userName: HomeMockData["userName"];
+  userName: HomeData["userName"];
   askArloHref: string;
 };
 

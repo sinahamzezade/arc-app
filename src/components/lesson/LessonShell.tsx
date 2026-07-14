@@ -5,30 +5,39 @@ import { useRouter } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Shared lesson chrome — night step bar over lavender sheet.
- * Matches overview / learn desk family. No decorative rotate.
+ * Ask Arlo button respects `arlo_ai_enabled` feature flag unless forced off.
  */
 export function LessonShell({
   children,
   lessonId,
   stepLabel,
   progress,
-  showArlo = false, // TEMP: hide Ask Arlo entry points
+  showArlo,
   onBack,
 }: {
   children: React.ReactNode;
   lessonId: string;
   stepLabel: string;
   progress: number;
+  /** Force show/hide. Omit to follow `arlo_ai_enabled` flag. */
   showArlo?: boolean;
   onBack?: () => void;
 }) {
   const router = useRouter();
+  const { flags } = useSystemFlags();
+  const arloVisible =
+    showArlo === false
+      ? false
+      : showArlo === true
+        ? true
+        : flags.arlo_ai_enabled;
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -60,7 +69,7 @@ export function LessonShell({
               />
             </div>
           </div>
-          {showArlo ? (
+          {arloVisible ? (
             <Link
               href={`/learn/${lessonId}/arlo`}
               aria-label="Ask Arlo"

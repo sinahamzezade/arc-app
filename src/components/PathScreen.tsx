@@ -27,11 +27,10 @@ import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import { mapRoadmapToPathData } from "@/lib/path/map-roadmap";
 import {
-  pathMockData,
   type PathIconName,
-  type PathMockData,
+  type PathData,
   type PathNode,
-} from "@/lib/path/mock-data";
+} from "@/lib/path/types";
 import { cn } from "@/lib/utils";
 import { useEconomyStore } from "@/store/useEconomyStore";
 
@@ -127,7 +126,7 @@ function roadPath(pts: Pt[]): string {
   return d;
 }
 
-function buildTrail(data: PathMockData) {
+function buildTrail(data: PathData) {
   const units = Array.from(new Set(data.nodes.map((n) => n.unit))).sort(
     (a, b) => a - b,
   );
@@ -238,7 +237,7 @@ function buildTrail(data: PathMockData) {
 export default function PathScreen({
   data: dataProp,
 }: {
-  data?: PathMockData;
+  data?: PathData;
 }) {
   const { data, isLoading, isError, error, retry } = useCurrentRoadmap();
 
@@ -301,14 +300,14 @@ export default function PathScreen({
     );
   }
 
-  return <RoadMap data={mapRoadmapToPathData(roadmap) ?? pathMockData} />;
+  return <RoadMap data={mapRoadmapToPathData(roadmap)} />;
 }
 
 /* ------------------------------------------------------------------ */
 /* Road map                                                            */
 /* ------------------------------------------------------------------ */
 
-function RoadMap({ data }: { data: PathMockData }) {
+function RoadMap({ data }: { data: PathData }) {
   const reduceMotion = useReducedMotion();
   const coins = useEconomyStore((s) => s.coins);
   const progress =
@@ -418,7 +417,7 @@ function RouteHero({
   progress,
   coins,
 }: {
-  data: PathMockData;
+  data: PathData;
   progress: number;
   coins: number;
 }) {
@@ -855,7 +854,7 @@ function CurrentPin({
   upNext,
 }: {
   row: Extract<TrailRow, { kind: "stone" }>;
-  upNext: PathMockData["upNext"];
+  upNext: PathData["upNext"];
 }) {
   const reduceMotion = useReducedMotion();
   const Icon = iconMap[row.node.icon];

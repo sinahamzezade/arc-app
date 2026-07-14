@@ -7,10 +7,10 @@ import { ArrowRight, Route } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSession } from "next-auth/react";
 import {
+  emptyHomeData,
   greetingForHour,
-  homeMockData,
-  type HomeMockData,
-} from "@/lib/home/mock-data";
+  type HomeData,
+} from "@/lib/home/types";
 import { mapHomeFromBackend } from "@/lib/home/map-home";
 import { isQuestionnaireComplete } from "@/lib/auth/post-auth-route";
 import { HomeExtras } from "@/components/home/HomeExtras";
@@ -26,18 +26,19 @@ import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { useCurrentWeek } from "@/hooks/useCurrentWeek";
 import { useIncomingFriendRequestCount } from "@/hooks/useIncomingFriendRequestCount";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { paceMeta } from "@/lib/course-timing/format";
 import { useEconomyStore } from "@/store/useEconomyStore";
 
 /**
  * Home — night dispatch hero + light sheet.
  * Mission + week seal from `/roadmaps/current` + `/weeks/current`.
- * No live roadmap → never show mock Next Stop (admin reset / pre-path).
+ * No live roadmap → never show Next Stop (admin reset / pre-path).
  */
 export default function HomeScreen({
-  data: dataProp = homeMockData,
+  data: dataProp,
 }: {
-  data?: HomeMockData;
+  data?: HomeData;
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -47,6 +48,7 @@ export default function HomeScreen({
   const { timing } = useCourseTiming();
   const { data: unreadCount } = useUnreadNotificationCount();
   const { data: friendRequestCount } = useIncomingFriendRequestCount();
+  const { flags } = useSystemFlags();
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
@@ -71,17 +73,18 @@ export default function HomeScreen({
   const { data, unit } = useMemo(
     () =>
       mapHomeFromBackend({
-        base: dataProp,
+        base: dataProp ?? emptyHomeData(),
         roadmap: liveRoadmap,
         week: week ?? null,
         userName:
           session?.profile?.displayName ||
           session?.user?.name ||
-          dataProp.userName,
+          dataProp?.userName ||
+          "",
         xp,
         gems,
         coins,
-        notificationCount: unreadCount ?? dataProp.notificationCount,
+        notificationCount: unreadCount ?? dataProp?.notificationCount ?? 0,
         weeklyStreakWeeks: session?.profile?.weeklyStreak,
       }),
     [
@@ -100,9 +103,13 @@ export default function HomeScreen({
 
   const greeting = useMemo(() => greetingForHour(new Date().getHours()), []);
   const askArloHref =
-    liveRoadmap && data.mission.href.startsWith("/learn/")
+    flags.arlo_ai_enabled &&
+    liveRoadmap &&
+    data.mission.href.startsWith("/learn/")
       ? `${data.mission.href}/arlo`
-      : "/learn";
+      : liveRoadmap && data.mission.href.startsWith("/learn/")
+        ? data.mission.href
+        : "/learn";
   const timingPace = timing ? paceMeta(timing.pace) : null;
   const estimateMinutes =
     timing?.nextSession?.minutes ??

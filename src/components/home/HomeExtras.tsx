@@ -10,16 +10,16 @@ import { useHomeLeagueCard } from "@/hooks/useLeagueHistory";
 import { useLuckyWheel } from "@/hooks/useLuckyWheel";
 import { useHomeRankCard } from "@/hooks/useRanks";
 import { formatWheelCountdown } from "@/lib/api/lucky-wheel";
-import type { HomeMockData } from "@/lib/home/mock-data";
+import type { HomeData } from "@/lib/home/types";
 import { cn } from "@/lib/utils";
 import { sectionVariants } from "./motion";
 
 type HomeExtrasProps = {
-  stats: HomeMockData["stats"];
-  dailyBonus: HomeMockData["dailyBonus"];
-  milestone: HomeMockData["milestone"];
-  leaderboard: HomeMockData["leaderboard"];
-  badges: HomeMockData["badges"];
+  stats: HomeData["stats"];
+  dailyBonus: HomeData["dailyBonus"];
+  milestone: HomeData["milestone"];
+  leaderboard: HomeData["leaderboard"];
+  badges: HomeData["badges"];
 };
 
 export function HomeExtras({

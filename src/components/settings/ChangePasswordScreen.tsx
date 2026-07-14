@@ -11,6 +11,7 @@ import { BackButton } from "@/components/BackButton";
 import { Button } from "@/components/ui";
 import { authApi } from "@/lib/api/auth";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { signOutArc } from "@/lib/auth/session";
 import {
   changePasswordSchema,
   passwordRequirements,
@@ -50,7 +51,12 @@ export default function ChangePasswordScreen() {
         confirmPassword: data.confirmPassword,
       });
       setDone(true);
-      window.setTimeout(() => router.replace("/settings"), 900);
+      window.setTimeout(() => {
+        void (async () => {
+          await signOutArc();
+          router.replace("/login");
+        })();
+      }, 900);
     } catch (err) {
       if (err instanceof ApiError) {
         setFormError(messageForCode(err.code, err.message));

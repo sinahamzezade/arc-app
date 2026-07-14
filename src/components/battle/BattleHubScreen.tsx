@@ -24,9 +24,11 @@ import {
   battleStatusLabel,
   useBattleHub,
 } from "@/hooks/useBattles";
+import { BattleHubSkeleton } from "@/components/battle/BattleHubSkeleton";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
@@ -42,7 +44,10 @@ function inviteEndedCopy(status: string | null): {
 } | null {
   switch (status) {
     case "declined":
-      return { eyebrow: "Invite closed", title: "Rival declined the challenge" };
+      return {
+        eyebrow: "Invite closed",
+        title: "Rival declined the challenge",
+      };
     case "cancelled":
       return { eyebrow: "Invite closed", title: "Challenge was cancelled" };
     case "expired":
@@ -58,6 +63,7 @@ function inviteEndedCopy(status: string | null): {
  * Arena hub — night stage, live/pending matches, tape, rival orbit.
  */
 export default function BattleHubScreen() {
+  const { status: sessionStatus } = useSession();
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
@@ -68,8 +74,16 @@ export default function BattleHubScreen() {
   const inviteStatus = searchParams.get("invite");
   const inviteEnded = inviteEndedCopy(inviteStatus);
   const [showInviteEnded, setShowInviteEnded] = useState(Boolean(inviteEnded));
-  const { stats, history, live, outgoing, blocking, loadMore, invalidate } =
-    useBattleHub();
+  const {
+    stats,
+    history,
+    invites,
+    live,
+    outgoing,
+    blocking,
+    loadMore,
+    invalidate,
+  } = useBattleHub();
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
   const [cancelling, setCancelling] = useState(false);
   const [userQuery, setUserQuery] = useState("");
@@ -77,6 +91,10 @@ export default function BattleHubScreen() {
   const [searching, setSearching] = useState(false);
   const online = friends.filter((f) => f.online);
   const searchingUsers = userQuery.trim().length >= 2;
+
+  const hubLoading =
+    stats.isLoading || history.isLoading || invites.isLoading;
+  const hubReady = Boolean(stats.data || history.data || invites.data);
 
   useEffect(() => {
     setShowInviteEnded(Boolean(inviteStatus));
@@ -161,6 +179,13 @@ export default function BattleHubScreen() {
       clearTimeout(t);
     };
   }, [userQuery, searchingUsers]);
+
+  if (
+    sessionStatus === "loading" ||
+    (sessionStatus === "authenticated" && hubLoading && !hubReady)
+  ) {
+    return <BattleHubSkeleton />;
+  }
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -481,7 +506,10 @@ export default function BattleHubScreen() {
           </div>
 
           <div className="mb-3 flex items-center gap-2 rounded-[16px] border border-[#ebe4f6] bg-white px-3.5 py-2.5 shadow-[0_4px_14px_rgba(70,40,150,0.05)]">
-            <Search className="h-4 w-4 shrink-0 text-[#b3a8d6]" strokeWidth={2.25} />
+            <Search
+              className="h-4 w-4 shrink-0 text-[#b3a8d6]"
+              strokeWidth={2.25}
+            />
             <input
               value={userQuery}
               onChange={(e) => setUserQuery(e.target.value)}
@@ -582,7 +610,9 @@ export default function BattleHubScreen() {
                       <span
                         className={cn(
                           "flex items-center justify-center rounded-2xl font-display font-bold text-white",
-                          big ? "h-14 w-14 text-[20px]" : "h-11 w-11 text-[16px]",
+                          big
+                            ? "h-14 w-14 text-[20px]"
+                            : "h-11 w-11 text-[16px]",
                         )}
                         style={{ background: f.color }}
                       >

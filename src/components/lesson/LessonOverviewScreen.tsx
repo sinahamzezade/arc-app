@@ -1,13 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  BookOpen,
   Clock,
   ExternalLink,
+  MessageCircle,
   Sparkles,
   Target,
   Zap,
@@ -20,6 +21,7 @@ import { assets } from "@/lib/assets";
 import { lessonsApi } from "@/lib/api/lessons";
 import type { LessonPlayDto } from "@/lib/api/types";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton } from "./LessonShell";
 import { LessonLoadState } from "./LessonLoadState";
@@ -41,6 +43,7 @@ export default function LessonOverviewScreen({
   const accessToken = session?.accessToken;
   const { lesson, isLoading, isError, error, refetch } =
     usePlayableLesson(lessonId);
+  const { flags } = useSystemFlags();
   const startLesson = useLessonStore((s) => s.startLesson);
   const setAttemptId = useLessonStore((s) => s.setAttemptId);
   const startedRef = useRef<string | null>(null);
@@ -101,8 +104,8 @@ export default function LessonOverviewScreen({
           }}
         />
 
-        <header className="relative z-[1] flex items-center gap-3">
-          <BackButton />
+        <header className="relative z-20 flex items-center gap-3">
+          <BackButton onClick={() => router.push("/path")} />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
               Lesson {lesson.lessonNumber}
@@ -116,8 +119,15 @@ export default function LessonOverviewScreen({
               />
             </div>
           </div>
-          {/* TEMP: Ask Arlo hidden */}
-          {/* <span className="h-10 w-10" aria-hidden /> */}
+          {flags.arlo_ai_enabled ? (
+            <Link
+              href={`/learn/${lesson.id}/arlo`}
+              aria-label="Ask Arlo"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]"
+            >
+              <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
+            </Link>
+          ) : null}
         </header>
 
         <div className="relative z-[1] mt-6 grid grid-cols-[1fr_auto] items-end gap-3">
@@ -212,24 +222,7 @@ export default function LessonOverviewScreen({
               </span>
             </span>
           </a>
-        ) : (
-          <div className="mt-3 flex items-start gap-3 rounded-[18px] border-2 border-dashed border-[#ebe4f6] bg-white/80 p-3.5">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#efe9f8] text-arc-purple-500">
-              <BookOpen className="h-4 w-4" strokeWidth={2.5} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[10px] font-black tracking-[0.1em] text-arc-lavender-500 uppercase">
-                Resource
-              </span>
-              <span className="mt-0.5 block font-display text-[15px] leading-snug font-bold text-[#0f1220]">
-                {lesson.resource.label}
-              </span>
-              <span className="mt-1 block text-[12px] font-bold text-arc-lavender-700">
-                {lesson.resource.note}
-              </span>
-            </span>
-          </div>
-        )}
+        ) : null}
 
         <div className="mt-auto pt-6">
           <motion.div whileTap={{ scale: 0.98, y: 2 }} transition={softSpring}>

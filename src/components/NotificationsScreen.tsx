@@ -26,7 +26,7 @@ import {
   type NotificationFilter,
   type NotificationItem,
   type NotificationSection,
-} from "@/lib/notifications/mock-data";
+} from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };

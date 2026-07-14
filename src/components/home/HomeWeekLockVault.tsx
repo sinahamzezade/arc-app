@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { ChevronRight, Gem, Lock, Zap } from "lucide-react";
 import { motion } from "motion/react";
-import type { HomeMockData } from "@/lib/home/mock-data";
+import type { HomeData } from "@/lib/home/types";
 import type { PaceTone } from "@/lib/course-timing/format";
 import { cn } from "@/lib/utils";
 import { sectionVariants } from "./motion";
 
 type HomeWeekLockVaultProps = {
-  weeklyProgress: HomeMockData["weeklyProgress"];
-  weeklyStreak: HomeMockData["weeklyStreak"];
+  weeklyProgress: HomeData["weeklyProgress"];
+  weeklyStreak: HomeData["weeklyStreak"];
   replanHref?: string;
   estimateMinutes?: number;
   /** Prefer server-derived when present */

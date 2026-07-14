@@ -44,7 +44,7 @@ export function ArcField({
           type={inputType}
           autoComplete={autoComplete}
           className={cn(
-            "w-full bg-transparent text-[15px] font-bold text-[#0f1220] outline-none placeholder:text-[#c3badb]",
+            "w-full bg-transparent text-[15px] font-bold text-[#0f1220] outline-none placeholder:text-[#c3badb] disabled:cursor-not-allowed disabled:opacity-70",
             isPassword && "pr-10",
             className,
           )}

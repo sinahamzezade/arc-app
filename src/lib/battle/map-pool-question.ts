@@ -1,5 +1,5 @@
 import type { BattlePlayQuestionDto } from "@/lib/api/content";
-import type { BattleQuestion } from "@/lib/battle/mock-data";
+import type { BattleQuestion } from "@/lib/battle/types";
 
 /**
  * Map pool battle question → UI card.

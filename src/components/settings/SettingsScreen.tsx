@@ -27,11 +27,8 @@ import { formatEta, paceMeta } from "@/lib/course-timing/format";
 import { meApi } from "@/lib/api/auth";
 import { signOutArc } from "@/lib/auth/session";
 import { formatPasswordChangedAgo } from "@/lib/settings/format-password-changed";
-import {
-  settingsMockData,
-  type SettingsToggle,
-  type SettingsToggleId,
-} from "@/lib/settings/mock-data";
+import { settingsToggleDefs } from "@/lib/settings/toggle-defs";
+import type { SettingsToggle, SettingsToggleId } from "@/lib/settings/types";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
@@ -41,11 +38,7 @@ type SettingsTab = "account" | "alerts" | "privacy";
 /**
  * Settings signal desk — night hero + overhang tabs + toggles.
  */
-export default function SettingsScreen({
-  data = settingsMockData,
-}: {
-  data?: typeof settingsMockData;
-}) {
+export default function SettingsScreen() {
   const router = useRouter();
   const { data: session } = useSession();
   const [tab, setTab] = useState<SettingsTab>("account");
@@ -88,17 +81,24 @@ export default function SettingsScreen({
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
       : "UTC";
 
-  const email = session?.user?.email || data.email;
+  const email = session?.user?.email || "—";
   const language =
     session?.profile?.language === "en"
       ? "English"
-      : session?.profile?.language || data.language;
+      : session?.profile?.language || "—";
 
   const leagueHidden =
     league?.me?.hideFromProfile ?? hideLeague;
 
   const toggles =
-    (prefsQuery.data?.toggles as SettingsToggle[] | undefined) ?? data.toggles;
+    (prefsQuery.data?.toggles as SettingsToggle[] | undefined) ??
+    settingsToggleDefs;
+
+  const privacyDetail = socialPrivacy
+    ? socialPrivacy.allowFriendRequests
+      ? "Friends can challenge you"
+      : "Friend requests off"
+    : "—";
 
   const setToggle = (id: SettingsToggleId) => {
     const current = toggles.find((t) => t.id === id);
@@ -332,7 +332,7 @@ export default function SettingsScreen({
               <SettingsRow
                 icon={Shield}
                 title="Visibility"
-                detail={data.privacy}
+                detail={privacyDetail}
               />
               <button
                 type="button"

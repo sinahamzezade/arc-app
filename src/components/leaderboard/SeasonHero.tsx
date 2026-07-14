@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, Trophy } from "lucide-react";
-import type { LeaderboardEntry, LeaderboardData } from "@/lib/leaderboard/mock-data";
+import type { LeaderboardEntry, LeaderboardData } from "@/lib/leaderboard/types";
 import { YourSpotStage } from "./YourSpotStage";
 
 export function SeasonHero({

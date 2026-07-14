@@ -1,7 +1,7 @@
 "use client";
 
 import { Award, ClipboardCheck, History, Trophy } from "lucide-react";
-import type { LeaderboardTab } from "@/lib/leaderboard/mock-data";
+import type { LeaderboardTab } from "@/lib/leaderboard/types";
 import { cn } from "@/lib/utils";
 
 const tabs: {

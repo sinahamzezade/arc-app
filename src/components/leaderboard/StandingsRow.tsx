@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Flame, ThumbsUp } from "lucide-react";
 import { motion } from "motion/react";
-import type { LeaderboardEntry } from "@/lib/leaderboard/mock-data";
+import type { LeaderboardEntry } from "@/lib/leaderboard/types";
 import { cn } from "@/lib/utils";
 import { RankCell } from "./RankCell";
 import { snappySpring } from "./motion";

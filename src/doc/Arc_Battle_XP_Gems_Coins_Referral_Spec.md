@@ -597,7 +597,7 @@ Inviter chooses:
 
 Example notification:
 
-> “Soheil invited you to study SQL together for 25 minutes. Starts within 1 hour.”
+> “Alex invited you to study SQL together for 25 minutes. Starts within 1 hour.”
 
 ## 9.2 Technical MVP Logic
 
@@ -808,7 +808,7 @@ Each user receives:
 Example:
 
 ```text
-https://arc.app/invite/SOHEIL42
+https://arc.app/invite/ALEX42
 ```
 
 ## 11.2 Referral Stages
@@ -1001,7 +1001,7 @@ Recommended holds:
 {
   "referral_id": "ref_123",
   "inviter_id": "user_123",
-  "invite_code": "SOHEIL42",
+  "invite_code": "ALEX42",
   "referred_user_id": "user_789",
   "stage": "activated",
   "click_at": "2026-07-01T12:00:00Z",

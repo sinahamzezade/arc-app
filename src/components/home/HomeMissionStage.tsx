@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { ArrowRight, Clock, Flag, Gem, Zap } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import type { HomeMockData } from "@/lib/home/mock-data";
+import type { HomeData } from "@/lib/home/types";
 import { pop, sectionVariants, soft } from "./motion";
 
 type HomeMissionStageProps = {
-  mission: HomeMockData["mission"];
+  mission: HomeData["mission"];
   /** Optional unit number for route ticket label */
   unit?: number;
 };

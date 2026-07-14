@@ -13,7 +13,7 @@ const UUID_RE =
 
 /**
  * Social passport — /friends/[userId]
- * Loads GET /social/users/:id then LeaguePeerProfileScreen (Add friend / Follow).
+ * Loads GET /social/users/:id then LeaguePeerProfileScreen (connect / battle).
  */
 export default function FriendProfilePage({
   params,

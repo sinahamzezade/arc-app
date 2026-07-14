@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
 import {
   AvatarCharacter,
@@ -22,7 +23,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import {
   avatarColorPalettes,
-  avatarStudioMockData,
+  avatarStudioCatalog,
   colorSlotLabel,
   itemFitsGender,
   lookFromEquipped,
@@ -30,9 +31,10 @@ import {
   type AvatarCategory,
   type AvatarColorSlot,
   type AvatarItem,
-} from "@/lib/avatar/mock-data";
-import { profileMockData } from "@/lib/profile/mock-data";
+} from "@/lib/avatar/catalog";
+import { useSession } from "next-auth/react";
 import { useAvatarStudioStore } from "@/store/useAvatarStudioStore";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
@@ -55,6 +57,13 @@ function categoryToColorSlot(category: AvatarCategory): AvatarColorSlot {
  * Equipped items paint hair / glasses / stache / shirt on the character.
  */
 export default function AvatarStudioScreen() {
+  const router = useRouter();
+  const { flags, isLoading: flagsLoading } = useSystemFlags();
+  const { data: session } = useSession();
+  const displayName =
+    session?.profile?.displayName ||
+    session?.user?.name ||
+    "You";
   const coins = useAvatarStudioStore((s) => s.coins);
   const gender = useAvatarStudioStore((s) => s.gender);
   const owned = useAvatarStudioStore((s) => s.owned);
@@ -68,9 +77,16 @@ export default function AvatarStudioScreen() {
   const colors = useAvatarStudioStore((s) => s.colors);
   const setColor = useAvatarStudioStore((s) => s.setColor);
 
+  useEffect(() => {
+    if (flagsLoading) return;
+    if (!flags.avatar_studio_enabled) {
+      router.replace("/profile");
+    }
+  }, [flags.avatar_studio_enabled, flagsLoading, router]);
+
   const categories = useMemo(
     () =>
-      avatarStudioMockData.categories.filter(
+      avatarStudioCatalog.categories.filter(
         (c) => !(gender === "girl" && c.id === "moustache"),
       ),
     [gender],
@@ -78,11 +94,21 @@ export default function AvatarStudioScreen() {
 
   const items = useMemo(
     () =>
-      avatarStudioMockData.items.filter(
+      avatarStudioCatalog.items.filter(
         (i) => i.category === category && itemFitsGender(i, gender),
       ),
     [category, gender],
   );
+
+  if (flagsLoading || !flags.avatar_studio_enabled) {
+    return (
+      <div className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center bg-[#f3effc] px-4 font-rounded">
+        <p className="text-sm font-semibold text-[#8a7cb8]">
+          {flagsLoading ? "Loading…" : "Avatar Studio unavailable"}
+        </p>
+      </div>
+    );
+  }
 
   const look = useMemo(
     () => lookFromEquipped(equipped, gender, colors),
@@ -90,7 +116,7 @@ export default function AvatarStudioScreen() {
   );
 
   const stageAccent = stageAccentFromEquipped(equipped, colors);
-  const activeCat = avatarStudioMockData.categories.find(
+  const activeCat = avatarStudioCatalog.categories.find(
     (c) => c.id === category,
   );
   const equippedCount = Object.values(equipped).filter(Boolean).length;
@@ -143,7 +169,7 @@ export default function AvatarStudioScreen() {
           <div className="min-w-0 pb-8">
             <p className="text-[11px] font-bold text-white/40">Dressing</p>
             <p className="mt-1 font-display text-[28px] leading-[0.95] font-bold tracking-[-0.04em]">
-              {profileMockData.userName}
+              {displayName}
             </p>
             <p className="mt-2 max-w-[11rem] text-[12px] leading-snug font-bold text-white/50">
               Boy & girl sets · hair, glasses, shirt
@@ -179,7 +205,7 @@ export default function AvatarStudioScreen() {
               {Object.entries(equipped).map(([cat, id]) => {
                 if (!id || cat === "backgrounds") return null;
                 if (gender === "girl" && cat === "moustache") return null;
-                const item = avatarStudioMockData.items.find(
+                const item = avatarStudioCatalog.items.find(
                   (i) => i.id === id,
                 );
                 if (!item) return null;
@@ -206,7 +232,7 @@ export default function AvatarStudioScreen() {
             <AvatarCharacter
               look={look}
               size={168}
-              label={`${profileMockData.userName}'s avatar`}
+              label={`${displayName}'s avatar`}
               className="relative z-[1] drop-shadow-[0_20px_36px_rgba(0,0,0,0.5)]"
             />
           </div>

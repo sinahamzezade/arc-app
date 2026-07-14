@@ -3,7 +3,7 @@ import type {
   NotificationFilter,
   NotificationItem,
   NotificationSection,
-} from "@/lib/notifications/mock-data";
+} from "@/lib/notifications/types";
 
 const ICON_BY_TYPE: Partial<
   Record<NotificationTypeDto, NotificationItem["icon"]>

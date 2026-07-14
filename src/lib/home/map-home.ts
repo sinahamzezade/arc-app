@@ -3,7 +3,7 @@ import type {
   RoadmapTreeDto,
   WeekCurrentResponse,
 } from "@/lib/api/types";
-import { homeMockData, type HomeMockData } from "@/lib/home/mock-data";
+import { emptyHomeData, type HomeData } from "@/lib/home/types";
 
 export type NextMission = {
   lesson: RoadmapLessonDto;
@@ -117,7 +117,7 @@ export function findCurrentMilestone(
  * Mission href always `/learn/{uuid}` when a lesson exists.
  */
 export function mapHomeFromBackend(input: {
-  base?: HomeMockData;
+  base?: HomeData;
   roadmap?: RoadmapTreeDto | null;
   week?: WeekCurrentResponse | null;
   userName?: string | null;
@@ -126,9 +126,9 @@ export function mapHomeFromBackend(input: {
   coins?: number;
   notificationCount?: number;
   weeklyStreakWeeks?: number;
-}): { data: HomeMockData; unit: number } {
-  const base = input.base ?? homeMockData;
-  let data: HomeMockData = { ...base };
+}): { data: HomeData; unit: number } {
+  const base = input.base ?? emptyHomeData();
+  let data: HomeData = { ...base };
   let unit = 1;
 
   if (input.userName) {

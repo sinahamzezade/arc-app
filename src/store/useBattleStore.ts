@@ -1,10 +1,7 @@
 import { create } from "zustand";
 import type { BattleDto, BattleQuestionDto } from "@/lib/api/battles";
-import {
-  defaultBattleSetup,
-  type BattleQuestion,
-  type BattleSetup,
-} from "@/lib/battle/mock-data";
+import { defaultBattleSetup } from "@/lib/battle/catalog";
+import type { BattleQuestion, BattleSetup } from "@/lib/battle/types";
 
 function mapQuestion(q: BattleQuestionDto): BattleQuestion {
   return {

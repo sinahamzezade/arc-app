@@ -24,17 +24,16 @@ import {
   type PaceTone,
 } from "@/lib/course-timing/format";
 import {
-  weekPulseMockData,
-  type WeekPulseMockData,
+  type WeekPulseData,
   type WeekTask,
   type WeekTaskStatus,
-} from "@/lib/week/mock-data";
+} from "@/lib/week/types";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
-function mapWeekToPulse(week: WeekCurrentResponse): WeekPulseMockData {
+function mapWeekToPulse(week: WeekCurrentResponse): WeekPulseData {
   return {
     weekLabel: week.weekLabel,
     rangeLabel: week.rangeLabel,
@@ -77,11 +76,29 @@ function mapWeekToPulse(week: WeekCurrentResponse): WeekPulseMockData {
 export default function SealWeekPlanScreen({
   data: dataProp,
 }: {
-  data?: WeekPulseMockData;
+  data?: WeekPulseData;
 }) {
-  const { week, replan, moveTask, skipTask } = useCurrentWeek();
+  const { week, replan, moveTask, skipTask, isLoading } = useCurrentWeek();
   const { timing, feasibility, replan: pathReplan } = useCourseTiming();
-  const data = week ? mapWeekToPulse(week) : (dataProp ?? weekPulseMockData);
+  const data = week ? mapWeekToPulse(week) : dataProp;
+
+  if (!data) {
+    return (
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-3 bg-[#f3effc] px-6 font-rounded">
+        <p className="font-display text-[18px] font-bold text-[#1b1730]">
+          {isLoading ? "Loading week…" : "No week plan yet"}
+        </p>
+        {!isLoading ? (
+          <Link
+            href="/path"
+            className="rounded-full bg-[#0f1220] px-5 py-2.5 text-[13px] font-black text-white"
+          >
+            Open Path
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
 
   const timingPace = timing ? paceMeta(timing.pace) : null;
   const etaLabel = formatEta(timing?.estimatedCompletionDate);

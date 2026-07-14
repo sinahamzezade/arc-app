@@ -13,6 +13,7 @@ type Ctx = { params: Promise<{ token: string }> };
 export async function GET(_req: NextRequest, ctx: Ctx) {
   const { token } = await ctx.params;
   let cookieToken: string | null = null;
+  let referralCode: string | null = null;
   let maxAge = 30 * 24 * 60 * 60;
 
   try {
@@ -24,15 +25,20 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       const body = (await upstream.json()) as {
         cookieToken?: string | null;
         cookieMaxAgeSec?: number | null;
+        referralCode?: string | null;
       };
       cookieToken = body.cookieToken ?? null;
+      referralCode = body.referralCode?.trim() || null;
       if (body.cookieMaxAgeSec) maxAge = body.cookieMaxAgeSec;
     }
   } catch {
     /* still send user to register */
   }
 
-  const res = NextResponse.redirect(new URL("/register", _req.url), 302);
+  const dest = referralCode
+    ? `/register?ref=${encodeURIComponent(referralCode)}`
+    : "/register";
+  const res = NextResponse.redirect(new URL(dest, _req.url), 302);
   if (cookieToken) {
     res.cookies.set("arc_ref", cookieToken, {
       httpOnly: true,

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import {
-  avatarStudioMockData,
+  avatarStudioCatalog,
   defaultAvatarColors,
   defaultHairForGender,
   defaultShirtForGender,
@@ -8,7 +8,7 @@ import {
   type AvatarCategory,
   type AvatarColorSlot,
   type AvatarGender,
-} from "@/lib/avatar/mock-data";
+} from "@/lib/avatar/catalog";
 
 type AvatarStudioState = {
   coins: number;
@@ -33,7 +33,7 @@ function snapEquippedForGender(
 
   const hairId = next.hair;
   const hairItem = hairId
-    ? avatarStudioMockData.items.find((i) => i.id === hairId)
+    ? avatarStudioCatalog.items.find((i) => i.id === hairId)
     : null;
   if (!hairItem || hairItem.clear || !itemFitsGender(hairItem, gender)) {
     next.hair = defaultHairForGender(gender);
@@ -41,7 +41,7 @@ function snapEquippedForGender(
 
   const glassesId = next.glasses;
   const glassesItem = glassesId
-    ? avatarStudioMockData.items.find((i) => i.id === glassesId)
+    ? avatarStudioCatalog.items.find((i) => i.id === glassesId)
     : null;
   if (glassesItem && !glassesItem.clear && !itemFitsGender(glassesItem, gender)) {
     delete next.glasses;
@@ -49,7 +49,7 @@ function snapEquippedForGender(
 
   const shirtId = next.hoodies;
   const shirtItem = shirtId
-    ? avatarStudioMockData.items.find((i) => i.id === shirtId)
+    ? avatarStudioCatalog.items.find((i) => i.id === shirtId)
     : null;
   if (!shirtItem || shirtItem.clear || !itemFitsGender(shirtItem, gender)) {
     next.hoodies = defaultShirtForGender(gender);
@@ -63,10 +63,10 @@ function snapEquippedForGender(
 }
 
 export const useAvatarStudioStore = create<AvatarStudioState>((set, get) => ({
-  coins: avatarStudioMockData.coins,
+  coins: avatarStudioCatalog.coins,
   gender: "boy",
-  owned: [...avatarStudioMockData.starterOwned],
-  equipped: { ...avatarStudioMockData.starterEquipped },
+  owned: [...avatarStudioCatalog.starterOwned],
+  equipped: { ...avatarStudioCatalog.starterEquipped },
   colors: { ...defaultAvatarColors },
   category: "hair",
   setCategory: (category) => set({ category }),
@@ -92,7 +92,7 @@ export const useAvatarStudioStore = create<AvatarStudioState>((set, get) => ({
   },
   equip: (category, itemId) =>
     set((s) => {
-      const item = avatarStudioMockData.items.find((i) => i.id === itemId);
+      const item = avatarStudioCatalog.items.find((i) => i.id === itemId);
       const nextColors = { ...s.colors };
       if (item && !item.clear && item.accent && category !== "backgrounds") {
         nextColors[category as AvatarColorSlot] = item.accent;
