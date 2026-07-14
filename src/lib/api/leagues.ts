@@ -54,6 +54,19 @@ export type LeagueCurrentResponse = {
   topUsers: LeagueLeaderboardEntryDto[];
   surroundingUsers: LeagueLeaderboardEntryDto[];
   scoreSourceBreakdown: Record<string, number>;
+  /** Weekly/seasonal quest progress from admin catalog (seeded defaults). */
+  quests?: LeagueQuestDto[];
+};
+
+export type LeagueQuestDto = {
+  id: string;
+  code: string;
+  title: string;
+  detail: string;
+  progress: number;
+  goal: number;
+  xpReward: number;
+  done: boolean;
 };
 
 export type LeagueLeaderboardResponse = {

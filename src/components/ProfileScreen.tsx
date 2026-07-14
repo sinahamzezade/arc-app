@@ -20,16 +20,13 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useSession } from "next-auth/react";
-import { assets } from "@/lib/assets";
 import { socialApi } from "@/lib/api/social";
 import { badgesApi } from "@/lib/api/badges";
 import { useBattleStats } from "@/hooks/useBattles";
 import { useArcDay } from "@/hooks/useArcDay";
 import { useRankMe } from "@/hooks/useRanks";
-import {
-  emptyProfileData,
-  type ProfileData,
-} from "@/lib/profile/types";
+import { emptyProfileData, type ProfileData } from "@/lib/profile/types";
+import { isRankUploadSrc, rankImageFor } from "@/lib/rank/icons";
 import { cn } from "@/lib/utils";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
@@ -54,8 +51,7 @@ export default function ProfileScreen({
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
-  const weekStreak =
-    session?.profile?.weeklyStreak ?? data.weekStreak;
+  const weekStreak = session?.profile?.weeklyStreak ?? data.weekStreak;
   const day = useArcDay(data.day);
   const userName =
     session?.profile?.displayName ||
@@ -64,10 +60,8 @@ export default function ProfileScreen({
     "—";
 
   const level = rankMe?.current.level ?? data.level;
-  const xpIntoLevel =
-    rankMe?.next?.xp.intoLevel ?? data.xpIntoLevel;
-  const xpForNextLevel =
-    rankMe?.next?.xp.forLevel ?? data.xpForNextLevel;
+  const xpIntoLevel = rankMe?.next?.xp.intoLevel ?? data.xpIntoLevel;
+  const xpForNextLevel = rankMe?.next?.xp.forLevel ?? data.xpForNextLevel;
   const xpPercent = Math.min(
     100,
     Math.round((xpIntoLevel / Math.max(1, xpForNextLevel)) * 100),
@@ -186,7 +180,11 @@ export default function ProfileScreen({
                 ease: "easeInOut",
               }}
             >
-              <XpRing percent={xpPercent} level={level} />
+              <XpRing
+                percent={xpPercent}
+                level={level}
+                iconAssetKey={rankMe?.current.iconAssetKey}
+              />
             </motion.div>
             <span className="absolute -right-0.5 -bottom-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-arc-purple-500 shadow-[0_3px_0_#c3badb]">
               <Pencil className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -267,81 +265,93 @@ export default function ProfileScreen({
 
       <div className="relative z-10 bg-[#f3effc] px-4 pt-4 pb-8">
         <div className="relative space-y-4">
-        {/* Badges + gems */}
-        <div className="flex gap-2.5">
-          <Link
-            href="/badges"
-            className="flex flex-1 items-center gap-3 rounded-[20px] border border-[#ebe4f6] bg-white px-3.5 py-3 shadow-[0_12px_28px_rgba(70,40,150,0.08)]"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff3c4] text-[#c98a00]">
-              <Award className="h-5 w-5" strokeWidth={2.4} />
-            </span>
-            <div>
-              <p className="font-display text-[18px] leading-none font-bold text-[#1b1730]">
-                {badgesEarned == null ? "…" : badgesEarned}
-                <span className="text-[#8a7cb8]">/{badgesTotal}</span>
-              </p>
-              <p className="mt-0.5 text-[10px] font-extrabold tracking-wide text-[#8a7cb8] uppercase">
-                Badges
-              </p>
-            </div>
-          </Link>
-          <Link
-            href="/wallet"
-            className="flex flex-1 items-center gap-3 rounded-[20px] border border-[#ebe4f6] bg-white px-3.5 py-3 shadow-[0_12px_28px_rgba(70,40,150,0.08)]"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f6f2ff] text-[#b35cff]">
-              <Gem className="h-5 w-5" strokeWidth={2.4} />
-            </span>
-            <div>
-              <p className="font-display text-[18px] leading-none font-bold text-[#1b1730]">
-                {gems.toLocaleString()}
-              </p>
-              <p className="mt-0.5 text-[10px] font-extrabold tracking-wide text-[#8a7cb8] uppercase">
-                Gems
-              </p>
-            </div>
-          </Link>
-        </div>
-
-        <Link
-          href="/profile/followers"
-          className="flex items-center gap-3 rounded-[20px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 shadow-[0_12px_28px_rgba(70,40,150,0.08)]"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f0ebff] text-arc-purple-500">
-            <Users className="h-5 w-5" strokeWidth={2.4} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-display text-[16px] leading-none font-bold text-[#1b1730]">
-              {followerCount == null
-                ? "…"
-                : `${followerCount} ${followerCount === 1 ? "follower" : "followers"}`}
-            </p>
-            <p className="mt-1 text-[11px] font-bold text-[#8a7cb8]">
-              {followingCount == null ? "…" : followingCount} following · tap to
-              manage
-            </p>
+          {/* Badges + gems */}
+          <div className="flex gap-2.5">
+            <Link
+              href="/badges"
+              className="flex flex-1 items-center gap-3 rounded-[20px] border border-[#ebe4f6] bg-white px-3.5 py-3 shadow-[0_12px_28px_rgba(70,40,150,0.08)]"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff3c4] text-[#c98a00]">
+                <Award className="h-5 w-5" strokeWidth={2.4} />
+              </span>
+              <div>
+                <p className="font-display text-[18px] leading-none font-bold text-[#1b1730]">
+                  {badgesEarned == null ? "…" : badgesEarned}
+                  <span className="text-[#8a7cb8]">/{badgesTotal}</span>
+                </p>
+                <p className="mt-0.5 text-[10px] font-extrabold tracking-wide text-[#8a7cb8] uppercase">
+                  Badges
+                </p>
+              </div>
+            </Link>
+            <Link
+              href="/wallet"
+              className="flex flex-1 items-center gap-3 rounded-[20px] border border-[#ebe4f6] bg-white px-3.5 py-3 shadow-[0_12px_28px_rgba(70,40,150,0.08)]"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f6f2ff] text-[#b35cff]">
+                <Gem className="h-5 w-5" strokeWidth={2.4} />
+              </span>
+              <div>
+                <p className="font-display text-[18px] leading-none font-bold text-[#1b1730]">
+                  {gems.toLocaleString()}
+                </p>
+                <p className="mt-0.5 text-[10px] font-extrabold tracking-wide text-[#8a7cb8] uppercase">
+                  Gems
+                </p>
+              </div>
+            </Link>
           </div>
-          <ArrowRight className="h-4 w-4 text-[#b3a8d6]" strokeWidth={2.5} />
-        </Link>
 
-        <ActionTwinRow coins={coins} studioEnabled={flags.avatar_studio_enabled} />
+          <Link
+            href="/profile/followers"
+            className="flex items-center gap-3 rounded-[20px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 shadow-[0_12px_28px_rgba(70,40,150,0.08)]"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f0ebff] text-arc-purple-500">
+              <Users className="h-5 w-5" strokeWidth={2.4} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-[16px] leading-none font-bold text-[#1b1730]">
+                {followerCount == null
+                  ? "…"
+                  : `${followerCount} ${followerCount === 1 ? "follower" : "followers"}`}
+              </p>
+              <p className="mt-1 text-[11px] font-bold text-[#8a7cb8]">
+                {followingCount == null ? "…" : followingCount} following · tap
+                to manage
+              </p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-[#b3a8d6]" strokeWidth={2.5} />
+          </Link>
 
-        <BattleArenaCard />
+          <ActionTwinRow
+            coins={coins}
+            studioEnabled={flags.avatar_studio_enabled}
+          />
 
-        <UtilityList />
+          <BattleArenaCard />
+
+          <UtilityList />
         </div>
       </div>
     </div>
   );
 }
 
-function XpRing({ percent, level }: { percent: number; level: number }) {
+function XpRing({
+  percent,
+  level,
+  iconAssetKey,
+}: {
+  percent: number;
+  level: number;
+  iconAssetKey?: string | null;
+}) {
   const size = 108;
   const stroke = 6;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - (percent / 100) * c;
+  const rankSrc = rankImageFor(iconAssetKey);
 
   return (
     <div className="relative h-[108px] w-[108px]">
@@ -370,10 +380,11 @@ function XpRing({ percent, level }: { percent: number; level: number }) {
       </svg>
       <div className="absolute inset-[10px] overflow-hidden rounded-full bg-arc-purple-500 ring-2 ring-white/15">
         <Image
-          src={assets.arlo.thumbsUp}
+          src={rankSrc}
           alt=""
           width={96}
           height={96}
+          unoptimized={isRankUploadSrc(rankSrc)}
           className="h-full w-full object-cover object-top"
           priority
         />
@@ -413,7 +424,10 @@ function ActionTwinRow({
                 Avatar Studio
               </span>
               <span className="mt-0.5 flex items-center gap-1 text-[12px] font-bold text-white/50">
-                <Coins className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
+                <Coins
+                  className="h-3.5 w-3.5 text-[#ffc928]"
+                  strokeWidth={2.5}
+                />
                 {coins.toLocaleString()} coins
               </span>
             </span>

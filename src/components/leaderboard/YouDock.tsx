@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import type { LeaderboardEntry } from "@/lib/leaderboard/types";
 import { softSpring, snappySpring } from "./motion";
 
@@ -24,17 +25,15 @@ export function YouDock({
       >
         <div className="flex items-center gap-3 p-3.5">
           <div className="relative">
-            <div
-              className="flex h-12 w-12 items-center justify-center rounded-2xl"
-              style={{ background: entry.avatarBg }}
-            >
-              <span
-                className="font-display text-[18px] font-bold"
-                style={{ color: entry.avatarColor }}
-              >
-                {entry.initial}
-              </span>
-            </div>
+            <UserAvatar
+              initial={entry.initial}
+              color={entry.avatarBg}
+              textColor={entry.avatarColor}
+              avatarUrl={entry.avatarUrl}
+              className="h-12 w-12 rounded-2xl text-[18px]"
+              textClassName="font-display text-[18px] font-bold"
+              alt=""
+            />
             <span className="absolute -top-1.5 -right-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#ffc928] px-1 font-display text-[11px] font-bold text-[#0f1220]">
               #{entry.rank}
             </span>

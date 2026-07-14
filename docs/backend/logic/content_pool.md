@@ -357,6 +357,8 @@ For large paths:
 - this permits pace adjustment without rewriting completed history
 - locked future batches can use new published versions after validation
 
+**Intake body personalization (optional):** when `lesson_body_ai_enabled` is on and LLM is configured, `materializeRoadmapContent` enqueues async jobs that rewrite teaching copy (`objective`, Arlo lines, `content[]` pages) onto the user lesson’s `play_content` from questionnaire + intake chat. Practice/quiz stay scaffold. Pool template / published version rows are never mutated. Soft-fail leaves the scaffold body playable immediately.
+
 ---
 
 ## 10. Battle Question Selection
@@ -505,6 +507,7 @@ Do not auto-retire solely from one metric. Flag for review.
 | Courses / modules / datasets / prereqs | `content-catalog.service.ts`, admin routes |
 | Personalization + language | `content-personalization.service.ts` (profile language, diagnostic skip) |
 | Rolling window materialize | `ContentQueryService.materializeRoadmapContent` after roadmap assemble |
+| Intake lesson-body AI (async) | `LessonBodyPersonalizerService` via `lesson_body_personalization` queue; writes `lessons.play_content` only |
 | `sourceVersionId` on user lessons | `roadmaps/entities/lesson.entity.ts`, generator + `lesson-content.service` |
 | Cache / FTS stub | `content-cache.service.ts` (in-memory; Redis-ready) |
 | Quality metrics | `content-quality.service.ts` ← lesson complete + battle settle |

@@ -21,6 +21,7 @@ export type LeaderboardEntry = {
   showLike?: boolean;
   avatarBg: string;
   avatarColor: string;
+  avatarUrl?: string | null;
 };
 
 export type LeagueQuest = {

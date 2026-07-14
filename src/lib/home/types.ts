@@ -58,7 +58,7 @@ export type HomeData = {
     yourXp: number;
     yourPlace: number;
     xpToNext: number;
-    peers: { initial: string; color: string; xp: number }[];
+    peers: { initial: string; color: string; xp: number; avatarUrl?: string | null }[];
   };
   stats: {
     xp: number;

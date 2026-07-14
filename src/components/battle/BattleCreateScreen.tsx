@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BackButton } from "@/components/BackButton";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { Clock, Coins, HelpCircle, Swords, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { battlesApi } from "@/lib/api/battles";
@@ -19,6 +20,7 @@ import {
   maxStakeForRankLevel,
   stakeOptionsForRank,
 } from "@/lib/battle/stake-limits";
+import { useRankMe } from "@/hooks/useRanks";
 import { useBattleStore } from "@/store/useBattleStore";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
@@ -58,6 +60,7 @@ export default function BattleCreateScreen() {
   const setSetup = useBattleStore((s) => s.setSetup);
   const resetPlay = useBattleStore((s) => s.resetPlay);
   const coins = useEconomyStore((s) => s.coins);
+  const { data: rankMe } = useRankMe();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
@@ -245,6 +248,7 @@ export default function BattleCreateScreen() {
             name="You"
             sub="Challenger"
             color="#6B4EFF"
+            avatarUrl={rankMe?.current.iconAssetKey}
             align="left"
           />
 
@@ -261,6 +265,7 @@ export default function BattleCreateScreen() {
             name={opponent.name.split(" ")[0]}
             sub={`Lv ${opponent.level} · ${opponent.league}`}
             color={opponent.color}
+            avatarUrl={opponent.avatarUrl}
             align="right"
           />
         </div>
@@ -281,14 +286,20 @@ export default function BattleCreateScreen() {
                   aria-label={`Pick ${f.name}`}
                   onClick={() => setSetup({ opponentId: f.userId })}
                   className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-xl font-display text-[12px] font-bold text-white transition-transform",
+                    "transition-transform",
                     active
-                      ? "scale-110 ring-2 ring-[#ffc928] ring-offset-2 ring-offset-[#0f1220]"
+                      ? "scale-110 ring-2 ring-[#ffc928] ring-offset-2 ring-offset-[#0f1220] rounded-xl"
                       : "opacity-45",
                   )}
-                  style={{ background: f.color }}
                 >
-                  {f.initial}
+                  <UserAvatar
+                    initial={f.initial}
+                    color={f.color}
+                    avatarUrl={f.avatarUrl}
+                    className="h-9 w-9 rounded-xl font-display text-[12px]"
+                    textClassName="text-[12px]"
+                    alt=""
+                  />
                 </button>
               );
             })
@@ -537,24 +548,28 @@ function Fighter({
   sub,
   color,
   align,
+  avatarUrl,
 }: {
   initial: string;
   name: string;
   sub: string;
   color: string;
   align: "left" | "right";
+  avatarUrl?: string | null;
 }) {
   return (
     <div className={cn("min-w-0 flex-1", align === "right" && "text-right")}>
-      <span
+      <UserAvatar
+        initial={initial}
+        color={color}
+        avatarUrl={avatarUrl}
         className={cn(
-          "inline-flex h-16 w-16 items-center justify-center rounded-[20px] font-display text-[24px] font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)]",
+          "h-16 w-16 rounded-[20px] font-display text-[24px] shadow-[0_8px_20px_rgba(0,0,0,0.25)]",
           align === "right" && "ml-auto",
         )}
-        style={{ background: color }}
-      >
-        {initial}
-      </span>
+        textClassName="text-[24px]"
+        alt=""
+      />
       <p className="mt-2 truncate font-display text-[16px] font-bold">{name}</p>
       <p className="truncate text-[11px] font-bold text-white/45">{sub}</p>
     </div>

@@ -13,9 +13,12 @@ import {
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { assets } from "@/lib/assets";
 import { battlesApi, type BattleDto } from "@/lib/api/battles";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { rankAvatarSrc } from "@/lib/rank/icons";
+import { useRankMe } from "@/hooks/useRanks";
 import { useBattleStore } from "@/store/useBattleStore";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +62,8 @@ function FighterCard({
   label,
   name,
   avatarUrl,
+  initial,
+  color,
   ready,
   side,
   online,
@@ -66,10 +71,13 @@ function FighterCard({
   label: string;
   name: string;
   avatarUrl?: string | null;
+  initial?: string;
+  color?: string;
   ready: boolean;
   side: "you" | "them";
   online?: boolean;
 }) {
+  const rankSrc = rankAvatarSrc(avatarUrl);
   return (
     <motion.div
       className={cn(
@@ -91,12 +99,13 @@ function FighterCard({
               ready ? "ring-[#62d84e]" : "ring-white/25",
             )}
           >
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
+            {rankSrc ? (
+              <UserAvatar
+                initial={initial ?? name.charAt(0).toUpperCase()}
+                color={color ?? "#6B4EFF"}
+                avatarUrl={avatarUrl}
+                className="h-16 w-16 rounded-2xl"
                 alt=""
-                className="h-full w-full object-cover"
               />
             ) : (
               <Image
@@ -104,7 +113,7 @@ function FighterCard({
                 alt=""
                 width={64}
                 height={64}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover object-top"
               />
             )}
           </div>
@@ -158,6 +167,7 @@ function LobbyShell({
   const pot = battle?.pot ?? stake * 2;
   const youReady = Boolean(battle?.youReady);
   const themReady = Boolean(battle?.opponentReady);
+  const { data: rankMe } = useRankMe();
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -188,6 +198,8 @@ function LobbyShell({
           <FighterCard
             label="You"
             name="You"
+            initial="Y"
+            avatarUrl={rankMe?.current.iconAssetKey}
             ready={youReady}
             side="you"
             online={battle?.youOnline}

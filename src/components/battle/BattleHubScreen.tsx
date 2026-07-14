@@ -25,6 +25,7 @@ import {
   useBattleHub,
 } from "@/hooks/useBattles";
 import { BattleHubSkeleton } from "@/components/battle/BattleHubSkeleton";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
@@ -548,11 +549,15 @@ export default function BattleHubScreen() {
                       href={`/friends/${hit.userId}`}
                       className="flex items-center gap-3 rounded-[18px] border border-[#ebe4f6] bg-white px-3.5 py-3 shadow-[0_6px_16px_rgba(70,40,150,0.06)]"
                     >
-                      <span
-                        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-display text-[16px] font-bold text-white"
-                        style={{ background: hit.color }}
-                      >
-                        {hit.initial}
+                      <span className="relative h-11 w-11 shrink-0">
+                        <UserAvatar
+                          initial={hit.initial}
+                          color={hit.color}
+                          avatarUrl={hit.avatarUrl}
+                          className="h-11 w-11 rounded-2xl font-display text-[16px]"
+                          textClassName="text-[16px]"
+                          alt=""
+                        />
                         <span
                           className={cn(
                             "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white",
@@ -607,17 +612,19 @@ export default function BattleHubScreen() {
                         i === 1 && "translate-y-2",
                       )}
                     >
-                      <span
+                      <UserAvatar
+                        initial={f.initial}
+                        color={f.color}
+                        avatarUrl={f.avatarUrl}
                         className={cn(
-                          "flex items-center justify-center rounded-2xl font-display font-bold text-white",
+                          "rounded-2xl font-display",
                           big
                             ? "h-14 w-14 text-[20px]"
                             : "h-11 w-11 text-[16px]",
                         )}
-                        style={{ background: f.color }}
-                      >
-                        {f.initial}
-                      </span>
+                        textClassName={big ? "text-[20px]" : "text-[16px]"}
+                        alt=""
+                      />
                       <span className="absolute top-3 right-3 h-2.5 w-2.5 rounded-full bg-[#16c784] ring-2 ring-white" />
                       <p
                         className={cn(

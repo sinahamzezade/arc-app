@@ -106,6 +106,7 @@ export function mapLeaderboardEntry(
     anonymized: dto.anonymized,
     avatarBg: avatar.bg,
     avatarColor: avatar.color,
+    avatarUrl: dto.avatarUrl,
     nudge: isYou && dto.qualifiedXp === 0
       ? "Finish today's lesson to climb!"
       : undefined,
@@ -113,43 +114,18 @@ export function mapLeaderboardEntry(
   };
 }
 
-function buildQuests(
+function mapQuests(
   current: LeagueCurrentResponse,
 ): LeagueQuest[] {
-  const breakdown = current.scoreSourceBreakdown ?? {};
-  const lessonXp = breakdown.lesson ?? 0;
-  const battleXp = breakdown.battle ?? 0;
-  const activeDays = current.me.activeDays;
-
-  return [
-    {
-      id: "lessons",
-      title: "Three lessons",
-      detail: "Earn League XP from any 3 lessons this week",
-      progress: Math.min(3, Math.floor(lessonXp / 20)),
-      goal: 3,
-      xpReward: 40,
-      done: lessonXp >= 60,
-    },
-    {
-      id: "battle",
-      title: "Battle once",
-      detail: "Finish 1 friend Battle (capped League XP)",
-      progress: battleXp > 0 ? 1 : 0,
-      goal: 1,
-      xpReward: 25,
-      done: battleXp > 0,
-    },
-    {
-      id: "active-days",
-      title: "Weekly commit",
-      detail: "Learn on 5 distinct days this season",
-      progress: Math.min(5, activeDays),
-      goal: 5,
-      xpReward: 50,
-      done: activeDays >= 5,
-    },
-  ];
+  return (current.quests ?? []).map((q) => ({
+    id: q.code || q.id,
+    title: q.title,
+    detail: q.detail,
+    progress: q.progress,
+    goal: Math.max(1, q.goal),
+    xpReward: q.xpReward,
+    done: q.done,
+  }));
 }
 
 function buildDivisions(
@@ -219,7 +195,7 @@ export function mapLeagueToLeaderboardData(
     },
     scoreSourceBreakdown: current.scoreSourceBreakdown ?? {},
     entries: mapped.sort((a, b) => a.rank - b.rank),
-    quests: buildQuests(current),
+    quests: mapQuests(current),
     divisions: buildDivisions(tier, current.cohort.division),
     footerNote:
       "League XP: lessons · challenges · projects. Ties break on proof XP, then active days.",
@@ -251,6 +227,7 @@ export function mapLeagueUserToPeer(
     xp,
     avatarBg: avatar.bg,
     avatarColor: avatar.color,
+    avatarUrl: boardEntry?.avatarUrl ?? null,
     showLike: boardEntry?.showLike,
     anonymized: false,
     leagueName: `${TIER_LABEL[tier]} League`,

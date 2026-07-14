@@ -23,6 +23,7 @@ export function peerFromSocial(
     xp: 0,
     avatarBg: profile.color || "#7c5cbf",
     avatarColor: "#ffffff",
+    avatarUrl: profile.avatarUrl,
     leagueName: profile.league || "Arc",
     leagueTier: "bronze",
     weekLabel: "Social",

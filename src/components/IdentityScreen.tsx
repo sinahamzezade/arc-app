@@ -14,7 +14,7 @@ import {
 import { motion } from "motion/react";
 import { meApi } from "@/lib/api/auth";
 import { ApiError, messageForCode } from "@/lib/api/errors";
-import { assets } from "@/lib/assets";
+import { isRankUploadSrc, rankImageFor } from "@/lib/rank/icons";
 import { useArcDay } from "@/hooks/useArcDay";
 import { useRankMe } from "@/hooks/useRanks";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
@@ -38,6 +38,7 @@ export default function IdentityScreen({
   const { data: rankMe } = useRankMe();
   const profile = session?.profile;
   const level = rankMe?.current.level ?? data.level;
+  const rankSrc = rankImageFor(rankMe?.current.iconAssetKey);
   const day = useArcDay(data.day);
 
   const initialName =
@@ -162,10 +163,11 @@ export default function IdentityScreen({
           >
             <div className="relative h-[132px] w-[132px] overflow-hidden rounded-full bg-arc-purple-500 shadow-[0_12px_32px_rgba(107,78,255,0.45)] ring-4 ring-[#ffc928]/35">
               <Image
-                src={assets.arlo.thumbsUp}
+                src={rankSrc}
                 alt={`${userName}'s avatar`}
                 fill
                 priority
+                unoptimized={isRankUploadSrc(rankSrc)}
                 className="object-cover object-top"
                 sizes="132px"
               />
@@ -290,9 +292,10 @@ export default function IdentityScreen({
           <div className="mt-3 flex items-center gap-3">
             <div className="relative h-12 w-12 overflow-hidden rounded-full bg-arc-purple-500 ring-2 ring-[#ffc928]/50">
               <Image
-                src={assets.arlo.thumbsUp}
+                src={rankSrc}
                 alt=""
                 fill
+                unoptimized={isRankUploadSrc(rankSrc)}
                 className="object-cover object-top"
                 sizes="48px"
               />

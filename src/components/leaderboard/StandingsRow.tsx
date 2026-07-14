@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Flame, ThumbsUp } from "lucide-react";
 import { motion } from "motion/react";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import type { LeaderboardEntry } from "@/lib/leaderboard/types";
 import { cn } from "@/lib/utils";
 import { RankCell } from "./RankCell";
@@ -108,15 +109,18 @@ function LearnerCell({
 }) {
   return (
     <>
-      <span
+      <UserAvatar
+        initial={entry.initial}
+        color={entry.avatarBg}
+        textColor={entry.avatarColor}
+        avatarUrl={entry.avatarUrl}
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-display text-[14px] font-bold",
+          "h-9 w-9 rounded-xl text-[14px]",
           you && "ring-2 ring-arc-purple-500 ring-offset-1",
         )}
-        style={{ background: entry.avatarBg, color: entry.avatarColor }}
-      >
-        {entry.initial}
-      </span>
+        textClassName="font-display text-[14px] font-bold"
+        alt=""
+      />
       <span className="min-w-0">
         <span
           className={cn(

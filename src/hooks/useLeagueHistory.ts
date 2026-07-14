@@ -50,6 +50,7 @@ export function useHomeLeagueCard() {
         peers: current.topUsers.slice(0, 3).map((u, i) => ({
           initial: (u.displayName || "?").charAt(0).toUpperCase(),
           color: ["#6b4eff", "#ffc928", "#b35cff"][i] ?? "#8a7cb8",
+          avatarUrl: u.avatarUrl,
         })),
       };
     },

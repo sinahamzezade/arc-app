@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { Award, ChevronRight, FerrisWheel, Medal, Trophy } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { useHomeBadgesCard } from "@/hooks/useBadges";
 import { useHomeLeagueCard } from "@/hooks/useLeagueHistory";
 import { useLuckyWheel } from "@/hooks/useLuckyWheel";
@@ -89,14 +90,16 @@ export function HomeExtras({
           sub={`${leagueCard.endsIn} · ${leagueCard.xpToNext} XP to climb`}
           trailing={
             <span className="mr-1 flex -space-x-2" aria-hidden>
-              {leagueCard.peers.map((r) => (
-                <span
-                  key={r.initial + r.color}
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-extrabold text-white ring-2 ring-white"
-                  style={{ backgroundColor: r.color }}
-                >
-                  {r.initial}
-                </span>
+              {leagueCard.peers.map((r, i) => (
+                <UserAvatar
+                  key={`${r.initial}-${r.color}-${i}`}
+                  initial={r.initial}
+                  color={r.color}
+                  avatarUrl={r.avatarUrl}
+                  className="h-6 w-6 rounded-full text-[10px] ring-2 ring-white"
+                  textClassName="text-[10px] font-extrabold"
+                  alt=""
+                />
               ))}
             </span>
           }

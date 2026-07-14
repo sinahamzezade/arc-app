@@ -19,6 +19,7 @@ import {
   type SocialSearchHitDto,
 } from "@/lib/api/social";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { cn } from "@/lib/utils";
 
 const filters = ["Crew", "Following", "Requests"] as const;
@@ -301,14 +302,20 @@ export default function FriendsScreen() {
               {online.slice(0, 5).map((f, i) => (
                 <span
                   key={f.userId}
-                  className="relative flex h-12 w-12 items-center justify-center rounded-2xl font-display text-[16px] font-bold text-white ring-2 ring-[#1b1433]"
+                  className="relative"
                   style={{
-                    background: f.color,
                     marginLeft: i === 0 ? 0 : -12,
                     zIndex: online.length - i,
                   }}
                 >
-                  {f.initial}
+                  <UserAvatar
+                    initial={f.initial}
+                    color={f.color}
+                    avatarUrl={f.avatarUrl}
+                    className="h-12 w-12 rounded-2xl font-display text-[16px] ring-2 ring-[#1b1433]"
+                    textClassName="text-[16px]"
+                    alt=""
+                  />
                 </span>
               ))}
             </div>
@@ -498,11 +505,15 @@ export default function FriendsScreen() {
                       href={`/friends/${f.userId}`}
                       className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3.5"
                     >
-                      <span
-                        className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] font-display text-[17px] font-bold text-white"
-                        style={{ background: f.color }}
-                      >
-                        {f.initial}
+                      <span className="relative h-12 w-12 shrink-0">
+                        <UserAvatar
+                          initial={f.initial}
+                          color={f.color}
+                          avatarUrl={f.avatarUrl}
+                          className="h-12 w-12 rounded-[16px] font-display text-[17px]"
+                          textClassName="text-[17px]"
+                          alt=""
+                        />
                         <span
                           className={cn(
                             "absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full ring-2 ring-white",
@@ -648,11 +659,15 @@ export default function FriendsScreen() {
                           href={`/friends/${f.userId}`}
                           className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3.5"
                         >
-                          <span
-                            className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] font-display text-[17px] font-bold text-white"
-                            style={{ background: f.color }}
-                          >
-                            {f.initial}
+                          <span className="relative h-12 w-12 shrink-0">
+                            <UserAvatar
+                              initial={f.initial}
+                              color={f.color}
+                              avatarUrl={f.avatarUrl}
+                              className="h-12 w-12 rounded-[16px] font-display text-[17px]"
+                              textClassName="text-[17px]"
+                              alt=""
+                            />
                             <span
                               className={cn(
                                 "absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full ring-2 ring-white",
@@ -762,12 +777,14 @@ export default function FriendsScreen() {
                       href={`/friends/${f.userId}`}
                       className="flex min-w-0 flex-1 items-center gap-3"
                     >
-                      <span
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] font-display text-[15px] font-bold text-white"
-                        style={{ background: f.color }}
-                      >
-                        {f.initial}
-                      </span>
+                      <UserAvatar
+                        initial={f.initial}
+                        color={f.color}
+                        avatarUrl={f.avatarUrl}
+                        className="h-11 w-11 rounded-[14px] font-display text-[15px]"
+                        textClassName="text-[15px]"
+                        alt=""
+                      />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-display text-[15px] font-semibold text-[#1b1730]">
                           {f.name}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BackButton } from "@/components/BackButton";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import {
   BookOpen,
   Check,
@@ -20,6 +21,7 @@ import {
   type StudySessionDto,
   type StudyStartModeDto,
 } from "@/lib/api/study";
+import { useRankMe } from "@/hooks/useRanks";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 420, damping: 32 };
@@ -57,6 +59,7 @@ export default function StudyInviteScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselect = searchParams.get("friend");
+  const { data: rankMe } = useRankMe();
 
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
   const [invites, setInvites] = useState<StudySessionDto[]>([]);
@@ -171,6 +174,7 @@ export default function StudyInviteScreen() {
             name="You"
             sub="Host"
             color="#6B4EFF"
+            avatarUrl={rankMe?.current.iconAssetKey}
             align="left"
           />
 
@@ -193,6 +197,7 @@ export default function StudyInviteScreen() {
                   : "Pick below"
             }
             color={partner?.color ?? "#8a7cb8"}
+            avatarUrl={partner?.avatarUrl}
             align="right"
           />
         </div>
@@ -239,12 +244,14 @@ export default function StudyInviteScreen() {
                         : "border-[#ebe4f6] bg-white/95 opacity-85 shadow-[0_4px_0_#d9d0ef]",
                     )}
                   >
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-xl font-display text-[13px] font-bold text-white"
-                      style={{ background: f.color }}
-                    >
-                      {f.initial}
-                    </span>
+                    <UserAvatar
+                      initial={f.initial}
+                      color={f.color}
+                      avatarUrl={f.avatarUrl}
+                      className="h-9 w-9 rounded-xl font-display text-[13px]"
+                      textClassName="text-[13px]"
+                      alt=""
+                    />
                     <span className="min-w-0 text-left">
                       <span className="block max-w-[88px] truncate font-display text-[13px] font-bold text-[#1b1730]">
                         {f.name.split(" ")[0]}
@@ -505,24 +512,28 @@ function Buddy({
   sub,
   color,
   align,
+  avatarUrl,
 }: {
   initial: string;
   name: string;
   sub: string;
   color: string;
   align: "left" | "right";
+  avatarUrl?: string | null;
 }) {
   return (
     <div className={cn("min-w-0 flex-1", align === "right" && "text-right")}>
-      <span
+      <UserAvatar
+        initial={initial}
+        color={color}
+        avatarUrl={avatarUrl}
         className={cn(
-          "inline-flex h-16 w-16 items-center justify-center rounded-[20px] font-display text-[24px] font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)]",
+          "h-16 w-16 rounded-[20px] font-display text-[24px] shadow-[0_8px_20px_rgba(0,0,0,0.25)]",
           align === "right" && "ml-auto",
         )}
-        style={{ background: color }}
-      >
-        {initial}
-      </span>
+        textClassName="text-[24px]"
+        alt=""
+      />
       <p className="mt-2 truncate font-display text-[16px] font-bold">{name}</p>
       <p className="truncate text-[11px] font-bold text-white/45">{sub}</p>
     </div>

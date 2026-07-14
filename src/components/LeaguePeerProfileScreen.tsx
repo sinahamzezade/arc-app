@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import {
   socialApi,
@@ -234,12 +235,15 @@ export default function LeaguePeerProfileScreen({
           </div>
 
           <div className="relative shrink-0">
-            <div
-              className="flex h-[88px] w-[88px] items-center justify-center rounded-[28px] font-display text-[36px] font-bold shadow-[0_10px_28px_rgba(0,0,0,0.35)] ring-4 ring-[#ffc928]/35"
-              style={{ background: peer.avatarBg, color: peer.avatarColor }}
-            >
-              {social?.initial ?? peer.initial}
-            </div>
+            <UserAvatar
+              initial={social?.initial ?? peer.initial}
+              color={peer.avatarBg}
+              textColor={peer.avatarColor}
+              avatarUrl={social?.avatarUrl ?? peer.avatarUrl}
+              className="h-[88px] w-[88px] rounded-[28px] font-display text-[36px] shadow-[0_10px_28px_rgba(0,0,0,0.35)] ring-4 ring-[#ffc928]/35"
+              textClassName="text-[36px]"
+              alt=""
+            />
             <span className="absolute -top-2 -right-2 rounded-xl bg-[#ffc928] px-2 py-1 font-display text-[13px] font-bold text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
               #{peer.rank}
             </span>

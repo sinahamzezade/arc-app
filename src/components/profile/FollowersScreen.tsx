@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { Users } from "lucide-react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import { socialApi, type SocialFriendDto } from "@/lib/api/social";
 import { cn } from "@/lib/utils";
@@ -222,12 +223,14 @@ export default function FollowersScreen() {
                     href={`/leaderboard/${f.userId}`}
                     className="flex min-w-0 flex-1 items-center gap-3"
                   >
-                    <span
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] font-display text-[15px] font-bold text-white"
-                      style={{ background: f.color }}
-                    >
-                      {f.initial}
-                    </span>
+                    <UserAvatar
+                      initial={f.initial}
+                      color={f.color}
+                      avatarUrl={f.avatarUrl}
+                      className="h-11 w-11 rounded-[14px] font-display text-[15px]"
+                      textClassName="text-[15px]"
+                      alt=""
+                    />
                     <div className="min-w-0">
                       <p className="truncate font-display text-[15px] font-semibold text-[#1b1730]">
                         {f.name}

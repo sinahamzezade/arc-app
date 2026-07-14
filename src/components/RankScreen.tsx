@@ -16,7 +16,7 @@ import {
 import { motion } from "motion/react";
 import { useRankLadder } from "@/hooks/useRanks";
 import { formatRequirementLabel } from "@/lib/api/ranks";
-import { assets } from "@/lib/assets";
+import { isRankUploadSrc, rankImageFor } from "@/lib/rank/icons";
 import { rankHowToEarn, rankWalletTips } from "@/lib/rank/catalog";
 import type { RankTier } from "@/lib/rank/types";
 import { cn } from "@/lib/utils";
@@ -56,6 +56,7 @@ export default function RankScreen() {
     })) ?? [];
   const howToEarn = rankHowToEarn;
   const walletTips = rankWalletTips;
+  const rankSrc = rankImageFor(me?.current.iconAssetKey);
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
@@ -113,11 +114,12 @@ export default function RankScreen() {
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             >
               <Image
-                src={assets.home.ninja}
+                src={rankSrc}
                 alt=""
                 width={72}
                 height={80}
-                className="h-auto w-[68px]"
+                unoptimized={isRankUploadSrc(rankSrc)}
+                className="h-auto w-[68px] object-contain"
               />
               <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-[#ffc928] px-2.5 py-0.5 text-[10px] font-black text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
                 You
