@@ -185,9 +185,9 @@ The snapshot carries `contentVersion` per row so the plan pins exact versions (m
 
 ## 5. AI-driven interview seam (Question Engine mode)
 
-> This section documents the seam only. Interview internals stay in `02-questionnaire.md`; the planner contract is unchanged.
+> Interview internals stay in `02-questionnaire.md`; the planner contract is unchanged.
 
-The interview evolves from a static schema to an **AI conversational intake** while preserving the downstream contract:
+**Status:** Conversational intake is implemented in Question Engine (`/questionnaire/chat/*`, `/intake/chat` UI). Form and chat both commit the same validated `goals` revision. Optional title-only enrich uses `LLM_ROADMAP_MODEL` after the Python plan; the engine still assembles curriculum.
 
 1. The AI interviewer asks adaptive follow-ups (e.g. probes "known skills" until it can map tokens to skill-graph tags).
 2. Every turn is normalized into the **same** validated token set (`target_roles`, `skills`, `weekly_hours`, …). Free text is mapped to schema tokens server-side; unknown tokens are rejected exactly as today.

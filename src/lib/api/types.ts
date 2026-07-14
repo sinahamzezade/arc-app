@@ -16,9 +16,6 @@ export type Profile = {
   avatarUrl: string | null;
   timezone: string | null;
   language: string;
-  currentRole: string | null;
-  targetRole: string | null;
-  yearsExperience: number | null;
   totalXp?: number;
   coins?: number;
   gems?: number;
@@ -26,6 +23,7 @@ export type Profile = {
   questionnaireStatus?: QuestionnaireStatus;
   questionnaireCompletedAt?: string | null;
   onboardingCompletedAt?: string | null;
+  intakeMode?: "form" | "chat" | null;
 };
 
 export type QuestionnaireAnswersPayload = Record<string, unknown>;

@@ -13,16 +13,9 @@ export function isQuestionnaireComplete(
   return profile?.questionnaireStatus === ("completed" satisfies QuestionnaireStatus);
 }
 
-/** Role snapshot from /onboarding form. */
-export function hasOnboardingRoles(profile?: Profile | null): boolean {
-  return Boolean(
-    profile?.currentRole?.trim() && profile?.targetRole?.trim(),
-  );
-}
-
 /**
  * Where to send user after login / when hitting app while incomplete.
- * Order: verify email → onboarding roles → questionnaire → home.
+ * Order: verify email → questionnaire → home.
  */
 export function resolvePostAuthPath(input: PostAuthInput): string {
   const { emailVerified, email, profile } = input;
@@ -32,10 +25,6 @@ export function resolvePostAuthPath(input: PostAuthInput): string {
       return `/verify-email?email=${encodeURIComponent(email)}&purpose=verify`;
     }
     return "/login";
-  }
-
-  if (!hasOnboardingRoles(profile)) {
-    return "/onboarding";
   }
 
   if (!isQuestionnaireComplete(profile)) {
@@ -65,12 +54,12 @@ export function isAuthPublicPath(pathname: string): boolean {
   );
 }
 
-/** Onboarding funnel — allowed while questionnaire incomplete. */
+/** Intake funnel — allowed while questionnaire incomplete. */
 export function isOnboardingFunnelPath(pathname: string): boolean {
   return (
-    pathname === "/onboarding" ||
-    pathname.startsWith("/onboarding/") ||
     pathname === "/questionnaire" ||
-    pathname.startsWith("/questionnaire/")
+    pathname.startsWith("/questionnaire/") ||
+    pathname === "/intake/chat" ||
+    pathname.startsWith("/intake/")
   );
 }

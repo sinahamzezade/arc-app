@@ -1,5 +1,6 @@
-import OnboardingForm from "@/components/OnboardingForm";
+import { redirect } from "next/navigation";
 
+/** Legacy /onboarding (profile basics) removed — send to questionnaire. */
 export default function OnboardingPage() {
-  return <OnboardingForm />;
+  redirect("/questionnaire");
 }

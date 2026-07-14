@@ -58,7 +58,7 @@ export default function RegisterScreen() {
         `/verify-email?email=${encodeURIComponent(email)}&purpose=verify`,
       );
     } else {
-      router.push("/onboarding");
+      router.push("/questionnaire");
     }
   };
 

@@ -104,9 +104,6 @@ export const meApi = {
     username?: string;
     timezone?: string;
     language?: string;
-    currentRole?: string;
-    targetRole?: string;
-    yearsExperience?: number;
   }) {
     return apiFetch<{ profile: MeResponse["profile"] }>("/me/profile", {
       method: "PATCH",

@@ -4,7 +4,6 @@ import {
   isAuthPublicPath,
   isOnboardingFunnelPath,
   isQuestionnaireComplete,
-  hasOnboardingRoles,
   resolvePostAuthPath,
 } from "@/lib/auth/post-auth-route";
 
@@ -60,16 +59,6 @@ export default auth((req) => {
 
   if (
     emailVerified &&
-    !hasOnboardingRoles(profile) &&
-    !pathname.startsWith("/onboarding") &&
-    !pathname.startsWith("/questionnaire")
-  ) {
-    return NextResponse.redirect(new URL("/onboarding", req.nextUrl.origin));
-  }
-
-  if (
-    emailVerified &&
-    hasOnboardingRoles(profile) &&
     !isQuestionnaireComplete(profile) &&
     !isOnboardingFunnelPath(pathname)
   ) {
@@ -84,4 +73,3 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|assets|sentry-tunnel|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
-

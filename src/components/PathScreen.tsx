@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import PathGateScreen from "@/components/path/PathGateScreen";
+import { PathScreenSkeleton } from "@/components/path/PathScreenSkeleton";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import { mapRoadmapToPathData } from "@/lib/path/map-roadmap";
@@ -246,17 +247,17 @@ export default function PathScreen({
   }
 
   if (isLoading) {
-    return <PathGateScreen kind="loading" />;
+    return <PathScreenSkeleton />;
   }
 
   const job = data?.job;
   const roadmap = data?.roadmap;
 
   if (
-    (retry.isPending ||
-      (job &&
-        (job.status === "queued" || job.status === "processing") &&
-        !roadmap))
+    retry.isPending ||
+    (job &&
+      (job.status === "queued" || job.status === "processing") &&
+      !roadmap)
   ) {
     return <PathGateScreen kind="building" />;
   }
@@ -682,7 +683,7 @@ function GantrySign({ row }: { row: Extract<TrailRow, { kind: "gantry" }> }) {
       >
         <span
           className={cn(
-            "flex h-9 shrink-0 items-center justify-center rounded-lg px-2 font-display text-[13px] font-bold tracking-wide",
+            "flex h-9 shrink-0 items-center justify-center rounded-xl px-2 font-display text-[13px] font-bold tracking-wide",
             row.locked
               ? "bg-[#efe9f8] text-[#b3a8d6]"
               : "bg-[#ffc928] text-[#1b1730]",
@@ -696,7 +697,7 @@ function GantrySign({ row }: { row: Extract<TrailRow, { kind: "gantry" }> }) {
         </span>
         <p
           className={cn(
-            "min-w-0 flex-1 truncate font-display text-[16px] leading-tight font-semibold",
+            "min-w-0 flex-1 font-display text-[16px] leading-tight font-semibold",
             row.locked ? "text-[#8a7cb8]" : "text-white",
           )}
         >

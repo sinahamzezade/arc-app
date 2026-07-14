@@ -54,8 +54,8 @@ export default function IdentityScreen({
     setDraft(next);
   }, [profile?.username, profile?.displayName, data.userName]);
 
-  const fromRole = profile?.currentRole || data.fromRole;
-  const becoming = profile?.targetRole || data.becoming;
+  const fromRole = data.fromRole;
+  const becoming = data.becoming;
 
   const saveName = async () => {
     const next = draft.trim() || data.userName;

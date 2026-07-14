@@ -462,7 +462,15 @@ QUESTIONNAIRE_SCHEMA_VERSION=1
 - Admin CMS to edit questions (later: DB-backed schema)
 - Skill Graph / Roadmap Generator / AI Coach internals (doc 03)
 - Multi-goal careers merge logic (generator concern)
-- Conversational AI interview (future Question Engine mode)
+- Streaming SSE for conversational turns (phase 2)
+
+### Conversational intake (implemented)
+
+Env: `INTAKE_DEFAULT_MODE=form|chat`, `INTAKE_CHAT_ENABLED=true`.
+User override via `PUT /questionnaire/intake-mode` and intro CTAs.
+Chat routes: `POST /questionnaire/chat/start|message|complete`.
+LLM: `LLM_BASE_URL` + `LLM_API_KEY` + `LLM_INTAKE_MODEL` (OpenAI-compatible; Qwen 3 supported).
+Chat extracts **validated schema tokens**, then reuses the same `submit` → goals → roadmap enqueue path.
 
 ---
 

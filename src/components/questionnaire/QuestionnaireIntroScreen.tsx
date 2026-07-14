@@ -1,38 +1,69 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
 import { Clock, MessageCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui";
 import { authCtaClassName } from "@/components/onboarding/AuthShell";
 import { assets } from "@/lib/assets";
+import { questionnaireApi, type IntakeConfig } from "@/lib/api/questionnaire";
 import { mapSchemaSteps } from "@/lib/questionnaire/steps";
 import { useHydrateQuestionnaire } from "@/lib/questionnaire/api-sync";
 import { useQuestionnaireStore } from "@/store/useQuestionnaireStore";
 import { isStepComplete } from "@/lib/questionnaire/format-answers";
+import { ApiError, messageForCode } from "@/lib/api/errors";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Questionnaire intro — editorial mission brief.
- * Giant time signal + overlapping fact chips. Not card stack / numbered list.
+ * Form vs chat CTAs when conversational intake enabled.
  */
 export default function QuestionnaireIntroScreen() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { loading, schema, error } = useHydrateQuestionnaire();
   const answers = useQuestionnaireStore((s) => s.answers);
   const hydrated = useQuestionnaireStore((s) => s.hydrated);
   const steps = mapSchemaSteps(schema);
   const totalSteps = schema?.totalSteps ?? steps.length;
+  const [intake, setIntake] = useState<IntakeConfig | null>(null);
+  const [modeBusy, setModeBusy] = useState(false);
+  const [modeError, setModeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && error === "Sign in to continue") {
       router.replace("/login");
     }
   }, [loading, error, router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cfg = await questionnaireApi.getIntakeConfig(
+          session?.accessToken,
+        );
+        if (!cancelled) setIntake(cfg);
+      } catch {
+        if (!cancelled) {
+          setIntake({
+            chatEnabled: false,
+            defaultMode: "form",
+            userMode: null,
+            effectiveMode: "form",
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.accessToken]);
 
   const resumeStep =
     hydrated &&
@@ -41,16 +72,46 @@ export default function QuestionnaireIntroScreen() {
   const hasProgress =
     hydrated && steps.some((step) => isStepComplete(step.id, answers, schema));
 
-  const ctaLabel = hasProgress ? "Continue intake" : "Start intake";
-  const ctaPath = resumeStep
+  const formCtaLabel = hasProgress ? "Continue form" : "Form intake";
+  const formPath = resumeStep
     ? `/questionnaire/${resumeStep}`
     : hasProgress
       ? "/questionnaire/review"
       : "/questionnaire/1";
 
+  const pickMode = async (mode: "form" | "chat") => {
+    if (modeBusy) return;
+    if (mode === "form" && (loading || !schema)) return;
+    setModeError(null);
+    setModeBusy(true);
+    try {
+      // Persist preference (soft); navigation should not wait on schema hydrate.
+      await questionnaireApi.setIntakeMode(mode, session?.accessToken);
+      if (mode === "chat") {
+        router.push("/intake/chat");
+      } else {
+        router.push(formPath);
+      }
+    } catch (err) {
+      if (mode === "chat") {
+        // Prefer entering chat even if preference write fails (e.g. column lag).
+        router.push("/intake/chat");
+        return;
+      }
+      if (err instanceof ApiError) {
+        setModeError(messageForCode(err.code, err.message));
+      } else {
+        setModeError("Could not set intake mode");
+      }
+    } finally {
+      setModeBusy(false);
+    }
+  };
+
+  const chatEnabled = Boolean(intake?.chatEnabled);
+
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#f3effc] font-rounded">
-      {/* NIGHT BRIEF HERO */}
       <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+10px)] pb-16 text-white">
         <div
           aria-hidden
@@ -84,7 +145,7 @@ export default function QuestionnaireIntroScreen() {
               your future
             </h1>
             <p className="mt-3 max-w-[16rem] text-[13px] leading-snug font-bold text-white/50">
-              Answer a few questions — Arlo builds your path from the skill graph.
+              Form steps or a short chat — both feed the same roadmap engine.
             </p>
           </div>
 
@@ -108,7 +169,6 @@ export default function QuestionnaireIntroScreen() {
           </motion.div>
         </div>
 
-        {/* Giant time signal — editorial hero fact */}
         <motion.div
           className="relative mt-8"
           initial={{ opacity: 0, y: 12 }}
@@ -134,7 +194,6 @@ export default function QuestionnaireIntroScreen() {
         </motion.div>
       </section>
 
-      {/* LAVENDER DOCK — asymmetric fact chips */}
       <div className="relative z-10 -mt-8 flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto rounded-t-[28px] bg-[#f3effc] px-4 pt-7">
           <p className="mb-4 text-[10px] font-black tracking-[0.14em] text-[#b3a8d6] uppercase">
@@ -142,7 +201,6 @@ export default function QuestionnaireIntroScreen() {
           </p>
 
           <div className="relative">
-            {/* Vertical ink spine */}
             <div
               aria-hidden
               className="absolute top-3 bottom-3 left-[15px] w-px bg-[#d8d0ea]"
@@ -160,10 +218,10 @@ export default function QuestionnaireIntroScreen() {
                 </span>
                 <div className="min-w-0 pt-0.5">
                   <p className="font-display text-[20px] leading-none font-bold tracking-[-0.03em] text-[#0f1220]">
-                    Mostly multiple choice
+                    Form or chat
                   </p>
                   <p className="mt-1.5 text-[13px] font-bold text-[#8a7cb8]">
-                    Tap what fits — no essays required.
+                    Same tokens, same roadmap — pick how you answer.
                   </p>
                 </div>
               </motion.li>
@@ -190,7 +248,7 @@ export default function QuestionnaireIntroScreen() {
           </div>
 
           <p className="mt-8 max-w-[18rem] text-[12px] leading-relaxed font-bold text-[#b3a8d6]">
-            {totalSteps || "…"} short steps. Built for working adults —
+            {totalSteps || "…"} fields in the schema. Working adults —
             not a homework trap.
           </p>
         </div>
@@ -201,24 +259,52 @@ export default function QuestionnaireIntroScreen() {
               <div className="h-full w-[6%] rounded-full bg-[#ffc928]" />
             </div>
             <span className="text-[11px] font-black tracking-wide text-[#7a6fa3] uppercase">
-              {loading ? "Loading" : error ? "Error" : hasProgress ? "Resume" : "Ready"}
+              {modeBusy
+                ? "Starting"
+                : error
+                  ? "Error"
+                  : chatEnabled
+                    ? "Ready"
+                    : loading
+                      ? "Loading"
+                      : hasProgress
+                        ? "Resume"
+                        : "Ready"}
             </span>
           </div>
-          {error && error !== "Sign in to continue" ? (
+          {(error && error !== "Sign in to continue") || modeError ? (
             <p className="mb-2 text-center text-[12px] font-bold text-red-500">
-              {error}
+              {modeError || error}
             </p>
           ) : null}
-          <motion.div whileTap={{ scale: 0.98 }}>
-            <Button
-              type="button"
-              className={authCtaClassName}
-              isDisabled={loading || !schema}
-              onPress={() => router.push(ctaPath)}
-            >
-              {loading ? "Loading…" : ctaLabel}
-            </Button>
-          </motion.div>
+          <div className="flex flex-col gap-2">
+            {chatEnabled ? (
+              <motion.div whileTap={{ scale: 0.98 }}>
+                <Button
+                  type="button"
+                  className={authCtaClassName}
+                  isDisabled={modeBusy}
+                  onPress={() => void pickMode("chat")}
+                >
+                  {modeBusy ? "Starting…" : "Chat intake"}
+                </Button>
+              </motion.div>
+            ) : null}
+            <motion.div whileTap={{ scale: 0.98 }}>
+              <Button
+                type="button"
+                className={
+                  chatEnabled
+                    ? "h-12 w-full rounded-2xl border-2 border-[#0f1220] bg-white text-[15px] font-black text-[#0f1220]"
+                    : authCtaClassName
+                }
+                isDisabled={loading || !schema || modeBusy}
+                onPress={() => void pickMode("form")}
+              >
+                {loading ? "Loading form…" : formCtaLabel}
+              </Button>
+            </motion.div>
+          </div>
         </div>
       </div>
     </div>

@@ -690,28 +690,16 @@ export default function BattleHubScreen() {
             </ul>
           )}
 
-          <div className="mt-2.5 flex gap-2">
-            {historyCursor ? (
-              <button
-                type="button"
-                onClick={() => loadMore.mutate()}
-                disabled={loadMore.isPending}
-                className="flex-1 rounded-[14px] border border-dashed border-[#d5ccec] bg-white py-3 text-[12px] font-extrabold text-[#4a3d78] disabled:opacity-50"
-              >
-                {loadMore.isPending ? "Loading…" : "Load more results"}
-              </button>
-            ) : null}
-            <Link
-              href="/friends"
-              className="flex flex-1 items-center justify-center gap-2 rounded-[14px] border border-dashed border-[#d5ccec] bg-white/80 py-3 text-[12px] font-extrabold text-[#4a3d78]"
+          {historyCursor ? (
+            <button
+              type="button"
+              onClick={() => loadMore.mutate()}
+              disabled={loadMore.isPending}
+              className="mt-2.5 w-full rounded-[14px] border border-dashed border-[#d5ccec] bg-white py-3 text-[12px] font-extrabold text-[#4a3d78] disabled:opacity-50"
             >
-              <Users
-                className="h-4 w-4 text-arc-purple-500"
-                strokeWidth={2.25}
-              />
-              Study or invite
-            </Link>
-          </div>
+              {loadMore.isPending ? "Loading…" : "Load more results"}
+            </button>
+          ) : null}
         </section>
 
         <motion.div
