@@ -65,14 +65,6 @@ export default function QuestionnaireIntroScreen() {
     };
   }, [session?.accessToken]);
 
-  // Admin default=chat → go straight to chat (don't sit on form intro).
-  useEffect(() => {
-    if (!intake) return;
-    if (intake.chatEnabled && intake.effectiveMode === "chat") {
-      router.replace("/intake/chat");
-    }
-  }, [intake, router]);
-
   const resumeStep =
     hydrated &&
     steps.find((step) => !isStepComplete(step.id, answers, schema))?.stepNumber;
