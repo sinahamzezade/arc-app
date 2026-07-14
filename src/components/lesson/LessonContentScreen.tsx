@@ -137,7 +137,6 @@ export default function LessonContentScreen({
 }
 
 function ContentBlock({ block }: { block: LessonContentBlock }) {
-  console.log("block", block);
   if (block.type === "text") {
     return (
       <InlineMarkdown
