@@ -6,10 +6,7 @@ import { useSession } from "next-auth/react";
 import { useCurrentLeague } from "@/hooks/useCurrentLeague";
 import { useLeagueHistory } from "@/hooks/useLeagueHistory";
 import { ApiError, messageForCode } from "@/lib/api/errors";
-import type {
-  LeaderboardData,
-  LeaderboardTab,
-} from "@/lib/leaderboard/types";
+import type { LeaderboardData, LeaderboardTab } from "@/lib/leaderboard/types";
 import { cn } from "@/lib/utils";
 import { DivisionsPanel } from "@/components/leaderboard/DivisionsPanel";
 import { HistoryPanel } from "@/components/leaderboard/HistoryPanel";
@@ -119,78 +116,80 @@ function LeaderboardBoard({
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
       <SeasonHero data={data} you={you} />
 
-      <LeaderboardTabs activeTab={activeTab} onTabChange={onTabChange} />
+      <div className="relative z-10 -mt-6 rounded-t-arc-xl bg-[#f3effc]">
+        <LeaderboardTabs activeTab={activeTab} onTabChange={onTabChange} />
 
-      <div
-        className={cn(
-          "relative px-4 pt-5",
-          you && activeTab === "board"
-            ? "pb-[calc(5.25rem+env(safe-area-inset-bottom)+128px)]"
-            : "pb-[calc(5.25rem+env(safe-area-inset-bottom)+24px)]",
-        )}
-      >
-        <AnimatePresence mode="wait">
-          {activeTab === "board" ? (
-            <motion.div
-              key="board"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={softSpring}
-              className="space-y-5"
-            >
-              <StandingsTable data={data} />
-              {data.me ? (
-                <div>
-                  <h3 className="mb-2 px-0.5 font-display text-[16px] font-bold text-[#1b1730]">
-                    Score sources
-                  </h3>
-                  <ScoreBreakdownPanel
-                    breakdown={data.scoreSourceBreakdown ?? {}}
-                    proofWeightedXp={data.me.proofWeightedXp}
-                    activeDays={data.me.activeDays}
-                  />
-                </div>
-              ) : null}
-            </motion.div>
-          ) : null}
-          {activeTab === "quests" ? (
-            <motion.div
-              key="quests"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={softSpring}
-            >
-              <QuestsPanel quests={data.quests} />
-            </motion.div>
-          ) : null}
-          {activeTab === "divisions" ? (
-            <motion.div
-              key="divisions"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={softSpring}
-            >
-              <DivisionsPanel divisions={data.divisions} />
-            </motion.div>
-          ) : null}
-          {activeTab === "history" ? (
-            <motion.div
-              key="history"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={softSpring}
-            >
-              <HistoryPanel
-                history={historyQuery.data}
-                loading={historyQuery.isLoading}
-              />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+        <div
+          className={cn(
+            "relative px-4 pt-5",
+            you && activeTab === "board"
+              ? "pb-[calc(5.25rem+env(safe-area-inset-bottom)+128px)]"
+              : "pb-[calc(5.25rem+env(safe-area-inset-bottom)+24px)]",
+          )}
+        >
+          <AnimatePresence mode="wait">
+            {activeTab === "board" ? (
+              <motion.div
+                key="board"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={softSpring}
+                className="space-y-5"
+              >
+                <StandingsTable data={data} />
+                {data.me ? (
+                  <div>
+                    <h3 className="mb-2 px-0.5 font-display text-[16px] font-bold text-[#1b1730]">
+                      Score sources
+                    </h3>
+                    <ScoreBreakdownPanel
+                      breakdown={data.scoreSourceBreakdown ?? {}}
+                      proofWeightedXp={data.me.proofWeightedXp}
+                      activeDays={data.me.activeDays}
+                    />
+                  </div>
+                ) : null}
+              </motion.div>
+            ) : null}
+            {activeTab === "quests" ? (
+              <motion.div
+                key="quests"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={softSpring}
+              >
+                <QuestsPanel quests={data.quests} />
+              </motion.div>
+            ) : null}
+            {activeTab === "divisions" ? (
+              <motion.div
+                key="divisions"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={softSpring}
+              >
+                <DivisionsPanel divisions={data.divisions} />
+              </motion.div>
+            ) : null}
+            {activeTab === "history" ? (
+              <motion.div
+                key="history"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={softSpring}
+              >
+                <HistoryPanel
+                  history={historyQuery.data}
+                  loading={historyQuery.isLoading}
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
       </div>
 
       <AnimatePresence>

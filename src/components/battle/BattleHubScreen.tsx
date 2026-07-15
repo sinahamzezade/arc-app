@@ -93,8 +93,7 @@ export default function BattleHubScreen() {
   const online = friends.filter((f) => f.online);
   const searchingUsers = userQuery.trim().length >= 2;
 
-  const hubLoading =
-    stats.isLoading || history.isLoading || invites.isLoading;
+  const hubLoading = stats.isLoading || history.isLoading || invites.isLoading;
   const hubReady = Boolean(stats.data || history.data || invites.data);
 
   useEffect(() => {
@@ -190,7 +189,7 @@ export default function BattleHubScreen() {
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      <section className="relative overflow-hidden bg-[#0f1220] px-5 pt-[calc(env(safe-area-inset-top)+14px)] pb-20 text-white">
+      <section className="relative overflow-hidden bg-[#0f1220] px-5 pt-[calc(env(safe-area-inset-top)+14px)] pb-12 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
@@ -214,7 +213,7 @@ export default function BattleHubScreen() {
               <Swords className="h-3 w-3" strokeWidth={2.5} />
               Arena
             </p>
-            <h1 className="mt-3 font-display text-[36px] leading-[0.92] font-bold tracking-[-0.04em]">
+            <h1 className="mt-2 font-display text-[26px] leading-[0.95] font-bold tracking-[-0.04em]">
               Battle
             </h1>
           </div>
@@ -245,38 +244,40 @@ export default function BattleHubScreen() {
         </div>
 
         <motion.div
-          className="relative mt-6 flex items-end justify-between gap-3"
+          className="relative mt-3 flex items-center justify-between gap-3"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={softSpring}
         >
           <div className="min-w-0">
-            <p className="text-[11px] font-bold text-white/45">Win streak</p>
-            <p className="mt-1 flex items-center gap-2 font-display text-[42px] leading-none font-bold tracking-[-0.04em]">
+            <p className="flex items-center gap-1.5 font-display text-[26px] leading-none font-bold tracking-[-0.04em]">
               <Flame
-                className="h-8 w-8 text-[#ff8a3d]"
+                className="h-5 w-5 text-[#ff8a3d]"
                 fill="currentColor"
                 strokeWidth={1.5}
               />
               {statsData.winStreak}
+              <span className="ml-1 text-[11px] font-bold tracking-normal text-white/45">
+                streak
+              </span>
             </p>
-            <p className="mt-2 text-[12px] font-bold text-white/55">
+            <p className="mt-1.5 text-[11px] font-bold text-white/55">
               {statsData.wins}W · {statsData.losses}L · {statsData.draws}D ·{" "}
               {statsData.winRate}%
             </p>
           </div>
 
-          <div className="shrink-0 rounded-[22px] border border-[#ffc928]/40 bg-[#ffc928] px-4 py-3 text-[#1b1730] shadow-[0_8px_0_#c79a2e]">
-            <p className="text-[10px] font-black tracking-[0.08em] uppercase">
+          <div className="shrink-0 rounded-arc-md border border-[#ffc928]/40 bg-[#ffc928] px-3 py-2 text-[#1b1730] shadow-[0_4px_0_#c79a2e]">
+            <p className="text-[9px] font-black tracking-[0.08em] uppercase">
               Best subject
             </p>
-            <p className="mt-1 font-display text-[18px] font-bold">
+            <p className="mt-0.5 font-display text-[14px] font-bold">
               {statsData.favoriteSubject}
             </p>
           </div>
         </motion.div>
 
-        <div className="relative mt-5 flex gap-3 text-[12px] font-extrabold text-white/70">
+        <div className="relative mt-3 flex gap-3 text-[11px] font-extrabold text-white/70">
           <span className="inline-flex items-center gap-1">
             <Zap className="h-3.5 w-3.5 text-[#ffc928]" />
             {xp.toLocaleString()} XP
@@ -288,7 +289,7 @@ export default function BattleHubScreen() {
         </div>
       </section>
 
-      <div className="relative -mt-10 px-4 pb-8">
+      <div className="relative z-10 -mt-10 rounded-t-arc-xl bg-[#f3effc] px-4 pt-5 pb-8">
         <AnimatePresence>
           {showInviteEnded && inviteEnded ? (
             <motion.div

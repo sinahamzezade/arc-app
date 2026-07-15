@@ -42,8 +42,7 @@ export function HomePortraitStage({
           </h1>
         </div>
 
-        <Link
-          href={askArloHref}
+        <div
           aria-label="Talk to Arlo"
           className="relative -mr-3 -mb-1 h-[112px] w-[118px] shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220]"
         >
@@ -71,7 +70,7 @@ export function HomePortraitStage({
             aria-hidden
             className="pointer-events-none absolute bottom-2 left-1/2 h-5 w-16 -translate-x-1/2 rounded-full bg-arc-purple-500/50 blur-lg"
           />
-        </Link>
+        </div>
       </div>
     </motion.section>
   );

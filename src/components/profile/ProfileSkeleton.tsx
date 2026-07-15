@@ -14,7 +14,7 @@ export function ProfileSkeleton() {
       aria-busy="true"
       aria-label="Loading profile"
     >
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-14">
+      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-18">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
@@ -65,8 +65,8 @@ export function ProfileSkeleton() {
         </div>
       </section>
 
-      <div className="relative z-20 -mt-7 px-4">
-        <div className="grid grid-cols-4 gap-2">
+      <div className="relative z-10 -mt-6 rounded-t-arc-xl bg-[#f3effc] px-4 pt-[52px] pb-8">
+        <div className="absolute top-0 right-4 left-4 z-20 grid -translate-y-1/2 grid-cols-4 gap-2">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton
               key={i}
@@ -75,9 +75,7 @@ export function ProfileSkeleton() {
             />
           ))}
         </div>
-      </div>
 
-      <div className="relative z-10 bg-[#f3effc] px-4 pt-4 pb-8">
         <div className="space-y-4">
           <div className="flex gap-2.5">
             <Skeleton

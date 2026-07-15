@@ -13,6 +13,7 @@ import {
 } from "@/lib/home/types";
 import { mapHomeFromBackend } from "@/lib/home/map-home";
 import { isQuestionnaireComplete } from "@/lib/auth/post-auth-route";
+import { cn } from "@/lib/utils";
 import { HomeExtras } from "@/components/home/HomeExtras";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { HomeMissionStage } from "@/components/home/HomeMissionStage";
@@ -35,11 +36,7 @@ import { useEconomyStore } from "@/store/useEconomyStore";
  * Mission + week seal from `/roadmaps/current` + `/weeks/current`.
  * No live roadmap → never show Next Stop (admin reset / pre-path).
  */
-export default function HomeScreen({
-  data: dataProp,
-}: {
-  data?: HomeData;
-}) {
+export default function HomeScreen({ data: dataProp }: { data?: HomeData }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const { data: session, status: sessionStatus } = useSession();
@@ -118,7 +115,7 @@ export default function HomeScreen({
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
-      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-8 text-white">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-10 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-14 -right-8 h-44 w-44 rounded-full bg-arc-purple-500/45 blur-3xl"
@@ -154,7 +151,7 @@ export default function HomeScreen({
       </header>
 
       <motion.main
-        className="relative -mt-8 space-y-4 px-4 pb-6"
+        className="relative z-10 -mt-6 space-y-4 rounded-t-arc-xl bg-[#f2eefb] px-4 pt-4 pb-6"
         initial={reduceMotion || sheetLoading ? false : "hidden"}
         animate="visible"
         variants={{
@@ -194,7 +191,12 @@ export default function HomeScreen({
               </section>
             )}
             {liveRoadmap ? (
-              <>
+              <div
+                className={cn(
+                  "grid items-stretch gap-2.5",
+                  timing ? "grid-cols-2" : "grid-cols-1",
+                )}
+              >
                 <HomePaceStrip timing={timing} />
                 <HomeWeekLockVault
                   weeklyProgress={data.weeklyProgress}
@@ -207,7 +209,7 @@ export default function HomeScreen({
                   paceLabel={timingPace?.label}
                   paceTone={timingPace?.tone}
                 />
-              </>
+              </div>
             ) : null}
             <HomeExtras
               stats={data.stats}

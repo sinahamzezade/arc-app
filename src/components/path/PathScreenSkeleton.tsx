@@ -22,7 +22,7 @@ export function PathScreenSkeleton() {
       aria-busy="true"
       aria-label="Loading path"
     >
-      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-16">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-10">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-20 right-[-48px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
@@ -45,38 +45,26 @@ export function PathScreenSkeleton() {
 
         <Skeleton
           animationType="shimmer"
-          className="mt-5 h-10 w-3/5 rounded-lg bg-white/20"
+          className="mt-3 h-7 w-2/5 rounded-lg bg-white/20"
         />
         <Skeleton
           animationType="shimmer"
-          className="mt-3 h-3.5 w-2/5 rounded-full bg-white/10"
+          className="mt-2 h-3 w-2/5 rounded-full bg-white/10"
         />
 
-        <div className="mt-7">
-          <div className="flex items-end justify-between gap-3">
-            <div className="space-y-2">
-              <Skeleton
-                animationType="shimmer"
-                className="h-2.5 w-16 rounded-full bg-white/15"
-              />
-              <Skeleton
-                animationType="shimmer"
-                className="h-8 w-14 rounded-lg bg-white/20"
-              />
-            </div>
-            <div className="space-y-2 text-right">
-              <Skeleton
-                animationType="shimmer"
-                className="ml-auto h-2.5 w-12 rounded-full bg-white/15"
-              />
-              <Skeleton
-                animationType="shimmer"
-                className="ml-auto h-7 w-16 rounded-lg bg-white/20"
-              />
-            </div>
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton
+              animationType="shimmer"
+              className="h-2.5 w-28 rounded-full bg-white/15"
+            />
+            <Skeleton
+              animationType="shimmer"
+              className="h-2.5 w-16 rounded-full bg-white/15"
+            />
           </div>
 
-          <div className="relative mt-4 h-8">
+          <div className="relative mt-2 h-7">
             <Skeleton
               animationType="shimmer"
               className="absolute top-1/2 right-6 left-3 h-1 -translate-y-1/2 rounded-full bg-white/10"
@@ -87,7 +75,7 @@ export function PathScreenSkeleton() {
             />
             <Skeleton
               animationType="shimmer"
-              className="absolute top-1/2 left-[28%] size-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/25"
+              className="absolute top-1/2 left-[28%] size-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/25"
             />
             <Skeleton
               animationType="shimmer"
@@ -97,13 +85,13 @@ export function PathScreenSkeleton() {
 
           <Skeleton
             animationType="shimmer"
-            className="mt-3 h-3 w-36 rounded-full bg-white/10"
+            className="mt-2 h-3 w-36 rounded-full bg-white/10"
           />
         </div>
       </header>
 
       <div
-        className="relative -mt-6 px-5 pb-[calc(5.25rem+env(safe-area-inset-bottom)+24px)] pt-10"
+        className="relative -mt-6 rounded-t-arc-xl bg-[#f2eefb] px-5 pb-[calc(5.25rem+env(safe-area-inset-bottom)+24px)] pt-10"
         style={{
           backgroundImage: [
             "radial-gradient(circle at 16% 9%, transparent 52px, rgba(107,78,255,0.055) 53px 55px, transparent 56px)",

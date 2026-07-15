@@ -23,7 +23,7 @@ export function LeaderboardTabs({
   onTabChange: (tab: LeaderboardTab) => void;
 }) {
   return (
-    <div className="relative z-[1] -mt-5 px-4">
+    <div className="relative z-[1] -mt-5 px-4 pt-2">
       <nav
         role="tablist"
         aria-label="League sections"

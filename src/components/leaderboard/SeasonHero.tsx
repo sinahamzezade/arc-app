@@ -1,7 +1,10 @@
 "use client";
 
 import { Clock, Trophy } from "lucide-react";
-import type { LeaderboardEntry, LeaderboardData } from "@/lib/leaderboard/types";
+import type {
+  LeaderboardEntry,
+  LeaderboardData,
+} from "@/lib/leaderboard/types";
 import { YourSpotStage } from "./YourSpotStage";
 
 export function SeasonHero({
@@ -12,7 +15,7 @@ export function SeasonHero({
   you?: LeaderboardEntry;
 }) {
   return (
-    <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-20 text-white">
+    <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-12 text-white">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"

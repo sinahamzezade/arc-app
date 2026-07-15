@@ -40,7 +40,7 @@ export function LessonShell({
         : flags.arlo_ai_enabled;
 
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
+    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#0f1220] font-rounded">
       <header className="relative z-20 overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 text-white">
         <div
           aria-hidden
@@ -81,7 +81,7 @@ export function LessonShell({
         </div>
       </header>
 
-      <div className="relative z-10 -mt-1 flex flex-1 flex-col rounded-t-[24px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+20px)] shadow-[0_-8px_28px_rgba(0,0,0,0.18)]">
+      <div className="relative z-10 flex flex-1 flex-col rounded-t-[24px] bg-[#f3effc] px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+20px)] shadow-[0_-8px_28px_rgba(0,0,0,0.18)]">
         {children}
       </div>
     </div>

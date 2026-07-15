@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# runtime uploads
+/public/uploads/
+
 .claude
 .cursor
 

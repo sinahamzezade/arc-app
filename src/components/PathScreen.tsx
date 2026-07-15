@@ -234,11 +234,7 @@ function buildTrail(data: PathData) {
 /* Screen — owns roadmap fetch + gate states, then the road map        */
 /* ------------------------------------------------------------------ */
 
-export default function PathScreen({
-  data: dataProp,
-}: {
-  data?: PathData;
-}) {
+export default function PathScreen({ data: dataProp }: { data?: PathData }) {
   const { data, isPending, isError, error, retry } = useCurrentRoadmap();
 
   if (dataProp) {
@@ -344,12 +340,12 @@ function RoadMap({ data }: { data: PathData }) {
   }, [nextStopKey, reduceMotion]);
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
+    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
       <RouteHero data={data} progress={progress} coins={coins} />
 
       {/* The atlas sheet */}
       <div
-        className="relative -mt-6 pb-[calc(5.25rem+env(safe-area-inset-bottom)+24px)]"
+        className="relative -mt-6 rounded-t-arc-xl bg-[#f2eefb] pb-[calc(5.25rem+env(safe-area-inset-bottom)+24px)]"
         style={{
           backgroundImage: [
             // contour rings — faint cartographic texture
@@ -429,7 +425,7 @@ function RouteHero({
   const markerLeft = `max(14px, calc(${Math.max(pct, 4)}% - 10px))`;
 
   return (
-    <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-16 text-white">
+    <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-10 text-white">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-20 right-[-48px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
@@ -449,7 +445,7 @@ function RouteHero({
 
       <motion.p
         aria-hidden
-        className="pointer-events-none absolute -right-3 top-10 select-none font-display text-[100px] leading-none font-bold tracking-[-0.08em] text-white/[0.05]"
+        className="pointer-events-none absolute -right-3 top-8 select-none font-display text-[64px] leading-none font-bold tracking-[-0.08em] text-white/[0.05]"
         initial={reduceMotion ? false : { opacity: 0, rotate: 4 }}
         animate={{ opacity: 1, rotate: 8 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -486,37 +482,27 @@ function RouteHero({
         </div>
 
         {/* Title block — one job */}
-        <h1 className="mt-5 font-display text-[40px] leading-[0.9] font-bold tracking-[-0.05em]">
+        <h1 className="mt-3 font-display text-[26px] leading-[0.95] font-bold tracking-[-0.04em]">
           Your Path
         </h1>
-        <p className="mt-2.5 max-w-[18rem] text-[13px] leading-snug font-bold text-white/50">
+        <p className="mt-1 truncate text-[12px] leading-snug font-bold text-white/50">
           {data.trackTitle}
         </p>
 
         {/* Single strip — paved + stops + current unit live here */}
-        <div className="mt-7">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black tracking-[0.12em] text-white/35 uppercase">
-                Route paved
-              </p>
-              <p className="mt-1 font-display text-[28px] leading-none font-bold tracking-[-0.04em] text-[#ffc928]">
-                {pct}
-                <span className="ml-0.5 text-[16px] text-[#ffc928]/70">%</span>
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black tracking-[0.12em] text-white/35 uppercase">
-                Stops
-              </p>
-              <p className="mt-1 font-display text-[22px] leading-none font-bold tracking-[-0.03em] tabular-nums">
-                {data.lessonsDone}
-                <span className="text-white/35">/{data.lessonsTotal}</span>
-              </p>
-            </div>
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-3 text-[10px] font-black tracking-[0.12em] uppercase">
+            <p className="text-white/35">
+              Route paved ·{" "}
+              <span className="text-[#ffc928] tabular-nums">{pct}%</span>
+            </p>
+            <p className="text-white/35 tabular-nums">
+              <span className="text-white">{data.lessonsDone}</span>/
+              {data.lessonsTotal} stops
+            </p>
           </div>
 
-          <div className="relative mt-4 h-8">
+          <div className="relative mt-2 h-7">
             <div
               aria-hidden
               className="absolute top-1/2 right-6 left-3 h-[3px] -translate-y-1/2 rounded-full"
@@ -539,12 +525,12 @@ function RouteHero({
             />
             <motion.span
               aria-hidden
-              className="absolute top-1/2 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-arc-purple-500 text-white ring-[3px] ring-white/90 shadow-[0_4px_12px_rgba(107,78,255,0.45)]"
+              className="absolute top-1/2 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-arc-purple-500 text-white ring-2 ring-white/90 shadow-[0_4px_12px_rgba(107,78,255,0.45)]"
               initial={reduceMotion ? false : { left: "4%", opacity: 0 }}
               animate={{ left: markerLeft, opacity: 1 }}
               transition={{ ...softSpring, delay: 0.22 }}
             >
-              <MapPin className="h-3.5 w-3.5" strokeWidth={2.75} />
+              <MapPin className="h-3 w-3" strokeWidth={2.75} />
             </motion.span>
             <Flag
               aria-hidden
@@ -553,7 +539,7 @@ function RouteHero({
             />
           </div>
 
-          <p className="mt-3 truncate text-[12px] font-bold text-white/45">
+          <p className="mt-2 truncate text-[11px] font-bold text-white/45">
             Now · {data.rank.title}
           </p>
         </div>
@@ -778,7 +764,7 @@ function UpcomingStop({ row }: { row: Extract<TrailRow, { kind: "stone" }> }) {
             <Icon className="h-4 w-4" strokeWidth={2.25} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-[14px] leading-tight font-semibold text-[#8a7cb8]">
+            <p className="font-display text-[14px] leading-tight font-semibold text-[#8a7cb8]">
               {row.node.title}
             </p>
             <p className="truncate text-[11px] font-bold text-[#c6bce0]">
@@ -865,7 +851,6 @@ function CurrentPin({
   row: Extract<TrailRow, { kind: "stone" }>;
   upNext: PathData["upNext"];
 }) {
-  const reduceMotion = useReducedMotion();
   const Icon = iconMap[row.node.icon];
   const pinOnLeft = row.side === "left";
 
@@ -881,14 +866,10 @@ function CurrentPin({
         className="absolute z-[3] -translate-x-1/2"
         style={{ left: pct(row.ax), top: 16 }}
       >
-        {!reduceMotion ? (
-          <motion.span
-            aria-hidden
-            className="absolute top-1/2 left-1/2 h-[60px] w-[60px] -translate-x-1/2 -translate-y-[calc(50%+7px)] rounded-full bg-arc-purple-500/25"
-            animate={{ scale: [1, 1.55], opacity: [0.6, 0] }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
-          />
-        ) : null}
+        <span
+          aria-hidden
+          className="absolute top-1/2 left-1/2 h-[60px] w-[60px] -translate-x-1/2 -translate-y-[calc(50%+7px)] rounded-full bg-arc-purple-500/25 motion-safe:animate-ping"
+        />
         <span className="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-arc-purple-500 text-white ring-4 ring-white shadow-[0_8px_18px_rgba(75,47,214,0.4)]">
           <Icon className="h-6 w-6" strokeWidth={2.4} />
         </span>

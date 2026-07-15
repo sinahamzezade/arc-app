@@ -124,7 +124,7 @@ export default function ProfileScreen({
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
       {/* PASSPORT HERO */}
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-14 text-white">
+      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-18 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
@@ -217,9 +217,9 @@ export default function ProfileScreen({
         </div>
       </section>
 
-      {/* Clay stamps — Rank seam pattern, equal 4-col, no absolute crush */}
-      <div className="relative z-20 -mt-7 px-4">
-        <div className="grid grid-cols-4 gap-2">
+      {/* LIGHT SHEET — clay stamps straddle the curved seam */}
+      <div className="relative z-10 -mt-6 rounded-t-arc-xl bg-[#f3effc] px-4 pt-[52px] pb-8">
+        <div className="absolute top-0 right-4 left-4 z-20 grid -translate-y-1/2 grid-cols-4 gap-2">
           <div className="-rotate-1 rounded-2xl bg-[#ff8a3d] px-2.5 py-2.5 shadow-[0_4px_0_#d46520]">
             <p className="text-[9px] font-black tracking-wide text-white/80 uppercase">
               Streak
@@ -261,9 +261,7 @@ export default function ProfileScreen({
             </p>
           </Link>
         </div>
-      </div>
 
-      <div className="relative z-10 bg-[#f3effc] px-4 pt-4 pb-8">
         <div className="relative space-y-4">
           {/* Badges + gems */}
           <div className="flex gap-2.5">

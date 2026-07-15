@@ -114,7 +114,7 @@ export default function LessonOverviewScreen({
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-24 text-white">
+      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-18 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
@@ -162,7 +162,9 @@ export default function LessonOverviewScreen({
           <div className="min-w-0 pb-1">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-[#ffc928]/15 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.1em] text-[#ffc928] uppercase">
               <Sparkles className="h-3 w-3" strokeWidth={2.5} />
-              {lesson.status === "completed" ? "Cleared · review" : lesson.missionName}
+              {lesson.status === "completed"
+                ? "Cleared · review"
+                : lesson.missionName}
             </p>
             <h1 className="mt-3 font-display text-[34px] leading-[0.92] font-bold tracking-[-0.04em] text-balance">
               {lesson.title}

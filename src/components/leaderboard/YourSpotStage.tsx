@@ -38,10 +38,10 @@ export function YourSpotStage({
 
   const zoneCopy =
     zone === "promote"
-      ? "In the promote cut — hold it"
+      ? "Promote cut — hold it"
       : zone === "demote"
-        ? "Demote danger — climb now"
-        : "Safe midfield — keep climbing";
+        ? "Demote danger"
+        : "Safe midfield";
 
   const zoneTone =
     zone === "promote"
@@ -52,113 +52,80 @@ export function YourSpotStage({
 
   return (
     <motion.div
-      className="relative mt-7"
+      className="relative mt-4"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={softSpring}
     >
-      <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex items-center gap-3">
+        <p className="shrink-0 font-display text-[40px] leading-[0.85] font-bold tracking-[-0.05em]">
+          #{rank}
+        </p>
+        <div className="min-w-0 flex-1">
           <p className="text-[10px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
             Your spot
           </p>
-          <p className="mt-1 font-display text-[64px] leading-[0.82] font-bold tracking-[-0.05em]">
-            #{rank}
+          <p className="mt-0.5 text-[12px] font-extrabold tabular-nums text-white/60">
+            of {cohortSize} · {xp} XP
           </p>
         </div>
-        <div className="mb-2 flex flex-col items-end gap-1.5">
-          <span className="rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-extrabold tabular-nums text-white ring-1 ring-white/15">
-            of {cohortSize}
-          </span>
-          <span className="rounded-full bg-[#ffc928]/15 px-2.5 py-1 text-[12px] font-extrabold tabular-nums text-[#ffc928]">
-            {xp} XP
-          </span>
-        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-extrabold",
+            zoneTone,
+          )}
+        >
+          {zoneCopy}
+        </span>
       </div>
 
-      <p
-        className={cn(
-          "mt-3 inline-flex rounded-full px-2.5 py-1 text-[11px] font-extrabold",
-          zoneTone,
-        )}
-      >
-        {zoneCopy}
-      </p>
+      <div className="relative mt-2.5 pt-4">
+        <span
+          className="absolute top-0 -translate-x-1/2 text-[10px] font-extrabold text-[#ffc928]"
+          style={{ left: `clamp(14px, ${pinPct}%, calc(100% - 14px))` }}
+        >
+          You
+        </span>
 
-      <div className="relative mt-5">
-        <div className="mb-2 flex items-center justify-between text-[9px] font-extrabold tracking-wide uppercase">
-          <span className="inline-flex items-center gap-1 text-[#62d84e]">
-            <ArrowUp className="h-3 w-3" strokeWidth={3} />
-            #1
-          </span>
-          <span className="text-white/35">Cohort track</span>
-          <span className="inline-flex items-center gap-1 text-[#ff8a8a]">
-            #{cohortSize}
-            <ArrowDown className="h-3 w-3" strokeWidth={3} />
-          </span>
-        </div>
-
-        <div className="relative pt-5">
-          <span
-            className="absolute top-0 -translate-x-1/2 text-[11px] font-extrabold text-[#ffc928]"
-            style={{ left: `${pinPct}%` }}
-          >
-            You
-          </span>
-
-          <div className="relative h-4 overflow-hidden rounded-full bg-white/10">
-            <div className="flex h-full w-full">
-              <span
-                className="h-full bg-[#16a56b]"
-                style={{ width: `${promotePct}%` }}
-              />
-              <span
-                className="h-full bg-white/15"
-                style={{ width: `${midPct}%` }}
-              />
-              <span
-                className="h-full bg-[#e5484d]"
-                style={{ width: `${demotePct}%` }}
-              />
-            </div>
-
-            <motion.span
-              className="absolute top-1/2 z-[2] h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffc928] shadow-[0_0_0_3px_#0f1220,0_0_12px_rgba(255,201,40,0.55)]"
-              style={{ left: `${pinPct}%` }}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ ...softSpring, delay: 0.12 }}
-              aria-hidden
+        <div className="relative h-3">
+          <div className="absolute inset-0 flex overflow-hidden rounded-full bg-white/10">
+            <span
+              className="h-full bg-[#16a56b]"
+              style={{ width: `${promotePct}%` }}
+            />
+            <span
+              className="h-full bg-white/15"
+              style={{ width: `${midPct}%` }}
+            />
+            <span
+              className="h-full bg-[#e5484d]"
+              style={{ width: `${demotePct}%` }}
             />
           </div>
+
+          <motion.span
+            className="absolute top-1/2 z-[2] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffc928] shadow-[0_0_0_3px_#0f1220,0_0_12px_rgba(255,201,40,0.55)]"
+            style={{ left: `clamp(11px, ${pinPct}%, calc(100% - 11px))` }}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ ...softSpring, delay: 0.12 }}
+            aria-hidden
+          />
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <div className="rounded-2xl bg-[#16a56b] px-2.5 py-2.5 text-white shadow-[0_3px_0_#0e7a4c]">
-          <p className="text-[9px] font-black tracking-wide uppercase opacity-85">
-            Promote
-          </p>
-          <p className="mt-0.5 font-display text-[15px] leading-none font-bold">
-            Top {promoteTop}
-          </p>
-        </div>
-        <div className="rounded-2xl bg-[#ffc928] px-2.5 py-2.5 text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
-          <p className="text-[9px] font-black tracking-wide uppercase opacity-70">
-            Season
-          </p>
-          <p className="mt-0.5 font-display text-[15px] leading-none font-bold">
-            {daysLeft}d left
-          </p>
-        </div>
-        <div className="rounded-2xl bg-[#e5484d] px-2.5 py-2.5 text-white shadow-[0_3px_0_#b43438]">
-          <p className="text-[9px] font-black tracking-wide uppercase opacity-85">
-            Demote
-          </p>
-          <p className="mt-0.5 font-display text-[15px] leading-none font-bold">
-            Bot {demoteBottom}
-          </p>
-        </div>
+      <div className="mt-2.5 flex gap-1.5">
+        <span className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-[#16a56b] px-2 py-1.5 text-[11px] font-black text-white shadow-[0_2px_0_#0e7a4c]">
+          <ArrowUp className="h-3 w-3" strokeWidth={3} />
+          Top {promoteTop}
+        </span>
+        <span className="inline-flex flex-1 items-center justify-center rounded-xl bg-[#ffc928] px-2 py-1.5 text-[11px] font-black text-[#0f1220] shadow-[0_2px_0_#c79a2e]">
+          {daysLeft}d left
+        </span>
+        <span className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-[#e5484d] px-2 py-1.5 text-[11px] font-black text-white shadow-[0_2px_0_#b43438]">
+          <ArrowDown className="h-3 w-3" strokeWidth={3} />
+          Bot {demoteBottom}
+        </span>
       </div>
     </motion.div>
   );
