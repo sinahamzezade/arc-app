@@ -20,6 +20,7 @@ import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton, LessonShell } from "./LessonShell";
 import { LessonLoadState } from "./LessonLoadState";
+import { ReadingArloAssist } from "./ReadingArloAssist";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
@@ -111,6 +112,7 @@ function ReadingContent({ lesson }: { lesson: PlayableLesson }) {
       lessonId={lesson.id}
       stepLabel={`Read · ${step + 1}/${total}`}
       progress={progress}
+      showArlo={false}
       onBack={() => {
         if (step > 0) {
           goTo(step - 1);
@@ -165,6 +167,16 @@ function ReadingContent({ lesson }: { lesson: PlayableLesson }) {
                   <SectionBlock key={i} block={block} />
                 ))}
           </div>
+
+          <ReadingArloAssist
+            key={step}
+            lessonId={lesson.id}
+            focusTitle={
+              isTakeaways
+                ? "Key takeaways"
+                : section?.title?.trim() || lesson.title
+            }
+          />
         </div>
 
         <div className="shrink-0 pt-6">
