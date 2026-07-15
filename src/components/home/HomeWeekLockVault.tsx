@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Gem, Lock, Zap } from "lucide-react";
+import { CalendarClock, ChevronRight, Gem, Lock, Zap } from "lucide-react";
 import { motion } from "motion/react";
+import type { CourseTimingCurrent } from "@/lib/api/course-timing";
 import type { HomeData } from "@/lib/home/types";
-import type { PaceTone } from "@/lib/course-timing/format";
+import { formatEta, paceMeta, type PaceTone } from "@/lib/course-timing/format";
 import { cn } from "@/lib/utils";
 import { sectionVariants } from "./motion";
 
@@ -13,16 +14,16 @@ type HomeWeekLockVaultProps = {
   weeklyStreak: HomeData["weeklyStreak"];
   replanHref?: string;
   estimateMinutes?: number;
-  /** Prefer server-derived when present */
   sealed?: boolean;
   sessionsLeft?: number;
   targetWeek?: number;
   paceLabel?: string;
   paceTone?: PaceTone;
+  timing?: CourseTimingCurrent;
 };
 
 /**
- * Seal week vault — light ticket + gold session bolts.
+ * This-week board — sessions, streak days, pace, seal rewards.
  */
 export function HomeWeekLockVault({
   weeklyProgress,
@@ -34,6 +35,7 @@ export function HomeWeekLockVault({
   targetWeek: targetWeekProp,
   paceLabel,
   paceTone,
+  timing,
 }: HomeWeekLockVaultProps) {
   const sessionsLeft =
     sessionsLeftProp ??
@@ -44,99 +46,159 @@ export function HomeWeekLockVault({
     paceTone != null ? paceTone === "good" : weeklyProgress.onTrack;
   const badgeLabel =
     paceLabel ?? (weeklyProgress.onTrack ? "On track" : "Behind");
+  const sessionPct =
+    weeklyProgress.sessionsPlanned > 0
+      ? Math.round(
+          (weeklyProgress.sessionsDone / weeklyProgress.sessionsPlanned) * 100,
+        )
+      : 0;
+  const eta = timing ? formatEta(timing.estimatedCompletionDate) : null;
+  const livePace = timing ? paceMeta(timing.pace) : null;
 
   return (
     <motion.section
       variants={sectionVariants}
       aria-label={`Seal week ${targetWeek}`}
-      className="relative flex h-full flex-col overflow-hidden rounded-[18px] bg-white px-3.5 py-3 text-[#1b1730] shadow-[0_10px_24px_rgba(70,40,150,0.08)] ring-1 ring-[#ebe4f6]"
+      className="relative overflow-hidden rounded-[22px] border-2 border-[#ebe4f6] bg-white p-4 shadow-[0_4px_0_#ebe4f6]"
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-10 right-[-16px] h-24 w-24 rounded-full bg-arc-purple-500/10 blur-2xl"
+        className="pointer-events-none absolute -top-10 right-[-16px] h-28 w-28 rounded-full bg-arc-purple-500/10 blur-2xl"
       />
 
-      <div className="relative flex items-center gap-1.5">
-        <p className="min-w-0 truncate font-display text-[13px] font-bold tracking-[-0.02em]">
-          Seal Week {targetWeek}
-        </p>
+      <div className="relative flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black tracking-[0.12em] text-arc-purple-500 uppercase">
+            This week
+          </p>
+          <h2 className="mt-0.5 font-display text-[18px] leading-tight font-bold tracking-[-0.02em] text-[#1b1730]">
+            Seal Week {targetWeek}
+          </h2>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black tracking-wide uppercase",
+            onTrack
+              ? "bg-[#62d84e]/15 text-[#2d9e45]"
+              : paceTone === "risk"
+                ? "bg-[#ff5a5a]/15 text-[#d63030]"
+                : "bg-[#ff8a3d]/15 text-[#e86500]",
+          )}
+        >
+          {livePace?.label ?? badgeLabel}
+        </span>
         <Link
           href={replanHref}
           aria-label="Open week plan"
-          className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[11px] font-black text-arc-purple-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+          className="inline-flex shrink-0 cursor-pointer items-center gap-0.5 rounded-xl bg-[#f0ecf7] px-2.5 py-1.5 text-[11px] font-black text-arc-purple-500 transition-colors hover:bg-[#e8e0f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
         >
           Plan
           <ChevronRight className="h-3 w-3" strokeWidth={2.75} />
         </Link>
       </div>
 
-      {onTrack ? (
-        <span className="relative mt-1.5 self-start rounded-full bg-[#62d84e]/15 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-[#2d9e45] uppercase">
-          {badgeLabel}
-        </span>
-      ) : (
-        <span
-          className={cn(
-            "relative mt-1.5 self-start rounded-full px-1.5 py-0.5 text-[9px] font-black tracking-wide uppercase",
-            paceTone === "risk"
-              ? "bg-[#ff5a5a]/15 text-[#d63030]"
-              : "bg-[#ff8a3d]/15 text-[#e86500]",
-          )}
-        >
-          {badgeLabel}
-        </span>
-      )}
+      {/* Streak days */}
+      <div
+        className="relative mt-3.5 flex justify-between gap-1"
+        aria-label="Weekly streak days"
+      >
+        {weeklyStreak.days.map((day) => (
+          <div key={day.label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+            <span
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-black",
+                day.status === "done"
+                  ? "bg-[#ffc928] text-[#0f1220] shadow-[0_2px_0_#c79a2e]"
+                  : "bg-[#f0ecf7] text-[#b3a8d6]",
+              )}
+            >
+              {day.label.charAt(0)}
+            </span>
+          </div>
+        ))}
+      </div>
 
-      <div className="relative mt-2 flex items-center gap-2.5">
+      {/* Sessions */}
+      <div className="relative mt-4 flex items-center gap-3">
         {sealed ? (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#62d84e] text-white">
-            <Lock className="h-4 w-4" strokeWidth={2.5} />
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#62d84e] text-white shadow-[0_3px_0_#2d9e45]">
+            <Lock className="h-5 w-5" strokeWidth={2.5} />
           </span>
         ) : (
-          <p className="shrink-0 font-display text-[26px] leading-none font-bold tracking-[-0.05em] text-[#1b1730]">
-            {sessionsLeft}
-          </p>
+          <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-2xl bg-[#0f1220] text-white shadow-[0_3px_0_#2a2f45]">
+            <span className="font-display text-[20px] leading-none font-bold tabular-nums">
+              {sessionsLeft}
+            </span>
+            <span className="text-[7px] font-black tracking-wide text-white/45 uppercase">
+              left
+            </span>
+          </span>
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[10px] font-bold text-[#8a7cb8]">
+          <p className="truncate text-[12px] font-extrabold text-[#1b1730]">
             {sealed
               ? "Week locked in"
-              : `${sessionsLeft} left · ~${estimateMinutes}m`}
+              : `${sessionsLeft} session${sessionsLeft === 1 ? "" : "s"} · ~${estimateMinutes}m each`}
           </p>
-          <div className="mt-1.5 flex gap-1" aria-hidden>
-            {Array.from({ length: weeklyProgress.sessionsPlanned }).map(
-              (_, i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    "h-2 flex-1 rounded-full",
-                    i < weeklyProgress.sessionsDone
-                      ? "bg-[#ffc928]"
-                      : "bg-[#ebe4f6]",
-                  )}
-                />
-              ),
-            )}
+          <div
+            className="mt-2 h-2 overflow-hidden rounded-full bg-[#ebe4f6]"
+            role="progressbar"
+            aria-valuenow={sessionPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Sessions completed"
+          >
+            <div
+              className="h-full rounded-full bg-[#ffc928]"
+              style={{ width: `${Math.max(sessionPct, sealed ? 100 : 4)}%` }}
+            />
           </div>
+          <p className="mt-1.5 text-[10px] font-bold text-[#8a7cb8]">
+            {weeklyProgress.sessionsDone}/{weeklyProgress.sessionsPlanned}{" "}
+            sessions · {weeklyProgress.hoursDone}/{weeklyProgress.hoursPlanned}h
+          </p>
         </div>
       </div>
 
-      <div className="relative mt-2 flex items-center gap-1">
-        <span className="inline-flex items-center gap-0.5 rounded-lg bg-[#ffc928] px-1.5 py-0.5 text-[10px] font-black text-[#0f1220]">
+      {/* Pace strip (when timing live) */}
+      {timing ? (
+        <Link
+          href="/week"
+          className="relative mt-3.5 flex cursor-pointer items-center gap-2.5 rounded-[16px] bg-[#0f1220] px-3 py-2.5 text-white transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]"
+        >
+          <CalendarClock
+            className="h-4 w-4 shrink-0 text-[#ffc928]"
+            strokeWidth={2.5}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[9px] font-black tracking-[0.1em] text-white/40 uppercase">
+              Finish estimate
+            </span>
+            <span className="block truncate font-display text-[14px] font-bold tracking-[-0.02em]">
+              {eta ?? "Building…"}
+            </span>
+          </span>
+          <span className="shrink-0 text-[10px] font-bold text-white/45">
+            {Math.round(timing.effectiveMinutesPerWeek)}m/wk
+          </span>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#ffc928]" strokeWidth={2.75} />
+        </Link>
+      ) : null}
+
+      <div className="relative mt-3 flex items-center gap-1.5">
+        <span className="inline-flex items-center gap-0.5 rounded-lg bg-[#ffc928] px-2 py-1 text-[10px] font-black text-[#0f1220]">
           <Zap className="h-3 w-3" strokeWidth={2.5} />+
-          {weeklyProgress.lockRewardXp}
+          {weeklyProgress.lockRewardXp} XP
         </span>
-        <span className="inline-flex items-center gap-0.5 rounded-lg bg-[#f0ecf7] px-1.5 py-0.5 text-[10px] font-black text-[#1b1730]">
+        <span className="inline-flex items-center gap-0.5 rounded-lg bg-[#f0ecf7] px-2 py-1 text-[10px] font-black text-[#1b1730]">
           <Gem className="h-3 w-3 text-arc-purple-500" strokeWidth={2.5} />+
-          {weeklyProgress.lockRewardGems}
+          {weeklyProgress.lockRewardGems} gems
+        </span>
+        <span className="ml-auto text-[10px] font-bold text-[#b3a8d6]">
+          Seal reward
         </span>
       </div>
-
-      <p className="relative mt-auto pt-2 text-[10px] font-bold text-[#b3a8d6]">
-        {weeklyProgress.sessionsDone}/{weeklyProgress.sessionsPlanned} sessions
-        · {weeklyProgress.hoursDone}/{weeklyProgress.hoursPlanned}h
-      </p>
     </motion.section>
   );
 }

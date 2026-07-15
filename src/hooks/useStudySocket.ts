@@ -18,12 +18,13 @@ type UseStudySocketOpts = {
   onMessage?: (msg: StudyMessageDto) => void;
   onPartnerTyping?: (userId: string) => void;
   onPartnerPresence?: (payload: { online: boolean; userId?: string }) => void;
+  /** Fired when server says room state changed (re-fetch personalized DTO). */
+  onStateDirty?: () => void;
 };
 
 function asMessage(res: unknown): StudyMessageDto | null {
   if (!res || typeof res !== "object") return null;
   const obj = res as Record<string, unknown>;
-  // Nest sometimes wraps ack payloads
   const data =
     obj.data && typeof obj.data === "object"
       ? (obj.data as Record<string, unknown>)
@@ -34,6 +35,21 @@ function asMessage(res: unknown): StudyMessageDto | null {
   return null;
 }
 
+function joinOk(res: unknown): boolean {
+  if (res == null) return false;
+  if (typeof res !== "object") return false;
+  const obj = res as Record<string, unknown>;
+  if (obj.error) return false;
+  if (obj.ok === true) return true;
+  // Nest may wrap: { data: { ok: true } }
+  if (obj.data && typeof obj.data === "object") {
+    const inner = obj.data as Record<string, unknown>;
+    if (inner.error) return false;
+    if (inner.ok === true) return true;
+  }
+  return false;
+}
+
 export function useStudySocket({
   sessionId,
   enabled = true,
@@ -42,20 +58,20 @@ export function useStudySocket({
   onMessage,
   onPartnerTyping,
   onPartnerPresence,
+  onStateDirty,
 }: UseStudySocketOpts) {
   const { data: session } = useSession();
   const socketRef = useRef<Socket | null>(null);
   const [connected, setConnected] = useState(false);
   const [joined, setJoined] = useState(false);
 
-  // Callbacks live in refs so inline handlers don't tear down the socket
-  // on every render (reconnect loop breaks chat/step delivery).
   const handlersRef = useRef({
     onState,
     onStep,
     onMessage,
     onPartnerTyping,
     onPartnerPresence,
+    onStateDirty,
   });
   useEffect(() => {
     handlersRef.current = {
@@ -64,17 +80,26 @@ export function useStudySocket({
       onMessage,
       onPartnerTyping,
       onPartnerPresence,
+      onStateDirty,
     };
   });
 
   const emitHeartbeat = useCallback(
     (payload?: { appVisible?: boolean; focusActive?: boolean }) => {
       if (!sessionId || !socketRef.current?.connected || !joined) return;
-      socketRef.current.emit("heartbeat", {
-        sessionId,
-        appVisible: payload?.appVisible ?? true,
-        focusActive: payload?.focusActive ?? true,
-      });
+      socketRef.current.emit(
+        "heartbeat",
+        {
+          sessionId,
+          appVisible: payload?.appVisible ?? true,
+          focusActive: payload?.focusActive ?? true,
+        },
+        (state: StudySessionDto | { error?: string } | undefined) => {
+          if (state && typeof state === "object" && "id" in state) {
+            handlersRef.current.onState?.(state as StudySessionDto);
+          }
+        },
+      );
     },
     [sessionId, joined],
   );
@@ -99,10 +124,14 @@ export function useStudySocket({
       if (!sessionId || !socketRef.current?.connected || !joined)
         return Promise.resolve(null);
       return new Promise<StudyMessageDto | null>((resolve) => {
+        const timer = setTimeout(() => resolve(null), 4000);
         socketRef.current?.emit(
           "chat:send",
           { sessionId, body },
-          (res: unknown) => resolve(asMessage(res)),
+          (res: unknown) => {
+            clearTimeout(timer);
+            resolve(asMessage(res));
+          },
         );
       });
     },
@@ -127,22 +156,33 @@ export function useStudySocket({
       auth: { token },
       transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: 8,
+      reconnectionAttempts: 12,
+      reconnectionDelay: 800,
     });
     socketRef.current = socket;
 
+    let joinAttempt = 0;
+    let joinTimer: ReturnType<typeof setTimeout> | null = null;
+
     const joinRoom = () => {
-      socket.emit(
-        "join",
-        { sessionId },
-        (res: { ok?: boolean; error?: string } | undefined) => {
-          setJoined(res?.ok === true);
-        },
-      );
+      if (!socket.connected) return;
+      socket.emit("join", { sessionId }, (res: unknown) => {
+        if (joinOk(res)) {
+          setJoined(true);
+          joinAttempt = 0;
+          return;
+        }
+        setJoined(false);
+        if (joinAttempt < 8) {
+          joinAttempt += 1;
+          joinTimer = setTimeout(joinRoom, 200 * joinAttempt);
+        }
+      });
     };
 
     socket.on("connect", () => {
       setConnected(true);
+      joinAttempt = 0;
       joinRoom();
     });
     socket.on("disconnect", () => {
@@ -156,6 +196,7 @@ export function useStudySocket({
     socket.on("state", (state: StudySessionDto) =>
       handlersRef.current.onState?.(state),
     );
+    socket.on("state_dirty", () => handlersRef.current.onStateDirty?.());
     socket.on("step", (step: StudyStepDto) =>
       handlersRef.current.onStep?.(step),
     );
@@ -170,7 +211,9 @@ export function useStudySocket({
     );
 
     return () => {
+      if (joinTimer) clearTimeout(joinTimer);
       socket.emit("leave", { sessionId });
+      socket.removeAllListeners();
       socket.disconnect();
       socketRef.current = null;
       setConnected(false);

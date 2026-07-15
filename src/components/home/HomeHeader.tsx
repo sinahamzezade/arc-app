@@ -88,7 +88,7 @@ export function HomeHeader({
               ? `Friend requests, ${friendRequestCount} pending`
               : "Friend requests"
           }
-          className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+          className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
         >
           <UserPlus className="h-4 w-4" strokeWidth={2.25} />
           {friendRequestCount > 0 ? (
@@ -105,7 +105,7 @@ export function HomeHeader({
               ? `Notifications, ${notificationCount} unread`
               : "Notifications"
           }
-          className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+          className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
         >
           <Bell className="h-4 w-4" strokeWidth={2.25} />
           {notificationCount > 0 ? (
@@ -137,7 +137,7 @@ function ClayChip({
       href={href}
       aria-label={label}
       className={cn(
-        "inline-flex min-w-0 items-center gap-1 rounded-xl py-1 pr-2.5 pl-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220] active:translate-y-px active:shadow-none",
+        "inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xl py-1 pr-2.5 pl-1 transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220] active:translate-y-px active:shadow-none",
         tone === "coin" &&
           "bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e]",
         tone === "xp" &&

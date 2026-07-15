@@ -4,8 +4,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { BackButton } from "@/components/BackButton";
-import { Award, Clock, Coins, Gem, Star, Zap, Sparkles } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { LuckyWheelSkeleton } from "@/components/lucky-wheel/LuckyWheelSkeleton";
+import {
+  Award,
+  Clock,
+  Coins,
+  Gem,
+  RotateCcw,
+  Star,
+  Zap,
+  Sparkles,
+} from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ApiError } from "@/lib/api/errors";
 import {
   formatWheelCountdown,
@@ -114,10 +124,11 @@ function newIdemKey() {
 }
 
 /**
- * Lucky Wheel — server spin, client animation to landingIndex.
+ * Lucky Wheel — night stage, clay disc, server-driven spin.
  */
 export default function LuckyWheelScreen() {
   const { status } = useSession();
+  const reduceMotion = useReducedMotion();
   const { wheel, isLoading, isError, error, refetch, invalidate, accessToken } =
     useLuckyWheel();
   const hydrateFromWallet = useEconomyStore((s) => s.hydrateFromWallet);
@@ -143,7 +154,6 @@ export default function LuckyWheelScreen() {
   const canSpin =
     spinsLeft > 0 && phase !== "spinning" && !busy && segments.length > 0;
 
-  // Idle: sit on center of slice 0 — not on the seam
   useEffect(() => {
     if (bootedRef.current || segments.length === 0) return;
     bootedRef.current = true;
@@ -183,15 +193,14 @@ export default function LuckyWheelScreen() {
       const n = segments.length || 6;
       const byId = segments.findIndex((s) => s.id === res.winningSegmentId);
       const winnerIndex =
-        byId >= 0
-          ? byId
-          : Math.max(0, Math.min(n - 1, res.landingIndex));
+        byId >= 0 ? byId : Math.max(0, Math.min(n - 1, res.landingIndex));
       const slice = 360 / n;
       const centerFromTop = winnerIndex * slice + slice / 2;
       const finalMod = (360 - centerFromTop) % 360;
       const currentMod = ((rotation % 360) + 360) % 360;
       const delta = (finalMod - currentMod + 360) % 360;
-      const turns = 5 + Math.floor(Math.random() * 3);
+      const turns = reduceMotion ? 1 : 5 + Math.floor(Math.random() * 3);
+      const spinMs = reduceMotion ? 900 : 4200;
       setRotation(rotation + turns * 360 + delta);
 
       const winnerSeg =
@@ -217,7 +226,7 @@ export default function LuckyWheelScreen() {
         spinningRef.current = false;
         setBusy(false);
         void invalidate();
-      }, 4200);
+      }, spinMs);
     } catch (err) {
       spinningRef.current = false;
       setBusy(false);
@@ -248,41 +257,46 @@ export default function LuckyWheelScreen() {
     }
   };
 
-  if (status === "loading" || (status === "authenticated" && isLoading && !wheel)) {
-    return (
-      <div className="mx-auto flex min-h-dvh max-w-md items-center justify-center bg-[#0f1220] text-white/60">
-        Loading wheel…
-      </div>
-    );
+  if (status === "loading") {
+    return <LuckyWheelSkeleton mode="loading" />;
   }
 
   if (status !== "authenticated") {
-    return (
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-3 bg-[#f3effc] px-6">
-        <p className="font-display text-[20px] font-bold text-[#1b1730]">
-          Sign in to spin
-        </p>
-        <BackButton />
-      </div>
-    );
+    return <LuckyWheelSkeleton mode="signin" />;
+  }
+
+  if (isLoading && !wheel) {
+    return <LuckyWheelSkeleton mode="loading" />;
   }
 
   if (isError && !wheel) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-3 bg-[#f3effc] px-6">
-        <p className="font-display text-[20px] font-bold text-[#1b1730]">
-          Wheel unavailable
-        </p>
-        <p className="text-center text-[13px] font-semibold text-[#8a7cb8]">
-          {error instanceof ApiError ? error.message : "Try again"}
-        </p>
-        <button
-          type="button"
-          onClick={() => void refetch()}
-          className="rounded-full bg-[#0f1220] px-5 py-2.5 text-[13px] font-black text-white"
-        >
-          Retry
-        </button>
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-8 font-rounded text-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
+        />
+        <header className="relative z-[1]">
+          <BackButton fallbackHref="/home" tone="dark" />
+        </header>
+        <div className="relative z-[1] mt-auto mb-auto flex flex-col items-center px-2 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15">
+            <Sparkles className="h-7 w-7 text-[#ffc928]" strokeWidth={2.25} />
+          </div>
+          <h1 className="mt-4 font-display text-[24px] font-bold tracking-[-0.02em]">
+            Wheel unavailable
+          </h1>
+          <p className="mt-2 max-w-xs text-[13px] font-bold text-white/50">
+            {error instanceof ApiError ? error.message : "Try again in a moment."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="mt-6 cursor-pointer rounded-[18px] bg-[#ffc928] px-6 py-3.5 font-display text-[15px] font-bold text-[#0f1220] shadow-[0_5px_0_#c79a2e] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -298,9 +312,17 @@ export default function LuckyWheelScreen() {
           aria-hidden
           className="pointer-events-none absolute bottom-8 left-[-30px] h-40 w-40 rounded-full bg-[#ffc928]/20 blur-3xl"
         />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-25"
+          style={{
+            backgroundImage:
+              "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1.5px at 48% 58%, #fff, transparent)",
+          }}
+        />
 
         <header className="relative z-[1] flex items-start gap-3">
-          <BackButton />
+          <BackButton fallbackHref="/home" tone="dark" />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
               Daily bonus
@@ -309,24 +331,24 @@ export default function LuckyWheelScreen() {
               Free spin · resets 03:00 local
             </p>
           </div>
-          <div className="rounded-2xl bg-[#ffc928] px-3 py-2 text-[#0f1220] shadow-[0_4px_0_#c79a2e]">
+          <div className="rounded-2xl border-2 border-[#0f1220] bg-[#ffc928] px-3 py-2 text-[#0f1220] shadow-[0_4px_0_#c79a2e]">
             <p className="text-[9px] font-black tracking-wide uppercase opacity-60">
               Spins
             </p>
-            <p className="font-display text-[18px] leading-none font-bold">
+            <p className="font-display text-[18px] leading-none font-bold tabular-nums">
               {spinsLeft}
               <span className="text-[12px] opacity-50">/{spinsPerDay}</span>
             </p>
           </div>
         </header>
 
-        <div className="relative z-[1] mt-6 grid grid-cols-[1fr_auto] items-end gap-3">
+        <div className="relative z-[1] mt-5 grid grid-cols-[1fr_auto] items-end gap-3">
           <div className="min-w-0 pb-1">
             <h1 className="font-display text-[40px] leading-[0.88] font-bold tracking-[-0.04em]">
               Lucky Wheel
             </h1>
-            <p className="mt-2.5 max-w-[15rem] text-[13px] leading-snug font-bold text-white/60">
-              Server picks the prize. Animation follows.
+            <p className="mt-2.5 max-w-[15rem] text-[13px] leading-snug font-bold text-white/55">
+              One tap. Fair spin. Claim your bonus.
             </p>
           </div>
           <div className="relative -mr-1 mb-[-4px] h-[96px] w-[96px] shrink-0">
@@ -342,10 +364,10 @@ export default function LuckyWheelScreen() {
           </div>
         </div>
 
-        <div className="relative z-[1] mt-5 flex flex-wrap items-center gap-1.5">
+        <div className="relative z-[1] mt-4 flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full bg-[#ffc928] px-2.5 py-1.5 text-[11px] font-extrabold text-[#0f1220]">
             <Sparkles className="h-3.5 w-3.5" strokeWidth={2.5} />
-            {spinsLeft} spin{spinsLeft === 1 ? "" : "s"}
+            {spinsLeft} spin{spinsLeft === 1 ? "" : "s"} left
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold text-white ring-1 ring-white/15">
             <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -353,18 +375,20 @@ export default function LuckyWheelScreen() {
           </span>
           <span className="inline-flex items-center gap-0.5 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold text-white ring-1 ring-white/15">
             <Gem className="h-3.5 w-3.5 text-[#b35cff]" strokeWidth={2.5} />
-            cap {wheel?.previewGems ?? 15}
+            up to {wheel?.previewGems ?? 15}
           </span>
         </div>
 
         {toast ? (
-          <p className="relative z-[1] mt-3 rounded-xl bg-white/10 px-3 py-2 text-center text-[12px] font-bold text-[#ffc928]">
+          <p
+            role="status"
+            className="relative z-[1] mt-3 rounded-xl border border-[#ffc928]/30 bg-[#ffc928]/12 px-3 py-2 text-center text-[12px] font-bold text-[#ffc928]"
+          >
             {toast}
           </p>
         ) : null}
 
         <div className="relative z-[1] mx-auto mt-auto flex w-full max-w-[320px] flex-col items-center pt-8 pb-2">
-          {/* Pointer */}
           <div className="relative z-20 mb-[-10px] flex flex-col items-center">
             <div
               className="h-0 w-0 border-x-[12px] border-t-[22px] border-x-transparent"
@@ -377,7 +401,6 @@ export default function LuckyWheelScreen() {
           </div>
 
           <div className="relative">
-            {/* Clay rim */}
             <div
               className="relative rounded-full p-[14px]"
               style={{
@@ -386,7 +409,6 @@ export default function LuckyWheelScreen() {
                   "0 16px 36px rgba(15,18,32,0.55), inset 0 2px 0 rgba(255,255,255,0.35), inset 0 -4px 0 rgba(0,0,0,0.2)",
               }}
             >
-              {/* Rim studs */}
               <div
                 aria-hidden
                 className="pointer-events-none absolute inset-[6px] rounded-full"
@@ -406,7 +428,10 @@ export default function LuckyWheelScreen() {
                 animate={{ rotate: rotation }}
                 transition={
                   phase === "spinning"
-                    ? { duration: 4.1, ease: [0.12, 0.8, 0.12, 1] }
+                    ? {
+                        duration: reduceMotion ? 0.85 : 4.1,
+                        ease: [0.12, 0.8, 0.12, 1],
+                      }
                     : { duration: 0 }
                 }
               >
@@ -419,7 +444,6 @@ export default function LuckyWheelScreen() {
                 )}
               </motion.div>
 
-              {/* Hub */}
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div
                   className="flex h-[64px] w-[64px] items-center justify-center rounded-full bg-white"
@@ -441,19 +465,19 @@ export default function LuckyWheelScreen() {
             type="button"
             disabled={!canSpin}
             onClick={() => void handleSpin()}
-            whileTap={canSpin ? { scale: 0.96, y: 3 } : undefined}
+            whileTap={canSpin && !reduceMotion ? { scale: 0.96, y: 3 } : undefined}
             transition={popSpring}
             className={cn(
-              "relative z-10 mt-7 w-full max-w-[220px] rounded-[18px] py-4 font-display text-[18px] font-bold tracking-[-0.02em]",
+              "relative z-10 mt-7 w-full max-w-[240px] rounded-[18px] py-4 font-display text-[18px] font-bold tracking-[-0.02em] transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220]",
               canSpin
-                ? "bg-[#ffc928] text-[#0f1220] shadow-[0_5px_0_#c79a2e]"
+                ? "cursor-pointer bg-[#ffc928] text-[#0f1220] shadow-[0_5px_0_#c79a2e] hover:opacity-95"
                 : "cursor-not-allowed bg-white/10 text-white/35 shadow-none",
             )}
           >
             {phase === "spinning"
               ? "Spinning…"
               : spinsLeft > 0
-                ? "Spin"
+                ? "Spin now"
                 : "Come back tomorrow"}
           </motion.button>
 
@@ -462,10 +486,11 @@ export default function LuckyWheelScreen() {
               type="button"
               disabled={busy}
               onClick={() => void buyRespin()}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-[12px] font-extrabold text-white ring-1 ring-white/15 disabled:opacity-50"
+              className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-2.5 text-[12px] font-extrabold text-white ring-1 ring-white/15 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] disabled:cursor-not-allowed disabled:opacity-50"
             >
+              <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Re-spin · {wheel?.respinGemPrice ?? 25}
               <Gem className="h-3.5 w-3.5 text-[#b35cff]" strokeWidth={2.5} />
-              Re-spin · {wheel?.respinGemPrice ?? 25} gems
             </button>
           ) : null}
         </div>
@@ -495,11 +520,7 @@ function ClayWheelDisc({ segments }: { segments: UiSegment[] }) {
   const r = size / 2;
 
   return (
-    <svg
-      viewBox={`0 0 ${size} ${size}`}
-      className="h-full w-full"
-      aria-hidden
-    >
+    <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full" aria-hidden>
       {segments.map((segment, i) => {
         const start = i * slice;
         const end = (i + 1) * slice;
@@ -512,11 +533,7 @@ function ClayWheelDisc({ segments }: { segments: UiSegment[] }) {
 
         return (
           <g key={segment.id}>
-            <path
-              d={wedgePath(cx, cy, r, start, end)}
-              fill={segment.color}
-            />
-            {/* Seam tick */}
+            <path d={wedgePath(cx, cy, r, start, end)} fill={segment.color} />
             <line
               x1={tickInner.x}
               y1={tickInner.y}
@@ -526,7 +543,6 @@ function ClayWheelDisc({ segments }: { segments: UiSegment[] }) {
               strokeWidth={2.5}
               strokeLinecap="round"
             />
-            {/* Prize stamp — upright at slice center */}
             <foreignObject
               x={labelPos.x - 36}
               y={labelPos.y - 28}
@@ -551,14 +567,7 @@ function ClayWheelDisc({ segments }: { segments: UiSegment[] }) {
           </g>
         );
       })}
-      {/* Inner ring so hub area stays clean */}
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r * 0.28}
-        fill="#0f1220"
-        opacity={0.12}
-      />
+      <circle cx={cx} cy={cy} r={r * 0.28} fill="#0f1220" opacity={0.12} />
     </svg>
   );
 }
@@ -575,7 +584,7 @@ function ResultOverlay({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[#0f1220]/70 px-4 pb-[calc(env(safe-area-inset-bottom)+20px)] backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[#0f1220]/75 px-4 pb-[calc(env(safe-area-inset-bottom)+20px)] backdrop-blur-sm sm:items-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -584,7 +593,8 @@ function ResultOverlay({
       <motion.div
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-md overflow-hidden rounded-[28px] bg-[#0f1220] p-6 text-center text-white ring-1 ring-white/10"
+        aria-labelledby="wheel-result-title"
+        className="w-full max-w-md overflow-hidden rounded-[28px] border-2 border-white/10 bg-[#0f1220] p-6 text-center text-white shadow-[0_20px_48px_rgba(0,0,0,0.45)]"
         initial={{ opacity: 0, y: 40, scale: 0.94 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 24 }}
@@ -593,20 +603,34 @@ function ResultOverlay({
       >
         <div
           className="mx-auto flex h-[84px] w-[84px] items-center justify-center rounded-full"
-          style={{ backgroundColor: result.color, boxShadow: `0 0 0 5px ${GOLD}` }}
+          style={{
+            backgroundColor: result.color,
+            boxShadow: `0 6px 0 rgba(0,0,0,0.25), 0 0 0 5px ${GOLD}`,
+          }}
         >
-          <Icon className="h-9 w-9 text-white" strokeWidth={2.4} />
+          <Icon
+            className={cn(
+              "h-9 w-9",
+              result.kind === "coins" || result.kind === "badge"
+                ? "text-[#0f1220]"
+                : "text-white",
+            )}
+            strokeWidth={2.4}
+          />
         </div>
         <p className="mt-4 text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
           {win ? "You won" : "Try again"}
         </p>
-        <h2 className="mt-1.5 font-display text-[30px] leading-none font-bold">
+        <h2
+          id="wheel-result-title"
+          className="mt-1.5 font-display text-[30px] leading-none font-bold"
+        >
           {result.label}
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 w-full rounded-[18px] bg-arc-purple-500 py-3.5 font-display text-[16px] font-bold text-white"
+          className="mt-6 w-full cursor-pointer rounded-[18px] bg-arc-purple-500 py-3.5 font-display text-[16px] font-bold text-white shadow-[0_5px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
         >
           Nice
         </button>

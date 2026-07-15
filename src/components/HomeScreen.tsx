@@ -13,12 +13,10 @@ import {
 } from "@/lib/home/types";
 import { mapHomeFromBackend } from "@/lib/home/map-home";
 import { isQuestionnaireComplete } from "@/lib/auth/post-auth-route";
-import { cn } from "@/lib/utils";
 import { HomeExtras } from "@/components/home/HomeExtras";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { HomeMissionStage } from "@/components/home/HomeMissionStage";
 import { HomeQuestionnaireCta } from "@/components/home/HomeQuestionnaireCta";
-import { HomePaceStrip } from "@/components/home/HomePaceStrip";
 import { HomePortraitStage } from "@/components/home/HomePortraitStage";
 import { HomeSheetSkeleton } from "@/components/home/HomeSheetSkeleton";
 import { HomeWeekLockVault } from "@/components/home/HomeWeekLockVault";
@@ -37,8 +35,7 @@ import type {
 
 /**
  * Home — night dispatch hero + light sheet.
- * Mission + week seal from `/roadmaps/current` + `/weeks/current`.
- * No live roadmap → never show Next Stop (admin reset / pre-path).
+ * Hierarchy: Mission → Week board → Boost / Track.
  */
 export default function HomeScreen({
   data: dataProp,
@@ -134,7 +131,7 @@ export default function HomeScreen({
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
-      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-10 text-white">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-12 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-14 -right-8 h-44 w-44 rounded-full bg-arc-purple-500/45 blur-3xl"
@@ -165,18 +162,19 @@ export default function HomeScreen({
             greeting={greeting}
             userName={data.userName}
             askArloHref={askArloHref}
+            weekStreak={data.weeklyStreak.weeks}
           />
         </div>
       </header>
 
       <motion.main
-        className="relative z-10 -mt-6 space-y-4 rounded-t-arc-xl bg-[#f2eefb] px-4 pt-4 pb-6"
+        className="relative z-10 -mt-7 space-y-4 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-8"
         initial={reduceMotion || sheetLoading ? false : "hidden"}
         animate="visible"
         variants={{
           hidden: {},
           visible: {
-            transition: { staggerChildren: 0.07, delayChildren: 0.1 },
+            transition: { staggerChildren: 0.06, delayChildren: 0.08 },
           },
         }}
       >
@@ -189,7 +187,7 @@ export default function HomeScreen({
             ) : !qDone ? (
               <HomeQuestionnaireCta />
             ) : (
-              <section className="relative overflow-hidden rounded-[26px] bg-white p-4 shadow-[0_16px_32px_rgba(70,40,150,0.16)] ring-1 ring-[#ebe4f6]">
+              <section className="relative overflow-hidden rounded-[24px] border-2 border-[#0f1220] bg-white p-4 shadow-[0_6px_0_#0f1220]">
                 <p className="text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
                   Path · Building
                 </p>
@@ -201,7 +199,7 @@ export default function HomeScreen({
                 </p>
                 <Link
                   href="/path"
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_6px_0_#4b2fd6]"
+                  className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_5px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:ring-offset-2"
                 >
                   <Route className="h-4 w-4" strokeWidth={2.5} />
                   Open path
@@ -210,25 +208,18 @@ export default function HomeScreen({
               </section>
             )}
             {liveRoadmap ? (
-              <div
-                className={cn(
-                  "grid items-stretch gap-2.5",
-                  timing ? "grid-cols-2" : "grid-cols-1",
-                )}
-              >
-                <HomePaceStrip timing={timing} />
-                <HomeWeekLockVault
-                  weeklyProgress={data.weeklyProgress}
-                  weeklyStreak={data.weeklyStreak}
-                  replanHref={week?.replanHref ?? "/week/plan"}
-                  estimateMinutes={estimateMinutes}
-                  sealed={week?.sealed}
-                  sessionsLeft={week?.sessionsLeft}
-                  targetWeek={week?.targetWeek}
-                  paceLabel={timingPace?.label}
-                  paceTone={timingPace?.tone}
-                />
-              </div>
+              <HomeWeekLockVault
+                weeklyProgress={data.weeklyProgress}
+                weeklyStreak={data.weeklyStreak}
+                replanHref={week?.replanHref ?? "/week/plan"}
+                estimateMinutes={estimateMinutes}
+                sealed={week?.sealed}
+                sessionsLeft={week?.sessionsLeft}
+                targetWeek={week?.targetWeek}
+                paceLabel={timingPace?.label}
+                paceTone={timingPace?.tone}
+                timing={timing}
+              />
             ) : null}
             <HomeExtras
               stats={data.stats}

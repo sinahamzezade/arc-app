@@ -92,9 +92,10 @@ export default function StudyRoomScreen() {
     if (!sessionId) return;
     try {
       const { items } = await studyApi.messages(sessionId);
-      setMessages(items);
+      // API returns newest-first; chat UI wants oldest-first.
+      setMessages([...items].reverse());
     } catch {
-      /* optional */
+      /* optional — 401 when session expired */
     }
   }, [sessionId]);
 
@@ -112,6 +113,10 @@ export default function StudyRoomScreen() {
       sessionId,
       enabled: Boolean(sessionId && session && !TERMINAL.has(session.status)),
       onState,
+      onStateDirty: () => {
+        void refresh();
+        void loadContent();
+      },
       onStep: () => {
         void loadContent();
         void refresh();
@@ -132,6 +137,14 @@ export default function StudyRoomScreen() {
     void refresh();
     void loadMessages();
   }, [refresh, loadMessages]);
+
+  // Chat poll fallback when WS not joined — keeps both sides in sync.
+  useEffect(() => {
+    if (!sessionId || !session || TERMINAL.has(session.status)) return;
+    if (connected) return;
+    const t = setInterval(() => void loadMessages(), 2000);
+    return () => clearInterval(t);
+  }, [sessionId, session?.status, connected, loadMessages]);
 
   useEffect(() => {
     if (!session?.lessonId) return;

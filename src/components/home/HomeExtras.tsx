@@ -53,66 +53,87 @@ export function HomeExtras({
 
   return (
     <>
-      <motion.div
-        variants={sectionVariants}
-        className="relative grid grid-cols-2 gap-2.5"
-      >
-        <RankInfo
-          title={rankTitle}
-          nextTitle={rankNext}
-          xp={rankXp}
-          pct={rankPct}
-        />
-        <WheelInfo
-          spins={wheelSpins}
-          hoursLeft={wheelHours}
-          maxGems={wheelGems}
-        />
+      <motion.div variants={sectionVariants} className="space-y-2">
+        <SectionLabel>Boost</SectionLabel>
+        <div className="grid grid-cols-2 gap-2.5">
+          <RankInfo
+            title={rankTitle}
+            nextTitle={rankNext}
+            xp={rankXp}
+            pct={rankPct}
+          />
+          <WheelInfo
+            spins={wheelSpins}
+            hoursLeft={wheelHours}
+            maxGems={wheelGems}
+          />
+        </div>
       </motion.div>
 
       <motion.section
         variants={sectionVariants}
         aria-label="Progress"
-        className="divide-y divide-[#f0ecf7] rounded-[22px] border border-[#ebe4f6] bg-white shadow-[0_6px_16px_rgba(70,40,150,0.05)]"
+        className="space-y-2"
       >
-        <QuietRow
-          href={milestone.href ?? "/path"}
-          icon={Medal}
-          iconClass="bg-[#f0ecf7] text-arc-purple-500"
-          title={milestone.subtitle}
-          sub={`Milestone ${milestone.stepsDone}/${milestone.stepsTotal} · +${milestone.rewardXp} XP · +${milestone.rewardGems} gems`}
-        />
-        <QuietRow
-          href="/leaderboard"
-          icon={Trophy}
-          iconClass="bg-[#fff3d0] text-[#c79a2e]"
-          title={`${leagueCard.league} · #${leagueCard.yourPlace}`}
-          sub={`${leagueCard.endsIn} · ${leagueCard.xpToNext} XP to climb`}
-          trailing={
-            <span className="mr-1 flex -space-x-2" aria-hidden>
-              {leagueCard.peers.map((r, i) => (
-                <UserAvatar
-                  key={`${r.initial}-${r.color}-${i}`}
-                  initial={r.initial}
-                  color={r.color}
-                  avatarUrl={r.avatarUrl}
-                  className="h-6 w-6 rounded-full text-[10px] ring-2 ring-white"
-                  textClassName="text-[10px] font-extrabold"
-                  alt=""
-                />
-              ))}
-            </span>
-          }
-        />
-        <QuietRow
-          href="/badges"
-          icon={Award}
-          iconClass="bg-[#f0ecf7] text-[#8a7cb8]"
-          title="Badges"
-          sub={`${badgeCard.earned}/${badgeCard.total} unlocked`}
-        />
+        <SectionLabel>Track</SectionLabel>
+        <div className="divide-y divide-[#f0ecf7] overflow-hidden rounded-[22px] border-2 border-[#ebe4f6] bg-white shadow-[0_4px_0_#ebe4f6]">
+          <QuietRow
+            href={milestone.href ?? "/path"}
+            icon={Medal}
+            iconClass="bg-[#f0ecf7] text-arc-purple-500"
+            title={milestone.subtitle || "Current milestone"}
+            sub={`Milestone ${milestone.stepsDone}/${milestone.stepsTotal} · +${milestone.rewardXp} XP · +${milestone.rewardGems} gems`}
+          />
+          <QuietRow
+            href="/leaderboard"
+            icon={Trophy}
+            iconClass="bg-[#fff3d0] text-[#c79a2e]"
+            title={
+              leagueCard.league
+                ? `${leagueCard.league} · #${leagueCard.yourPlace}`
+                : "League standings"
+            }
+            sub={
+              leagueCard.endsIn
+                ? `${leagueCard.endsIn} · ${leagueCard.xpToNext} XP to climb`
+                : "See where you rank"
+            }
+            trailing={
+              leagueCard.peers.length > 0 ? (
+                <span className="mr-1 flex -space-x-2" aria-hidden>
+                  {leagueCard.peers.map((r, i) => (
+                    <UserAvatar
+                      key={`${r.initial}-${r.color}-${i}`}
+                      initial={r.initial}
+                      color={r.color}
+                      avatarUrl={r.avatarUrl}
+                      className="h-6 w-6 rounded-full text-[10px] ring-2 ring-white"
+                      textClassName="text-[10px] font-extrabold"
+                      alt=""
+                    />
+                  ))}
+                </span>
+              ) : undefined
+            }
+          />
+          <QuietRow
+            href="/badges"
+            icon={Award}
+            iconClass="bg-[#f0ecf7] text-[#8a7cb8]"
+            title="Badges"
+            sub={`${badgeCard.earned}/${badgeCard.total} unlocked`}
+          />
+        </div>
       </motion.section>
     </>
+  );
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="px-0.5 text-[10px] font-black tracking-[0.14em] text-[#8a7cb8] uppercase">
+      {children}
+    </p>
   );
 }
 
@@ -135,7 +156,7 @@ function RankInfo({
     <Link
       href="/rank"
       aria-label="Rank"
-      className="flex h-full min-w-0 items-center gap-2.5 rounded-[20px] bg-white px-3 py-3 text-[#1b1730] shadow-[0_5px_0_#d9d0ef,0_12px_24px_rgba(70,40,150,0.08)] ring-1 ring-[#ebe4f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+      className="flex h-full min-w-0 cursor-pointer items-center gap-2.5 rounded-[20px] border-2 border-[#ebe4f6] bg-white px-3 py-3 text-[#1b1730] shadow-[0_4px_0_#ebe4f6] transition-colors hover:border-[#0f1220]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
     >
       <div className="relative h-11 w-11 shrink-0">
         <svg viewBox="0 0 44 44" className="h-11 w-11 -rotate-90" aria-hidden>
@@ -174,10 +195,10 @@ function RankInfo({
           Rank
         </span>
         <span className="mt-0.5 block truncate font-display text-[14px] leading-tight font-bold tracking-[-0.02em]">
-          {title}
+          {title || "—"}
         </span>
         <span className="mt-0.5 block truncate text-[10px] font-bold text-[#8a7cb8]">
-          {xp} XP → {nextTitle}
+          {xp} XP → {nextTitle || "next"}
         </span>
       </span>
     </Link>
@@ -197,14 +218,14 @@ function WheelInfo({
     <Link
       href="/lucky-wheel"
       aria-label="Lucky wheel"
-      className="relative flex h-full min-w-0 items-center gap-2.5 rounded-[20px] bg-[#ffc928] px-3 py-3 text-[#0f1220] shadow-[0_5px_0_#c79a2e,0_12px_24px_rgba(199,154,46,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c79a2e]"
+      className="relative flex h-full min-w-0 cursor-pointer items-center gap-2.5 rounded-[20px] bg-[#ffc928] px-3 py-3 text-[#0f1220] shadow-[0_5px_0_#c79a2e] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c79a2e]"
     >
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0f1220] text-[#ffc928] shadow-[0_3px_0_#000]">
         <FerrisWheel className="h-5 w-5" strokeWidth={2.25} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[9px] font-black tracking-[0.08em] text-[#0f1220]/55 uppercase">
-          Bonus · {hoursLeft.replace(" ", "·")}
+          Bonus{hoursLeft ? ` · ${hoursLeft.replace(" ", "·")}` : ""}
         </span>
         <span className="mt-0.5 block truncate font-display text-[14px] leading-tight font-bold tracking-[-0.02em]">
           Lucky Wheel
@@ -235,7 +256,7 @@ function QuietRow({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-4 py-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-arc-purple-500 first:rounded-t-[22px] last:rounded-b-[22px]"
+      className="flex cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[#faf8ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-arc-purple-500 first:rounded-t-[20px] last:rounded-b-[20px]"
     >
       <span
         className={cn(

@@ -15,7 +15,7 @@ export function HomeQuestionnaireCta() {
     <motion.section
       variants={sectionVariants}
       aria-labelledby="start-q-title"
-      className="relative overflow-hidden rounded-[26px] bg-white p-4 shadow-[0_16px_32px_rgba(70,40,150,0.16)] ring-1 ring-[#ebe4f6]"
+      className="relative overflow-hidden rounded-[24px] border-2 border-[#0f1220] bg-white p-4 shadow-[0_6px_0_#0f1220]"
     >
       <p className="text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
         First stop · Onboarding
@@ -37,7 +37,7 @@ export function HomeQuestionnaireCta() {
       >
         <Link
           href="/questionnaire"
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_6px_0_#4b2fd6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:ring-offset-2"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_5px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:ring-offset-2"
         >
           <ClipboardList className="h-4 w-4" strokeWidth={2.5} />
           Start questionnaire
