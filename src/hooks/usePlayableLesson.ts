@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { lessonsApi } from "@/lib/api/lessons";
@@ -25,7 +25,9 @@ export function usePlayableLesson(lessonId: string): UsePlayableLessonResult {
   const hydrateFromProgress = useLessonStore((s) => s.hydrateFromProgress);
 
   const query = useQuery({
-    queryKey: ["lessons", "play", lessonId, accessToken ?? "anon"],
+    // Key on user, not token — token rotation must not blow away the cache
+    // (it remounts the whole lesson screen mid-read).
+    queryKey: ["lessons", "play", lessonId, session?.user?.id ?? "anon"],
     enabled:
       status === "authenticated" &&
       Boolean(accessToken) &&
@@ -35,8 +37,13 @@ export function usePlayableLesson(lessonId: string): UsePlayableLessonResult {
     staleTime: 30_000,
   });
 
+  // Hydrate once per lesson — focus/interval refetches must not reset
+  // local step position to the (possibly lagging) server value.
+  const hydratedLessonRef = useRef<string | null>(null);
   useEffect(() => {
     if (!query.data) return;
+    if (hydratedLessonRef.current === lessonId) return;
+    hydratedLessonRef.current = lessonId;
     hydrateFromProgress(lessonId, {
       contentStep: query.data.progress.contentStep,
       practiceDone: query.data.progress.practiceDone ?? false,

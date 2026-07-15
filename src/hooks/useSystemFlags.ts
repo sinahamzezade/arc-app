@@ -27,7 +27,9 @@ export function useSystemFlags() {
   const authed = status === "authenticated" && Boolean(accessToken);
 
   const query = useQuery({
-    queryKey: ["system", "flags", authed ? accessToken : "anon"],
+    // Key on user, not token — token rotation must not reset this query
+    // to loading (gates full-screen shells on lesson routes).
+    queryKey: ["system", "flags", authed ? (session?.user?.id ?? "me") : "anon"],
     queryFn: () =>
       authed
         ? systemFlagsApi.getMine(accessToken)
