@@ -13,7 +13,6 @@ import {
   Flag,
   Link2,
   Lock,
-  MapPin,
   Palette,
   Tag,
   TrendingUp,
@@ -348,21 +347,19 @@ function RoadMap({ data }: { data: PathData }) {
   }, [nextStopKey, reduceMotion]);
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
+    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
       <RouteHero data={data} progress={progress} coins={coins} />
 
       {/* The atlas sheet */}
       <div
-        className="relative -mt-6 rounded-t-arc-xl bg-[#f2eefb] pb-[calc(5.25rem+env(safe-area-inset-bottom)+24px)]"
+        className="relative z-10 -mt-6 rounded-t-[28px] bg-[#f2eefb] pb-[calc(5.25rem+env(safe-area-inset-bottom)+24px)] pt-2"
         style={{
           backgroundImage: [
-            // contour rings — faint cartographic texture
             "radial-gradient(circle at 16% 9%, transparent 52px, rgba(107,78,255,0.055) 53px 55px, transparent 56px)",
             "radial-gradient(circle at 16% 9%, transparent 86px, rgba(107,78,255,0.045) 87px 89px, transparent 90px)",
             "radial-gradient(circle at 88% 38%, transparent 60px, rgba(107,78,255,0.05) 61px 63px, transparent 64px)",
             "radial-gradient(circle at 88% 38%, transparent 98px, rgba(107,78,255,0.04) 99px 101px, transparent 102px)",
             "radial-gradient(circle at 8% 72%, transparent 70px, rgba(107,78,255,0.045) 71px 73px, transparent 74px)",
-            // graticule grid
             "linear-gradient(rgba(107,78,255,0.05) 1px, transparent 1px)",
             "linear-gradient(90deg, rgba(107,78,255,0.05) 1px, transparent 1px)",
           ].join(", "),
@@ -430,10 +427,9 @@ function RouteHero({
 }) {
   const reduceMotion = useReducedMotion();
   const pct = Math.min(Math.max(progress, 0), 100);
-  const markerLeft = `max(14px, calc(${Math.max(pct, 4)}% - 10px))`;
 
   return (
-    <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-10 text-white">
+    <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-12 text-white">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-20 right-[-48px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
@@ -444,42 +440,34 @@ function RouteHero({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-35"
+        className="pointer-events-none absolute inset-0 opacity-30"
         style={{
           backgroundImage:
             "radial-gradient(1.5px 1.5px at 14% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1.5px at 48% 58%, #fff, transparent), radial-gradient(1px 1px at 28% 78%, #fff, transparent)",
         }}
       />
 
-      <motion.p
-        aria-hidden
-        className="pointer-events-none absolute -right-3 top-8 select-none font-display text-[64px] leading-none font-bold tracking-[-0.08em] text-white/[0.05]"
-        initial={reduceMotion ? false : { opacity: 0, rotate: 4 }}
-        animate={{ opacity: 1, rotate: 8 }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-      >
-        ROUTE
-      </motion.p>
-
       <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={softSpring}
         className="relative"
       >
-        {/* Top rail — stamp + wallet */}
         <div className="flex items-center justify-between gap-3">
           <p className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-[0.16em] text-[#ffc928] uppercase">
             <Compass className="h-3.5 w-3.5" strokeWidth={2.5} />
             Career road map
           </p>
-          <motion.div whileTap={{ scale: 0.94 }} transition={snappySpring}>
+          <motion.div
+            whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+            transition={snappySpring}
+          >
             <Link
               href="/wallet"
               aria-label={`${coins.toLocaleString()} coins — open wallet`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#ffc928]/30 bg-[#ffc928]/12 py-1.5 pr-3 pl-1.5"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-2xl border-2 border-[#0f1220] bg-[#ffc928] py-1.5 pr-3 pl-1.5 text-[#0f1220] shadow-[0_3px_0_#c79a2e] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220]"
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ffc928] text-[#0f1220] shadow-[0_2px_0_#c79a2e]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-xl bg-[#0f1220] text-[#ffc928]">
                 <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
               </span>
               <span className="font-display text-[15px] leading-none font-bold tracking-[-0.02em] tabular-nums">
@@ -489,67 +477,52 @@ function RouteHero({
           </motion.div>
         </div>
 
-        {/* Title block — one job */}
-        <h1 className="mt-3 font-display text-[26px] leading-[0.95] font-bold tracking-[-0.04em]">
+        <h1 className="mt-4 font-display text-[32px] leading-[0.92] font-bold tracking-[-0.04em]">
           Your Path
         </h1>
-        <p className="mt-1 truncate text-[12px] leading-snug font-bold text-white/50">
+        <p className="mt-1.5 truncate text-[13px] leading-snug font-bold text-white/50">
           {data.trackTitle}
         </p>
 
-        {/* Single strip — paved + stops + current unit live here */}
-        <div className="mt-4">
+        <div className="mt-5">
           <div className="flex items-center justify-between gap-3 text-[10px] font-black tracking-[0.12em] uppercase">
-            <p className="text-white/35">
-              Route paved ·{" "}
+            <p className="text-white/40">
+              Paved ·{" "}
               <span className="text-[#ffc928] tabular-nums">{pct}%</span>
             </p>
-            <p className="text-white/35 tabular-nums">
+            <p className="text-white/40 tabular-nums">
               <span className="text-white">{data.lessonsDone}</span>/
               {data.lessonsTotal} stops
             </p>
           </div>
 
-          <div className="relative mt-2 h-7">
-            <div
-              aria-hidden
-              className="absolute top-1/2 right-6 left-3 h-[3px] -translate-y-1/2 rounded-full"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, rgba(255,255,255,0.22) 0 6px, transparent 6px 13px)",
-              }}
-            />
+          <div
+            className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-white/15"
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Path progress"
+          >
             <motion.div
-              className="absolute top-1/2 left-3 h-[4px] -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,#6b4eff_0%,#ffc928_100%)]"
+              className="h-full rounded-full bg-[linear-gradient(90deg,#6b4eff_0%,#ffc928_100%)]"
               initial={reduceMotion ? false : { width: 0 }}
-              animate={{
-                width: `max(12px, calc(${Math.max(pct, 4)}% - 28px))`,
-              }}
-              transition={{ ...softSpring, delay: 0.15 }}
-            />
-            <span
-              aria-hidden
-              className="absolute top-1/2 left-0 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white/60 bg-[#0f1220]"
-            />
-            <motion.span
-              aria-hidden
-              className="absolute top-1/2 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-arc-purple-500 text-white ring-2 ring-white/90 shadow-[0_4px_12px_rgba(107,78,255,0.45)]"
-              initial={reduceMotion ? false : { left: "4%", opacity: 0 }}
-              animate={{ left: markerLeft, opacity: 1 }}
-              transition={{ ...softSpring, delay: 0.22 }}
-            >
-              <MapPin className="h-3 w-3" strokeWidth={2.75} />
-            </motion.span>
-            <Flag
-              aria-hidden
-              className="absolute top-1/2 right-0 h-4 w-4 -translate-y-1/2 text-white/55"
-              strokeWidth={2.5}
+              animate={{ width: `${Math.max(pct, 3)}%` }}
+              transition={{ ...softSpring, delay: 0.12 }}
             />
           </div>
 
-          <p className="mt-2 truncate text-[11px] font-bold text-white/45">
-            Now · {data.rank.title}
-          </p>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-[12px] font-bold text-white/55">
+              Now · {data.rank.title}
+            </p>
+            <Link
+              href="/week"
+              className="shrink-0 cursor-pointer rounded-xl bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold text-[#ffc928] ring-1 ring-white/15 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]"
+            >
+              This week
+            </Link>
+          </div>
         </div>
       </motion.div>
     </header>
@@ -671,10 +644,10 @@ function GantrySign({ row }: { row: Extract<TrailRow, { kind: "gantry" }> }) {
 
       <div
         className={cn(
-          "absolute inset-x-4 top-2 z-[2] flex items-center gap-3 rounded-[18px] px-4 py-3",
+          "absolute inset-x-4 top-2 z-[2] flex items-center gap-3 rounded-[18px] border-2 px-4 py-3",
           row.locked
-            ? "border-2 border-dashed border-[#d5ccec] bg-white/80 text-[#8a7cb8]"
-            : "bg-[#1b1730] text-white shadow-[0_10px_24px_rgba(27,23,48,0.32),inset_0_0_0_2px_rgba(255,255,255,0.14)]",
+            ? "border-dashed border-[#d5ccec] bg-white/90 text-[#8a7cb8]"
+            : "border-[#0f1220] bg-[#0f1220] text-white shadow-[0_5px_0_#2a2f45]",
         )}
       >
         <span
@@ -739,7 +712,7 @@ function ClearedStop({ row }: { row: Extract<TrailRow, { kind: "stone" }> }) {
               : "left-4 right-[42%] justify-end",
           )}
         >
-          <p className="max-w-full truncate rounded-full bg-white/85 px-3 py-1.5 text-[12px] font-bold text-[#6b5f92] ring-1 ring-[#ebe4f6] transition hover:bg-white hover:text-[#0f1220] hover:ring-arc-purple-500/40">
+          <p className="max-w-full truncate rounded-full border-2 border-[#ebe4f6] bg-white px-3 py-1.5 text-[12px] font-bold text-[#6b5f92] shadow-[0_2px_0_#ebe4f6] transition hover:border-arc-purple-500/40 hover:text-[#0f1220]">
             {row.node.title}
           </p>
         </div>
@@ -767,7 +740,7 @@ function UpcomingStop({ row }: { row: Extract<TrailRow, { kind: "stone" }> }) {
           row.side === "left" ? "left-[40%] right-4" : "left-4 right-[40%]",
         )}
       >
-        <div className="flex w-full items-center gap-2.5 rounded-[20px] border border-[#ebe4f6] bg-white px-3 py-2.5 shadow-[0_6px_16px_rgba(70,40,150,0.05)]">
+        <div className="flex w-full items-center gap-2.5 rounded-[20px] border-2 border-[#ebe4f6] bg-white px-3 py-2.5 shadow-[0_3px_0_#ebe4f6]">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f0ecf7] text-[#b3a8d6]">
             <Icon className="h-4 w-4" strokeWidth={2.25} />
           </span>
@@ -812,7 +785,7 @@ function MilestoneSign({ row }: { row: Extract<TrailRow, { kind: "stone" }> }) {
           row.side === "left" ? "left-[42%] right-4" : "left-4 right-[42%]",
         )}
       >
-        <div className="w-full rounded-[20px] border border-[#ead7a0] bg-[linear-gradient(145deg,#fffbf0,#fff3d0)] px-3.5 py-2.5 shadow-[0_8px_20px_rgba(199,154,46,0.15)]">
+        <div className="w-full rounded-[20px] border-2 border-[#c79a2e]/40 bg-[linear-gradient(145deg,#fffbf0,#fff3d0)] px-3.5 py-2.5 shadow-[0_4px_0_#ead7a0]">
           <p className="text-[9px] font-extrabold tracking-[0.1em] text-[#c79a2e] uppercase">
             Milestone
           </p>
@@ -842,7 +815,7 @@ function RoadClosed({ row }: { row: Extract<TrailRow, { kind: "stone" }> }) {
         }}
       />
       <div className="absolute inset-x-0 top-[60px] z-[2] flex justify-center">
-        <p className="inline-flex max-w-[80%] items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-bold text-[#8a7cb8] ring-1 ring-[#ebe4f6]">
+        <p className="inline-flex max-w-[80%] items-center gap-1.5 rounded-full border-2 border-[#ebe4f6] bg-white px-3 py-1.5 text-[11px] font-bold text-[#8a7cb8] shadow-[0_2px_0_#ebe4f6]">
           <Lock className="h-3 w-3 shrink-0" strokeWidth={2.75} />
           <span className="truncate">{row.node.title}</span>
         </p>
@@ -861,6 +834,7 @@ function CurrentPin({
 }) {
   const Icon = iconMap[row.node.icon];
   const pinOnLeft = row.side === "left";
+  const reduceMotion = useReducedMotion();
 
   return (
     <motion.div
@@ -869,26 +843,26 @@ function CurrentPin({
       className="absolute inset-x-0 scroll-mt-[calc(env(safe-area-inset-top)+5rem)] scroll-mb-[calc(5.5rem+env(safe-area-inset-bottom))]"
       style={{ top: row.top, height: row.h }}
     >
-      {/* Pin at the road anchor */}
       <div
         className="absolute z-[3] -translate-x-1/2"
         style={{ left: pct(row.ax), top: 16 }}
       >
-        <span
-          aria-hidden
-          className="absolute top-1/2 left-1/2 h-[60px] w-[60px] -translate-x-1/2 -translate-y-[calc(50%+7px)] rounded-full bg-arc-purple-500/25 motion-safe:animate-ping"
-        />
-        <span className="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-arc-purple-500 text-white ring-4 ring-white shadow-[0_8px_18px_rgba(75,47,214,0.4)]">
+        {!reduceMotion ? (
+          <span
+            aria-hidden
+            className="absolute top-1/2 left-1/2 h-[60px] w-[60px] -translate-x-1/2 -translate-y-[calc(50%+7px)] rounded-full bg-arc-purple-500/25 animate-ping"
+          />
+        ) : null}
+        <span className="relative flex h-[52px] w-[52px] items-center justify-center rounded-full border-2 border-[#0f1220] bg-arc-purple-500 text-white shadow-[0_5px_0_#4b2fd6]">
           <Icon className="h-6 w-6" strokeWidth={2.4} />
         </span>
         <span
           aria-hidden
           className="absolute -bottom-1 left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 rounded-[3px] bg-arc-purple-500"
         />
-        {/* You-are-here tag beside the pin */}
         <span
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-[#ffc928] px-2 py-1 text-[9px] font-black tracking-[0.1em] text-[#1b1730] uppercase shadow-[0_3px_0_#c79a2e]",
+            "absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-xl border-2 border-[#0f1220] bg-[#ffc928] px-2 py-1 text-[9px] font-black tracking-[0.1em] text-[#0f1220] uppercase shadow-[0_3px_0_#c79a2e]",
             pinOnLeft ? "left-full ml-3" : "right-full mr-3",
           )}
         >
@@ -896,27 +870,26 @@ function CurrentPin({
         </span>
       </div>
 
-      {/* Billboard CTA */}
-      <div className="absolute inset-x-2 top-[92px] z-[2] overflow-hidden rounded-[26px] bg-white p-4 shadow-[0_16px_32px_rgba(70,40,150,0.16)] ring-1 ring-[#ebe4f6]">
-        <p className="text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
+      <div className="absolute inset-x-2 top-[92px] z-[2] overflow-hidden rounded-[24px] border-2 border-[#0f1220] bg-white p-4 shadow-[0_6px_0_#0f1220]">
+        <p className="text-[10px] font-black tracking-[0.12em] text-arc-purple-500 uppercase">
           Next stop · {row.node.subtitle}
         </p>
-        <h3 className="mt-1 line-clamp-2 font-display text-[20px] leading-tight font-bold tracking-[-0.02em] text-[#1b1730]">
+        <h3 className="mt-1.5 line-clamp-2 font-display text-[20px] leading-tight font-bold tracking-[-0.02em] text-[#1b1730]">
           {upNext.title}
         </h3>
-        <p className="mt-1 flex items-center gap-1 text-[12px] font-bold text-[#8a7cb8]">
+        <p className="mt-1.5 flex items-center gap-1 text-[12px] font-bold text-[#8a7cb8]">
           <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
           {upNext.minutes}m · {row.node.title}
         </p>
 
         <motion.div
           className="relative mt-4"
-          whileTap={{ scale: 0.98, y: 2 }}
+          whileTap={reduceMotion ? undefined : { scale: 0.98, y: 2 }}
           transition={snappySpring}
         >
           <Link
             href={`/learn/${row.node.id}`}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_6px_0_#4b2fd6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:ring-offset-2"
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_5px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:ring-offset-2"
           >
             Start lesson
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
@@ -944,10 +917,10 @@ function FinishMarker({
       <div className="absolute inset-x-0 top-2 z-[2] flex flex-col items-center gap-2">
         <span
           className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-full ring-4 ring-white",
+            "flex h-12 w-12 items-center justify-center rounded-full border-2",
             row.reached
-              ? "bg-[#ffc928] text-[#1b1730] shadow-[0_5px_0_#c79a2e]"
-              : "border-[3px] border-dashed border-[#c6bce0] bg-white text-[#b3a8d6]",
+              ? "border-[#0f1220] bg-[#ffc928] text-[#0f1220] shadow-[0_4px_0_#c79a2e]"
+              : "border-dashed border-[#c6bce0] bg-white text-[#b3a8d6]",
           )}
         >
           <Flag className="h-5 w-5" strokeWidth={2.5} />

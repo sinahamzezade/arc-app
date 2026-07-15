@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Check,
   ChevronRight,
+  Clock,
   Gem,
   Lock,
   Play,
@@ -13,7 +14,8 @@ import {
   Zap,
 } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
-import { motion } from "motion/react";
+import { WeekPulseSkeleton } from "@/components/week/WeekPulseSkeleton";
+import { motion, useReducedMotion } from "motion/react";
 import { useCourseTiming } from "@/hooks/useCourseTiming";
 import { useCurrentWeek } from "@/hooks/useCurrentWeek";
 import type { WeekCurrentResponse } from "@/lib/api/types";
@@ -70,32 +72,53 @@ function mapWeekToPulse(week: WeekCurrentResponse): WeekPulseData {
 }
 
 /**
- * Exclusive Seal Week Plan — vault expanded.
- * Destination for HomeWeekLockVault "Plan" CTA.
+ * Seal Week Plan — vault expanded.
+ * Destination for HomeWeekLockVault / week pulse "Plan" CTA.
  */
 export default function SealWeekPlanScreen({
   data: dataProp,
 }: {
   data?: WeekPulseData;
 }) {
+  const reduceMotion = useReducedMotion();
   const { week, replan, moveTask, skipTask, isLoading } = useCurrentWeek();
   const { timing, feasibility, replan: pathReplan } = useCourseTiming();
   const data = week ? mapWeekToPulse(week) : dataProp;
 
+  if (isLoading && !data) {
+    return <WeekPulseSkeleton />;
+  }
+
   if (!data) {
     return (
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-3 bg-[#f3effc] px-6 font-rounded">
-        <p className="font-display text-[18px] font-bold text-[#1b1730]">
-          {isLoading ? "Loading week…" : "No week plan yet"}
-        </p>
-        {!isLoading ? (
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f2eefb] font-rounded">
+        <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-12 text-white">
+          <BackButton tone="dark" fallbackHref="/week" />
+          <p className="mt-5 text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+            Vault
+          </p>
+          <h1 className="mt-1 font-display text-[32px] font-bold tracking-[-0.04em]">
+            Seal week plan
+          </h1>
+        </header>
+        <div className="relative z-10 -mt-6 rounded-t-[28px] bg-[#f2eefb] px-4 pt-8 pb-10 text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f0ecf7] text-arc-purple-500">
+            <Lock className="h-6 w-6" strokeWidth={2.25} />
+          </span>
+          <p className="mt-4 font-display text-[20px] font-bold text-[#1b1730]">
+            No week plan yet
+          </p>
+          <p className="mt-1.5 text-[13px] font-bold text-[#8a7cb8]">
+            Build your path first — then seal a week.
+          </p>
           <Link
             href="/path"
-            className="rounded-full bg-[#0f1220] px-5 py-2.5 text-[13px] font-black text-white"
+            className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-[18px] bg-arc-purple-500 px-5 py-3.5 font-display text-[14px] font-semibold text-white shadow-[0_5px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
           >
             Open Path
+            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
           </Link>
-        ) : null}
+        </div>
       </div>
     );
   }
@@ -117,9 +140,7 @@ export default function SealWeekPlanScreen({
       .reduce((sum, t) => sum + t.minutes, 0);
 
   const onTrack =
-    timingPace != null
-      ? timingPace.tone === "good"
-      : data.progress.onTrack;
+    timingPace != null ? timingPace.tone === "good" : data.progress.onTrack;
   const badgeLabel =
     timingPace?.label ??
     (week?.progress.status === "ahead"
@@ -169,19 +190,19 @@ export default function SealWeekPlanScreen({
       : undefined;
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-20 text-white">
+    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-12 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-24 right-[-48px] h-72 w-72 rounded-full bg-arc-purple-500/45 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute bottom-4 left-[-36px] h-44 w-44 rounded-full bg-[#ffc928]/25 blur-3xl"
+          className="pointer-events-none absolute bottom-4 left-[-36px] h-44 w-44 rounded-full bg-[#ffc928]/20 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
+          className="pointer-events-none absolute inset-0 opacity-25"
           style={{
             backgroundImage:
               "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.2px 1.2px at 44% 68%, #fff, transparent)",
@@ -189,62 +210,49 @@ export default function SealWeekPlanScreen({
         />
 
         <div className="relative flex items-center gap-3">
-          <BackButton />
+          <BackButton tone="dark" fallbackHref="/week" />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
               {data.rangeLabel}
             </p>
-            <h1 className="mt-0.5 font-display text-[26px] leading-none font-bold tracking-[-0.03em]">
+            <h1 className="mt-0.5 font-display text-[28px] leading-none font-bold tracking-[-0.03em]">
               Seal Week {targetWeek}
             </h1>
           </div>
-          {onTrack ? (
-            <span className="rounded-full bg-[#62d84e]/20 px-2.5 py-1 text-[10px] font-black tracking-wide text-[#7dffb5] uppercase">
-              {badgeLabel}
-            </span>
-          ) : (
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-1 text-[10px] font-black tracking-wide uppercase",
-                paceTone === "risk"
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black tracking-wide uppercase",
+              onTrack
+                ? "bg-[#62d84e]/20 text-[#7dffb5]"
+                : paceTone === "risk"
                   ? "bg-[#ff5a5a]/25 text-[#ffb0b0]"
                   : "bg-[#ff8a3d]/25 text-[#ffc9a0]",
-              )}
-            >
-              {badgeLabel}
-            </span>
-          )}
+            )}
+          >
+            {badgeLabel}
+          </span>
         </div>
 
-        <div className="relative mt-8 grid grid-cols-[1.2fr_0.95fr] items-end gap-3">
+        <div className="relative mt-6 grid grid-cols-[1.2fr_0.9fr] items-end gap-3">
           <div>
             <p className="text-[10px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
-              Week plan
+              Week vault
             </p>
             {sealed ? (
               <>
-                <motion.p
-                  className="mt-1 font-display text-[48px] leading-[0.88] font-bold tracking-[-0.05em]"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={softSpring}
-                >
+                <p className="mt-1 flex items-center gap-2 font-display text-[40px] leading-[0.9] font-bold tracking-[-0.04em]">
+                  <Lock className="h-8 w-8 text-[#7dffb5]" strokeWidth={2.5} />
                   Locked
-                </motion.p>
+                </p>
                 <p className="mt-2 text-[14px] font-bold text-white/65">
                   Commitment sealed · streak {data.streak.weeks}w
                 </p>
               </>
             ) : (
               <>
-                <motion.p
-                  className="mt-1 font-display text-[56px] leading-[0.88] font-bold tracking-[-0.05em]"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={softSpring}
-                >
+                <p className="mt-1 font-display text-[56px] leading-[0.88] font-bold tracking-[-0.05em] tabular-nums">
                   {sessionsLeft}
-                </motion.p>
+                </p>
                 <p className="mt-2 text-[14px] font-bold text-white/65">
                   session{sessionsLeft === 1 ? "" : "s"} left · ~{estimateMinutes}
                   m
@@ -258,42 +266,51 @@ export default function SealWeekPlanScreen({
             </p>
           </div>
 
-          <div className="relative h-[128px]">
+          <div className="relative flex flex-col gap-2">
             <motion.div
-              className="absolute top-0 right-0 z-[2] w-[94%] rotate-2 rounded-2xl bg-[#ffc928] px-3 py-2.5 text-[#0f1220] shadow-[0_5px_0_#c79a2e]"
-              animate={{ y: [0, -4, 0] }}
+              className="rounded-2xl border-2 border-[#0f1220] bg-[#ffc928] px-3 py-2.5 text-[#0f1220] shadow-[0_4px_0_#c79a2e]"
+              animate={reduceMotion ? undefined : { y: [0, -2, 0] }}
               transition={{
-                duration: 2.8,
+                duration: 3.2,
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
             >
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-[#0f1220]/60">
                 <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
                 <span className="text-[9px] font-black tracking-wide uppercase">
                   Seal XP
                 </span>
               </div>
-              <p className="mt-1 font-display text-[26px] leading-none font-bold">
+              <p className="mt-0.5 font-display text-[24px] leading-none font-bold tabular-nums">
                 +{data.progress.lockRewardXp}
               </p>
             </motion.div>
-            <div className="absolute right-1 bottom-0 z-[1] w-[82%] -rotate-1 rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
+            <div className="rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
               <div className="flex items-center gap-1 text-[#c9b8ff]">
                 <Gem className="h-3 w-3" strokeWidth={2.5} />
                 <span className="text-[9px] font-black tracking-wide uppercase">
                   Gems
                 </span>
               </div>
-              <p className="mt-0.5 font-display text-[18px] font-bold">
+              <p className="mt-0.5 font-display text-[18px] font-bold tabular-nums">
                 +{data.progress.lockRewardGems}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="relative mt-5 flex gap-1.5" aria-hidden>
-          {Array.from({ length: data.progress.sessionsPlanned }).map((_, i) => (
+        <div
+          className="relative mt-5 flex gap-1.5"
+          role="progressbar"
+          aria-valuenow={data.progress.sessionsDone}
+          aria-valuemin={0}
+          aria-valuemax={data.progress.sessionsPlanned}
+          aria-label="Sessions completed"
+        >
+          {Array.from({
+            length: Math.max(1, data.progress.sessionsPlanned),
+          }).map((_, i) => (
             <span
               key={i}
               className={cn(
@@ -305,16 +322,11 @@ export default function SealWeekPlanScreen({
             />
           ))}
         </div>
-      </section>
+      </header>
 
-      <div className="relative z-[1] -mt-7 space-y-4 px-4 pb-[calc(env(safe-area-inset-bottom)+110px)]">
-        {/* Expanded vault ticket */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={softSpring}
-          className="relative overflow-hidden rounded-[20px] bg-white text-[#1b1730] shadow-[0_14px_32px_rgba(70,40,150,0.12)] ring-1 ring-[#ebe4f6]"
-        >
+      <div className="relative z-10 -mt-6 space-y-3.5 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+110px)]">
+        {/* Vault status card */}
+        <section className="relative overflow-hidden rounded-[22px] border-2 border-[#ebe4f6] bg-white text-[#1b1730] shadow-[0_4px_0_#ebe4f6]">
           <div
             aria-hidden
             className="pointer-events-none absolute -top-10 right-[-16px] h-24 w-24 rounded-full bg-arc-purple-500/10 blur-2xl"
@@ -337,51 +349,56 @@ export default function SealWeekPlanScreen({
             </span>
             <Link
               href="/week"
-              className="ml-auto inline-flex items-center gap-0.5 text-[11px] font-black text-arc-purple-500"
+              className="ml-auto inline-flex cursor-pointer items-center gap-0.5 rounded-xl bg-[#f0ecf7] px-2.5 py-1.5 text-[11px] font-black text-arc-purple-500 transition-colors hover:bg-[#e8e0f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
             >
               Pulse
               <ChevronRight className="h-3 w-3" strokeWidth={2.75} />
             </Link>
           </div>
 
-          <div className="relative mt-2.5 flex items-center gap-3 px-3.5 pb-1">
+          <div className="relative mt-3 flex items-center gap-3 px-3.5">
             {sealed ? (
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#62d84e] text-white">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#62d84e] text-white shadow-[0_3px_0_#2d9e45]">
                 <Lock className="h-5 w-5" strokeWidth={2.5} />
               </span>
             ) : (
-              <p className="shrink-0 font-display text-[32px] leading-none font-bold tracking-[-0.05em]">
-                {sessionsLeft}
-              </p>
+              <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-2xl bg-[#0f1220] text-white shadow-[0_3px_0_#2a2f45]">
+                <span className="font-display text-[20px] leading-none font-bold tabular-nums">
+                  {sessionsLeft}
+                </span>
+                <span className="text-[7px] font-black tracking-wide text-white/45 uppercase">
+                  left
+                </span>
+              </span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-bold text-[#8a7cb8]">
+              <p className="text-[13px] font-extrabold text-[#1b1730]">
                 {sealed
                   ? "Week locked in"
                   : `${sessionsLeft} left · ~${estimateMinutes}m`}
               </p>
-              <div className="mt-1.5 flex gap-1">
-                {Array.from({ length: data.progress.sessionsPlanned }).map(
-                  (_, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "h-2 flex-1 rounded-full",
-                        i < data.progress.sessionsDone
-                          ? "bg-[#ffc928]"
-                          : "bg-[#ebe4f6]",
-                      )}
-                    />
-                  ),
-                )}
+              <div className="mt-2 flex gap-1">
+                {Array.from({
+                  length: Math.max(1, data.progress.sessionsPlanned),
+                }).map((_, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      "h-2 flex-1 rounded-full",
+                      i < data.progress.sessionsDone
+                        ? "bg-[#ffc928]"
+                        : "bg-[#ebe4f6]",
+                    )}
+                  />
+                ))}
               </div>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
-              <span className="inline-flex items-center gap-0.5 rounded-lg bg-[#ffc928] px-1.5 py-0.5 text-[10px] font-black text-[#0f1220]">
+              <span className="inline-flex items-center gap-0.5 rounded-lg bg-[#ffc928] px-2 py-1 text-[10px] font-black text-[#0f1220]">
                 <Zap className="h-3 w-3" strokeWidth={2.5} />+
                 {data.progress.lockRewardXp}
               </span>
-              <span className="inline-flex items-center gap-0.5 rounded-lg bg-[#f0ecf7] px-1.5 py-0.5 text-[10px] font-black text-[#1b1730]">
+              <span className="inline-flex items-center gap-0.5 rounded-lg bg-[#f0ecf7] px-2 py-1 text-[10px] font-black text-[#1b1730]">
                 <Gem
                   className="h-3 w-3 text-arc-purple-500"
                   strokeWidth={2.5}
@@ -390,26 +407,27 @@ export default function SealWeekPlanScreen({
               </span>
             </div>
           </div>
-          <p className="relative px-3.5 pt-2 pb-3.5 text-[10px] font-bold text-[#b3a8d6]">
+          <p className="relative px-3.5 pt-3 pb-3.5 text-[10px] font-bold text-[#b3a8d6]">
             Finish sessions to seal week {targetWeek} · rewards grant on lock
           </p>
-        </motion.section>
+        </section>
 
         {todayTask ? (
           <section>
-            <p className="mb-2 px-0.5 text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
+            <p className="mb-2 px-0.5 text-[10px] font-black tracking-[0.12em] text-[#8a7cb8] uppercase">
               Do this next
             </p>
             <TodayTicket
               task={todayTask}
               href={week?.todayMission?.href ?? todayTask.href}
+              reduceMotion={!!reduceMotion}
             />
           </section>
         ) : null}
 
         {feasibility.data?.feasibilityState === "unrealistic" ||
         feasibility.data?.feasibilityState === "compressed" ? (
-          <p className="rounded-xl bg-[#fff4ec] px-3.5 py-2.5 text-[12px] font-semibold text-[#b85a1a]">
+          <p className="rounded-[16px] border-2 border-[#ff8a3d]/30 bg-[#fff4ec] px-3.5 py-2.5 text-[12px] font-semibold text-[#b85a1a]">
             Deadline feels{" "}
             {feasibility.data.feasibilityState === "unrealistic"
               ? "unrealistic"
@@ -419,7 +437,7 @@ export default function SealWeekPlanScreen({
         ) : null}
 
         <section>
-          <div className="mb-2.5 flex items-end justify-between gap-2 px-0.5">
+          <div className="mb-2 flex items-end justify-between gap-2 px-0.5">
             <h2 className="font-display text-[18px] font-bold text-[#1b1730]">
               Day lanes
             </h2>
@@ -438,14 +456,14 @@ export default function SealWeekPlanScreen({
               return (
                 <motion.div
                   key={day.label}
-                  initial={{ opacity: 0, x: dayIdx % 2 === 0 ? -10 : 14 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ ...softSpring, delay: 0.04 * dayIdx }}
+                  initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...softSpring, delay: 0.03 * dayIdx }}
                   className={cn(
-                    "overflow-hidden rounded-[18px] border border-[#ebe4f6] bg-white shadow-[0_8px_20px_rgba(70,40,150,0.05)]",
-                    isToday && "ring-2 ring-arc-purple-500/35",
-                    dayIdx === 1 && "ml-2",
-                    dayIdx === 4 && "-ml-1",
+                    "overflow-hidden rounded-[20px] border-2 bg-white shadow-[0_3px_0_#ebe4f6]",
+                    isToday
+                      ? "border-arc-purple-500/45"
+                      : "border-[#ebe4f6]",
                   )}
                 >
                   <div
@@ -470,7 +488,7 @@ export default function SealWeekPlanScreen({
                     </span>
                     <span
                       className={cn(
-                        "text-[11px] font-bold",
+                        "text-[11px] font-bold tabular-nums",
                         isToday
                           ? "text-white/70"
                           : isDone
@@ -538,17 +556,19 @@ export default function SealWeekPlanScreen({
           </div>
         </section>
 
-        <div className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-3.5">
-          <div className="flex items-start gap-2.5">
-            <Sparkles
-              className="mt-0.5 h-4 w-4 shrink-0 text-arc-purple-500"
-              strokeWidth={2.5}
-            />
-            <p className="text-[13px] leading-snug font-semibold text-[#4a3d78]">
-              {data.arloNudge}
-            </p>
+        {data.arloNudge ? (
+          <div className="rounded-[18px] border-2 border-dashed border-[#d5ccec] bg-white px-4 py-3.5">
+            <div className="flex items-start gap-2.5">
+              <Sparkles
+                className="mt-0.5 h-4 w-4 shrink-0 text-arc-purple-500"
+                strokeWidth={2.5}
+              />
+              <p className="text-[13px] leading-snug font-semibold text-[#4a3d78]">
+                {data.arloNudge}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       <PlanDock
@@ -556,6 +576,7 @@ export default function SealWeekPlanScreen({
         onReplan={onReplan}
         replanning={replanning}
         sealed={sealed}
+        reduceMotion={!!reduceMotion}
       />
     </div>
   );
@@ -564,15 +585,17 @@ export default function SealWeekPlanScreen({
 function TodayTicket({
   task,
   href,
+  reduceMotion,
 }: {
   task: WeekTask;
   href?: string;
+  reduceMotion: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-[22px] border border-[#ebe4f6] bg-white shadow-[0_14px_32px_rgba(70,40,150,0.1)]">
+    <div className="overflow-hidden rounded-[22px] border-2 border-[#0f1220] bg-white shadow-[0_6px_0_#0f1220]">
       <div className="flex items-stretch">
         <div className="flex w-14 shrink-0 flex-col items-center justify-center bg-[#0f1220] text-[#ffc928]">
-          <Lock className="h-4 w-4" strokeWidth={2.5} />
+          <Clock className="h-4 w-4" strokeWidth={2.5} />
           <span className="mt-1 text-[10px] font-black tracking-wide uppercase">
             {task.dayLabel}
           </span>
@@ -592,10 +615,13 @@ function TodayTicket({
           </p>
         </div>
       </div>
-      <motion.div whileTap={{ scale: 0.985, y: 1 }} transition={snappySpring}>
+      <motion.div
+        whileTap={reduceMotion ? undefined : { scale: 0.985, y: 1 }}
+        transition={snappySpring}
+      >
         <Link
           href={href ?? task.href ?? "/path"}
-          className="flex w-full items-center justify-center gap-2 bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_4px_0_#4b2fd6]"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_4px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ffc928]"
         >
           <Play className="h-4 w-4 fill-white" />
           Finish session · {task.minutes} min
@@ -622,27 +648,27 @@ function TaskRow({
 }) {
   const done = task.status === "done";
   const today = task.status === "today";
+  const skipped = task.status === "skipped";
   const actionable =
-    !sealed &&
-    !done &&
-    task.status !== "skipped" &&
-    (onSkip || onMoveTomorrow);
+    !sealed && !done && !skipped && (onSkip || onMoveTomorrow);
 
   const inner = (
     <div
       className={cn(
-        "flex items-center gap-3 px-3.5 py-3",
+        "flex items-center gap-3 px-3.5 py-3 transition-colors",
         !last && "border-b border-[#f0ecf7]",
         today && "bg-[#faf8ff]",
         done && "opacity-65",
+        skipped && "opacity-50",
       )}
     >
       <span
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-extrabold",
           done && "bg-[#eef9f3] text-[#16a56b]",
-          today && "bg-arc-purple-500 text-white",
-          !done && !today && "bg-[#f0ecf7] text-[#8a7cb8]",
+          today && "bg-arc-purple-500 text-white shadow-[0_2px_0_#4b2fd6]",
+          skipped && "bg-[#f0ecf7] text-[#b3a8d6]",
+          !done && !today && !skipped && "bg-[#f0ecf7] text-[#8a7cb8]",
         )}
       >
         {done ? <Check className="h-4 w-4" strokeWidth={3} /> : task.dayLabel}
@@ -651,16 +677,19 @@ function TaskRow({
         <p
           className={cn(
             "truncate font-display text-[14px] font-semibold",
-            done ? "text-[#8a7cb8] line-through" : "text-[#1b1730]",
+            done || skipped
+              ? "text-[#8a7cb8] line-through"
+              : "text-[#1b1730]",
           )}
         >
           {task.title}
         </p>
         <p className="text-[11px] font-bold text-[#8a7cb8]">
           {task.track} · {task.minutes}m · +{task.xp} XP
+          {skipped ? " · Skipped" : ""}
         </p>
         {actionable ? (
-          <div className="mt-1.5 flex gap-2">
+          <div className="mt-1.5 flex gap-3">
             {onMoveTomorrow ? (
               <button
                 type="button"
@@ -670,7 +699,7 @@ function TaskRow({
                   e.stopPropagation();
                   onMoveTomorrow();
                 }}
-                className="text-[10px] font-black tracking-wide text-arc-purple-500 uppercase disabled:opacity-40"
+                className="cursor-pointer text-[10px] font-black tracking-wide text-arc-purple-500 uppercase transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Move +1d
               </button>
@@ -684,7 +713,7 @@ function TaskRow({
                   e.stopPropagation();
                   onSkip();
                 }}
-                className="text-[10px] font-black tracking-wide text-[#8a7cb8] uppercase disabled:opacity-40"
+                className="cursor-pointer text-[10px] font-black tracking-wide text-[#8a7cb8] uppercase transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Skip
               </button>
@@ -707,7 +736,12 @@ function TaskRow({
   ) {
     return (
       <li>
-        <Link href={task.href}>{inner}</Link>
+        <Link
+          href={task.href}
+          className="block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-arc-purple-500"
+        >
+          {inner}
+        </Link>
       </li>
     );
   }
@@ -720,25 +754,27 @@ function PlanDock({
   onReplan,
   replanning,
   sealed,
+  reduceMotion,
 }: {
   todayHref?: string;
   onReplan?: () => void;
   replanning?: boolean;
   sealed?: boolean;
+  reduceMotion: boolean;
 }) {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
       <motion.div
-        className="pointer-events-auto flex gap-2 rounded-[20px] border border-[#ebe4f6] bg-white/95 p-2 shadow-[0_12px_36px_rgba(70,40,150,0.14)] backdrop-blur-xl"
-        initial={{ opacity: 0, y: 20 }}
+        className="pointer-events-auto flex gap-2 rounded-[20px] border-2 border-[#ebe4f6] bg-white/95 p-2 shadow-[0_8px_32px_rgba(70,40,150,0.16)] backdrop-blur-xl"
+        initial={reduceMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ ...softSpring, delay: 0.12 }}
+        transition={{ ...softSpring, delay: 0.1 }}
       >
         <button
           type="button"
           onClick={onReplan}
           disabled={!onReplan || replanning || sealed}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#ebe4f6] bg-[#f6f2ff] py-3.5 font-display text-[13px] font-semibold text-[#1b1730] disabled:opacity-40"
+          className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-[#ebe4f6] bg-[#f0ecf7] py-3.5 font-display text-[13px] font-semibold text-[#1b1730] transition-colors hover:border-[#0f1220]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <RefreshCw
             className={cn("h-4 w-4", replanning && "animate-spin")}
@@ -748,12 +784,12 @@ function PlanDock({
         </button>
         <motion.div
           className="flex-[1.35]"
-          whileTap={{ scale: 0.98, y: 1 }}
+          whileTap={reduceMotion ? undefined : { scale: 0.98, y: 1 }}
           transition={snappySpring}
         >
           <Link
             href={todayHref ?? "/path"}
-            className="flex h-full w-full items-center justify-center gap-2 rounded-xl bg-arc-purple-500 py-3.5 font-display text-[13px] font-semibold text-white shadow-[0_4px_0_#4b2fd6]"
+            className="flex h-full w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-arc-purple-500 py-3.5 font-display text-[13px] font-semibold text-white shadow-[0_4px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]"
           >
             Continue
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />

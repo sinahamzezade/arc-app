@@ -6,12 +6,14 @@ import {
   Check,
   Clock,
   Flame,
+  Lock,
   Play,
   RefreshCw,
   Sparkles,
 } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
-import { motion } from "motion/react";
+import { WeekPulseSkeleton } from "@/components/week/WeekPulseSkeleton";
+import { motion, useReducedMotion } from "motion/react";
 import { useCourseTiming } from "@/hooks/useCourseTiming";
 import { useCurrentWeek } from "@/hooks/useCurrentWeek";
 import type { WeekCurrentResponse } from "@/lib/api/types";
@@ -67,37 +69,53 @@ function mapWeekToPulse(week: WeekCurrentResponse): WeekPulseData {
 }
 
 /**
- * Week commitment stage — night hero family (Home).
- * Sessions-left first. Today ticket. Plan list. Replan dock.
- * Live: `/weeks/current` + `/course-timing/current` (pace / ETA).
+ * Week pulse — night hero + light sheet.
+ * Sessions-left → today ticket → day rail → plan → replan dock.
  */
 export default function WeekPulseScreen({
   data: dataProp,
 }: {
   data?: WeekPulseData;
 }) {
+  const reduceMotion = useReducedMotion();
   const { week, replan, moveTask, skipTask, isLoading } = useCurrentWeek();
-  const {
-    timing,
-    feasibility,
-    replan: pathReplan,
-  } = useCourseTiming();
+  const { timing, feasibility, replan: pathReplan } = useCourseTiming();
   const data = week ? mapWeekToPulse(week) : dataProp;
+
+  if (isLoading && !data) {
+    return <WeekPulseSkeleton />;
+  }
 
   if (!data) {
     return (
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-3 bg-[#f3effc] px-6 font-rounded">
-        <p className="font-display text-[18px] font-bold text-[#1b1730]">
-          {isLoading ? "Loading week…" : "No week plan yet"}
-        </p>
-        {!isLoading ? (
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f2eefb] font-rounded">
+        <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-12 text-white">
+          <BackButton tone="dark" fallbackHref="/home" />
+          <p className="mt-5 text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+            Commitment
+          </p>
+          <h1 className="mt-1 font-display text-[32px] font-bold tracking-[-0.04em]">
+            This week
+          </h1>
+        </header>
+        <div className="relative z-10 -mt-6 rounded-t-[28px] bg-[#f2eefb] px-4 pt-8 pb-10 text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f0ecf7] text-arc-purple-500">
+            <Lock className="h-6 w-6" strokeWidth={2.25} />
+          </span>
+          <p className="mt-4 font-display text-[20px] font-bold text-[#1b1730]">
+            No week plan yet
+          </p>
+          <p className="mt-1.5 text-[13px] font-bold text-[#8a7cb8]">
+            Build your path first — then seal a week.
+          </p>
           <Link
             href="/path"
-            className="rounded-full bg-[#0f1220] px-5 py-2.5 text-[13px] font-black text-white"
+            className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-[18px] bg-arc-purple-500 px-5 py-3.5 font-display text-[14px] font-semibold text-white shadow-[0_5px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
           >
             Open Path
+            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
           </Link>
-        ) : null}
+        </div>
       </div>
     );
   }
@@ -135,9 +153,7 @@ export default function WeekPulseScreen({
     (!timingPace && !data.progress.onTrack);
 
   const todayHref =
-    week?.todayMission?.href ??
-    todayTask?.href ??
-    nextBlock?.href;
+    week?.todayMission?.href ?? todayTask?.href ?? nextBlock?.href;
 
   const doneDays = data.days.filter((d) => d.status === "done").length;
 
@@ -161,90 +177,89 @@ export default function WeekPulseScreen({
       : undefined;
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      {/* NIGHT HERO */}
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-16 text-white">
+    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-12 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-20 right-[-40px] h-64 w-64 rounded-full bg-arc-purple-500/40 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[-30px] h-40 w-40 rounded-full bg-[#ffc928]/20 blur-3xl"
+          className="pointer-events-none absolute bottom-0 left-[-30px] h-40 w-40 rounded-full bg-[#ffc928]/15 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
+          className="pointer-events-none absolute inset-0 opacity-25"
           style={{
             backgroundImage:
-              "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent)",
+              "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1.5px at 48% 58%, #fff, transparent)",
           }}
         />
 
         <div className="relative flex items-center gap-3">
-          <BackButton />
+          <BackButton tone="dark" fallbackHref="/home" />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
               {data.rangeLabel}
             </p>
-            <h1 className="mt-0.5 font-display text-[24px] leading-none font-bold tracking-[-0.03em]">
+            <h1 className="mt-0.5 font-display text-[28px] leading-none font-bold tracking-[-0.03em]">
               This week
             </h1>
           </div>
-          {week?.sealed || !progressHot ? (
-            <span className="rounded-full bg-[#16a56b]/25 px-2.5 py-1 text-[11px] font-black text-[#7dffb5]">
-              {progressLabel}
-            </span>
-          ) : (
-            <span className="rounded-full bg-[#ff8a3d]/25 px-2.5 py-1 text-[11px] font-black text-[#ffc9a0]">
-              {progressLabel}
-            </span>
-          )}
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black",
+              week?.sealed || !progressHot
+                ? "bg-[#16a56b]/25 text-[#7dffb5]"
+                : "bg-[#ff8a3d]/25 text-[#ffc9a0]",
+            )}
+          >
+            {progressLabel}
+          </span>
         </div>
 
-        <div className="relative mt-7 grid grid-cols-[1.25fr_0.9fr] items-end gap-3">
+        <div className="relative mt-6 grid grid-cols-[1.2fr_0.85fr] items-end gap-3">
           <div>
             <p className="text-[10px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
-              Commitment
+              Seal Week {targetWeek}
             </p>
             {sessionsLeft > 0 ? (
               <>
-                <p className="mt-1 font-display text-[56px] leading-[0.88] font-bold tracking-[-0.05em]">
+                <p className="mt-1 font-display text-[56px] leading-[0.88] font-bold tracking-[-0.05em] tabular-nums">
                   {sessionsLeft}
                 </p>
-                <p className="mt-2 text-[14px] font-bold text-white/70">
-                  session{sessionsLeft === 1 ? "" : "s"} to lock week{" "}
-                  {targetWeek}
+                <p className="mt-2 text-[14px] font-bold text-white/65">
+                  session{sessionsLeft === 1 ? "" : "s"} left to lock
                 </p>
               </>
             ) : (
               <>
-                <p className="mt-1 font-display text-[48px] leading-[0.9] font-bold tracking-[-0.04em]">
+                <p className="mt-1 flex items-center gap-2 font-display text-[40px] leading-[0.9] font-bold tracking-[-0.04em]">
+                  <Lock className="h-8 w-8 text-[#7dffb5]" strokeWidth={2.5} />
                   Locked
                 </p>
-                <p className="mt-2 text-[14px] font-bold text-white/70">
-                  Week {data.streak.weeks} commitment hit
+                <p className="mt-2 text-[14px] font-bold text-white/65">
+                  Week {data.streak.weeks} sealed
                 </p>
               </>
             )}
             <p className="mt-2 text-[12px] font-bold text-white/40">
               {data.progress.hoursDone}/{data.progress.hoursPlanned} hrs ·{" "}
-              {data.progress.percent}%
-              {etaLabel ? ` · ETA ${etaLabel}` : ""}
+              {data.progress.percent}%{etaLabel ? ` · ETA ${etaLabel}` : ""}
             </p>
           </div>
 
-          <div className="relative h-[120px]">
+          <div className="relative flex flex-col gap-2">
             <motion.div
-              className="absolute top-0 right-0 z-[2] w-[92%] -rotate-2 rounded-2xl bg-[#ff8a3d] px-3 py-2.5 shadow-[0_5px_0_#d46520]"
-              animate={{ y: [0, -3, 0] }}
+              className="rounded-2xl border-2 border-[#0f1220] bg-[#ffc928] px-3 py-2.5 text-[#0f1220] shadow-[0_4px_0_#c79a2e]"
+              animate={reduceMotion ? undefined : { y: [0, -2, 0] }}
               transition={{
-                duration: 2.6,
+                duration: 3.2,
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
             >
-              <div className="flex items-center gap-1 text-white/85">
+              <div className="flex items-center gap-1 text-[#0f1220]/60">
                 <Flame
                   className="h-3.5 w-3.5"
                   fill="currentColor"
@@ -254,59 +269,64 @@ export default function WeekPulseScreen({
                   Streak
                 </span>
               </div>
-              <p className="mt-1 font-display text-[28px] leading-none font-bold">
+              <p className="mt-0.5 font-display text-[26px] leading-none font-bold tabular-nums">
                 {data.streak.weeks}
-                <span className="text-[14px] font-semibold">w</span>
+                <span className="text-[13px] font-semibold">w</span>
               </p>
             </motion.div>
-            <div className="absolute right-2 bottom-0 z-[1] w-[80%] rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
+            <div className="rounded-2xl bg-white/10 px-3 py-2 ring-1 ring-white/15">
               <p className="text-[9px] font-black tracking-wide text-[#ffc928] uppercase">
                 Days lit
               </p>
-              <p className="mt-0.5 font-display text-[16px] font-bold">
+              <p className="mt-0.5 font-display text-[16px] font-bold tabular-nums">
                 {doneDays}/7
               </p>
             </div>
           </div>
         </div>
 
-        {/* Session meter */}
         <div className="relative mt-5">
           <div className="mb-1.5 flex items-center justify-between text-[11px] font-extrabold">
             <span className="text-white/45">Sessions</span>
-            <span className="text-[#ffc928]">
+            <span className="text-[#ffc928] tabular-nums">
               {data.progress.sessionsDone}/{data.progress.sessionsPlanned}
             </span>
           </div>
-          <div className="flex gap-1.5">
-            {Array.from({ length: data.progress.sessionsPlanned }).map(
-              (_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "h-2 flex-1 rounded-full",
-                    i < data.progress.sessionsDone
-                      ? "bg-[#ffc928]"
-                      : "bg-white/15",
-                  )}
-                />
-              ),
-            )}
+          <div
+            className="flex gap-1.5"
+            role="progressbar"
+            aria-valuenow={data.progress.sessionsDone}
+            aria-valuemin={0}
+            aria-valuemax={data.progress.sessionsPlanned}
+            aria-label="Sessions completed"
+          >
+            {Array.from({
+              length: Math.max(1, data.progress.sessionsPlanned),
+            }).map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "h-2.5 flex-1 rounded-full",
+                  i < data.progress.sessionsDone
+                    ? "bg-[#ffc928]"
+                    : "bg-white/15",
+                )}
+              />
+            ))}
           </div>
         </div>
-      </section>
+      </header>
 
-      <div className="relative z-[1] -mt-5 space-y-4 px-4 pb-[calc(env(safe-area-inset-bottom)+110px)]">
-        {/* Day strip overhang */}
-        <div className="rounded-[20px] border border-[#ebe4f6] bg-white p-2 shadow-[0_12px_28px_rgba(70,40,150,0.08)]">
+      <div className="relative z-10 -mt-6 space-y-3.5 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+110px)]">
+        <div className="rounded-[20px] border-2 border-[#ebe4f6] bg-white p-2 shadow-[0_4px_0_#ebe4f6]">
           <DayRail days={data.days} />
         </div>
 
         {timing ? (
-          <section className="rounded-[20px] border border-[#ebe4f6] bg-white px-4 py-3.5 shadow-[0_8px_20px_rgba(70,40,150,0.05)]">
+          <section className="rounded-[20px] border-2 border-[#ebe4f6] bg-white px-4 py-3.5 shadow-[0_4px_0_#ebe4f6]">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black tracking-[0.12em] text-arc-purple-500 uppercase">
                   Path timing
                 </p>
                 <p className="mt-1 font-display text-[18px] font-bold text-[#1b1730]">
@@ -317,21 +337,12 @@ export default function WeekPulseScreen({
                   {timing.remainingMinutes}m remaining
                 </p>
               </div>
-              <span
-                className={cn(
-                  "rounded-full px-2 py-1 text-[10px] font-black uppercase",
-                  timingPace?.tone === "good" &&
-                    "bg-[#62d84e]/15 text-[#2d9e45]",
-                  timingPace?.tone === "warn" &&
-                    "bg-[#ff8a3d]/15 text-[#e86500]",
-                  timingPace?.tone === "risk" &&
-                    "bg-[#ff5a5a]/15 text-[#d63030]",
-                  (!timingPace || timingPace.tone === "neutral") &&
-                    "bg-[#f0ecf7] text-[#4a3d78]",
-                )}
+              <Link
+                href="/week/plan"
+                className="shrink-0 cursor-pointer rounded-xl bg-[#f0ecf7] px-2.5 py-1.5 text-[11px] font-extrabold text-arc-purple-500 transition-colors hover:bg-[#e8e0f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
               >
-                {progressLabel}
-              </span>
+                Seal plan
+              </Link>
             </div>
             {feasibility.data?.feasibilityState === "unrealistic" ||
             feasibility.data?.feasibilityState === "compressed" ? (
@@ -346,7 +357,7 @@ export default function WeekPulseScreen({
             {nextBlock && !todayTask ? (
               <Link
                 href={nextBlock.href}
-                className="mt-3 flex items-center justify-between rounded-xl bg-[#f6f2ff] px-3 py-2.5"
+                className="mt-3 flex cursor-pointer items-center justify-between rounded-xl bg-[#f0ecf7] px-3 py-2.5 transition-colors hover:bg-[#e8e0f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
               >
                 <div>
                   <p className="text-[10px] font-black tracking-wide text-arc-purple-500 uppercase">
@@ -366,18 +377,19 @@ export default function WeekPulseScreen({
 
         {todayTask ? (
           <section>
-            <p className="mb-2 px-0.5 text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
+            <p className="mb-2 px-0.5 text-[10px] font-black tracking-[0.12em] text-[#8a7cb8] uppercase">
               Do this next
             </p>
             <TodayTicket
               task={todayTask}
               href={week?.todayMission?.href ?? todayTask.href}
+              reduceMotion={!!reduceMotion}
             />
           </section>
         ) : null}
 
         <section>
-          <div className="mb-2.5 flex items-end justify-between gap-2 px-0.5">
+          <div className="mb-2 flex items-end justify-between gap-2 px-0.5">
             <h2 className="font-display text-[18px] font-bold text-[#1b1730]">
               Plan
             </h2>
@@ -385,50 +397,63 @@ export default function WeekPulseScreen({
               {data.weekLabel}
             </span>
           </div>
-          <ul className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white shadow-[0_8px_20px_rgba(70,40,150,0.05)]">
-            {data.tasks.map((task, i) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                last={i === data.tasks.length - 1}
-                sealed={Boolean(week?.sealed)}
-                onSkip={
-                  week && !week.sealed
-                    ? () => skipTask.mutate({ taskId: task.id })
-                    : undefined
-                }
-                onMoveTomorrow={
-                  week && !week.sealed
-                    ? () => {
-                        const idx =
-                          typeof task.dayIndex === "number"
-                            ? task.dayIndex
-                            : (week.tasks.find((t) => t.id === task.id)
-                                ?.dayIndex ?? 0);
-                        moveTask.mutate({
-                          taskId: task.id,
-                          dayIndex: Math.min(6, idx + 1),
-                        });
-                      }
-                    : undefined
-                }
-                busy={moveTask.isPending || skipTask.isPending}
-              />
-            ))}
-          </ul>
+          {data.tasks.length === 0 ? (
+            <div className="rounded-[20px] border-2 border-dashed border-[#d5ccec] bg-white px-5 py-8 text-center">
+              <p className="font-display text-[16px] font-semibold text-[#1b1730]">
+                Empty plan
+              </p>
+              <p className="mt-1 text-[13px] font-bold text-[#8a7cb8]">
+                Replan to fill this week&apos;s sessions.
+              </p>
+            </div>
+          ) : (
+            <ul className="overflow-hidden rounded-[20px] border-2 border-[#ebe4f6] bg-white shadow-[0_4px_0_#ebe4f6]">
+              {data.tasks.map((task, i) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  last={i === data.tasks.length - 1}
+                  sealed={Boolean(week?.sealed)}
+                  onSkip={
+                    week && !week.sealed
+                      ? () => skipTask.mutate({ taskId: task.id })
+                      : undefined
+                  }
+                  onMoveTomorrow={
+                    week && !week.sealed
+                      ? () => {
+                          const idx =
+                            typeof task.dayIndex === "number"
+                              ? task.dayIndex
+                              : (week.tasks.find((t) => t.id === task.id)
+                                  ?.dayIndex ?? 0);
+                          moveTask.mutate({
+                            taskId: task.id,
+                            dayIndex: Math.min(6, idx + 1),
+                          });
+                        }
+                      : undefined
+                  }
+                  busy={moveTask.isPending || skipTask.isPending}
+                />
+              ))}
+            </ul>
+          )}
         </section>
 
-        <div className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-3.5">
-          <div className="flex items-start gap-2.5">
-            <Sparkles
-              className="mt-0.5 h-4 w-4 shrink-0 text-arc-purple-500"
-              strokeWidth={2.5}
-            />
-            <p className="text-[13px] leading-snug font-semibold text-[#4a3d78]">
-              {data.arloNudge}
-            </p>
+        {data.arloNudge ? (
+          <div className="rounded-[18px] border-2 border-dashed border-[#d5ccec] bg-white px-4 py-3.5">
+            <div className="flex items-start gap-2.5">
+              <Sparkles
+                className="mt-0.5 h-4 w-4 shrink-0 text-arc-purple-500"
+                strokeWidth={2.5}
+              />
+              <p className="text-[13px] leading-snug font-semibold text-[#4a3d78]">
+                {data.arloNudge}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       <ReplanDock
@@ -436,6 +461,7 @@ export default function WeekPulseScreen({
         onReplan={onReplan}
         replanning={replanning}
         sealed={week?.sealed}
+        reduceMotion={!!reduceMotion}
       />
     </div>
   );
@@ -443,8 +469,8 @@ export default function WeekPulseScreen({
 
 function DayRail({ days }: { days: WeekPulseData["days"] }) {
   return (
-    <div className="flex gap-1">
-      {days.map((day, i) => {
+    <div className="flex gap-1" aria-label="Week days">
+      {days.map((day) => {
         const isToday = day.status === "today";
         const isDone = day.status === "done";
         const isInactive = day.status === "inactive";
@@ -452,11 +478,7 @@ function DayRail({ days }: { days: WeekPulseData["days"] }) {
         return (
           <div
             key={day.label}
-            title={
-              isInactive
-                ? "Before you joined — not counted"
-                : day.full
-            }
+            title={isInactive ? "Before you joined — not counted" : day.full}
             className={cn(
               "flex min-w-0 flex-1 flex-col items-center rounded-xl px-0.5 py-2",
               isToday &&
@@ -464,7 +486,6 @@ function DayRail({ days }: { days: WeekPulseData["days"] }) {
               isDone && "bg-[#eef9f3]",
               isInactive && "bg-transparent opacity-40",
               !isToday && !isDone && !isInactive && "bg-[#faf8ff]",
-              i === 5 && !isToday && !isInactive && "ring-1 ring-arc-purple-200",
             )}
           >
             <span
@@ -511,12 +532,14 @@ function DayRail({ days }: { days: WeekPulseData["days"] }) {
 function TodayTicket({
   task,
   href,
+  reduceMotion,
 }: {
   task: WeekTask;
   href?: string;
+  reduceMotion: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-[22px] border border-[#ebe4f6] bg-white shadow-[0_14px_32px_rgba(70,40,150,0.1)]">
+    <div className="overflow-hidden rounded-[22px] border-2 border-[#0f1220] bg-white shadow-[0_6px_0_#0f1220]">
       <div className="flex items-stretch">
         <div className="flex w-14 shrink-0 flex-col items-center justify-center bg-[#0f1220] text-[#ffc928]">
           <span className="text-[10px] font-black tracking-wide uppercase">
@@ -539,10 +562,13 @@ function TodayTicket({
           </p>
         </div>
       </div>
-      <motion.div whileTap={{ scale: 0.985, y: 1 }} transition={snappySpring}>
+      <motion.div
+        whileTap={reduceMotion ? undefined : { scale: 0.985, y: 1 }}
+        transition={snappySpring}
+      >
         <Link
           href={href ?? task.href ?? "/path"}
-          className="flex w-full items-center justify-center gap-2 bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_4px_0_#4b2fd6]"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_4px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ffc928]"
         >
           <Play className="h-4 w-4 fill-white" />
           Finish session · {task.minutes} min
@@ -569,27 +595,26 @@ function TaskRow({
 }) {
   const done = task.status === "done";
   const today = task.status === "today";
-  const actionable =
-    !sealed &&
-    !done &&
-    task.status !== "skipped" &&
-    (onSkip || onMoveTomorrow);
+  const skipped = task.status === "skipped";
+  const actionable = !sealed && !done && !skipped && (onSkip || onMoveTomorrow);
 
   const inner = (
     <div
       className={cn(
-        "flex items-center gap-3 px-3.5 py-3",
+        "flex items-center gap-3 px-3.5 py-3 transition-colors",
         !last && "border-b border-[#f0ecf7]",
         today && "bg-[#faf8ff]",
         done && "opacity-65",
+        skipped && "opacity-50",
       )}
     >
       <span
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-extrabold",
           done && "bg-[#eef9f3] text-[#16a56b]",
-          today && "bg-arc-purple-500 text-white",
-          !done && !today && "bg-[#f0ecf7] text-[#8a7cb8]",
+          today && "bg-arc-purple-500 text-white shadow-[0_2px_0_#4b2fd6]",
+          skipped && "bg-[#f0ecf7] text-[#b3a8d6] line-through",
+          !done && !today && !skipped && "bg-[#f0ecf7] text-[#8a7cb8]",
         )}
       >
         {done ? <Check className="h-4 w-4" strokeWidth={3} /> : task.dayLabel}
@@ -598,16 +623,17 @@ function TaskRow({
         <p
           className={cn(
             "truncate font-display text-[14px] font-semibold",
-            done ? "text-[#8a7cb8] line-through" : "text-[#1b1730]",
+            done || skipped ? "text-[#8a7cb8] line-through" : "text-[#1b1730]",
           )}
         >
           {task.title}
         </p>
         <p className="text-[11px] font-bold text-[#8a7cb8]">
           {task.track} · {task.minutes}m · +{task.xp} XP
+          {skipped ? " · Skipped" : ""}
         </p>
         {actionable ? (
-          <div className="mt-1.5 flex gap-2">
+          <div className="mt-1.5 flex gap-3">
             {onMoveTomorrow ? (
               <button
                 type="button"
@@ -617,7 +643,7 @@ function TaskRow({
                   e.stopPropagation();
                   onMoveTomorrow();
                 }}
-                className="text-[10px] font-black tracking-wide text-arc-purple-500 uppercase disabled:opacity-40"
+                className="cursor-pointer text-[10px] font-black tracking-wide text-arc-purple-500 uppercase transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Move +1d
               </button>
@@ -631,7 +657,7 @@ function TaskRow({
                   e.stopPropagation();
                   onSkip();
                 }}
-                className="text-[10px] font-black tracking-wide text-[#8a7cb8] uppercase disabled:opacity-40"
+                className="cursor-pointer text-[10px] font-black tracking-wide text-[#8a7cb8] uppercase transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Skip
               </button>
@@ -648,10 +674,18 @@ function TaskRow({
     </div>
   );
 
-  if (task.href && (today || task.status === "upcoming" || task.status === "missed")) {
+  if (
+    task.href &&
+    (today || task.status === "upcoming" || task.status === "missed")
+  ) {
     return (
       <li>
-        <Link href={task.href}>{inner}</Link>
+        <Link
+          href={task.href}
+          className="block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-arc-purple-500"
+        >
+          {inner}
+        </Link>
       </li>
     );
   }
@@ -664,25 +698,27 @@ function ReplanDock({
   onReplan,
   replanning,
   sealed,
+  reduceMotion,
 }: {
   todayHref?: string;
   onReplan?: () => void;
   replanning?: boolean;
   sealed?: boolean;
+  reduceMotion: boolean;
 }) {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
       <motion.div
-        className="pointer-events-auto flex gap-2 rounded-[20px] border border-[#ebe4f6] bg-white/95 p-2 shadow-[0_12px_36px_rgba(70,40,150,0.14)] backdrop-blur-xl"
-        initial={{ opacity: 0, y: 20 }}
+        className="pointer-events-auto flex gap-2 rounded-[20px] border-2 border-[#ebe4f6] bg-white/95 p-2 shadow-[0_8px_32px_rgba(70,40,150,0.16)] backdrop-blur-xl"
+        initial={reduceMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ ...softSpring, delay: 0.15 }}
+        transition={{ ...softSpring, delay: 0.1 }}
       >
         <button
           type="button"
           onClick={onReplan}
           disabled={!onReplan || replanning || sealed}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#ebe4f6] bg-[#f6f2ff] py-3.5 font-display text-[13px] font-semibold text-[#1b1730] disabled:opacity-40"
+          className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-[#ebe4f6] bg-[#f0ecf7] py-3.5 font-display text-[13px] font-semibold text-[#1b1730] transition-colors hover:border-[#0f1220]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <RefreshCw
             className={cn("h-4 w-4", replanning && "animate-spin")}
@@ -692,12 +728,12 @@ function ReplanDock({
         </button>
         <motion.div
           className="flex-[1.25]"
-          whileTap={{ scale: 0.98, y: 1 }}
+          whileTap={reduceMotion ? undefined : { scale: 0.98, y: 1 }}
           transition={snappySpring}
         >
           <Link
             href={todayHref ?? "/path"}
-            className="flex h-full w-full items-center justify-center gap-2 rounded-xl bg-arc-purple-500 py-3.5 font-display text-[13px] font-semibold text-white shadow-[0_4px_0_#4b2fd6]"
+            className="flex h-full w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-arc-purple-500 py-3.5 font-display text-[13px] font-semibold text-white shadow-[0_4px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]"
           >
             Continue
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />

@@ -131,14 +131,14 @@ export default function HomeScreen({
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
-      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-12 text-white">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-14 text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-14 -right-8 h-44 w-44 rounded-full bg-arc-purple-500/45 blur-3xl"
+          className="pointer-events-none absolute -top-14 -right-8 h-48 w-48 rounded-full bg-arc-purple-500/50 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute top-16 -left-12 h-32 w-32 rounded-full bg-[#ffc928]/10 blur-3xl"
+          className="pointer-events-none absolute top-16 -left-12 h-36 w-36 rounded-full bg-[#ffc928]/12 blur-3xl"
         />
         <div
           aria-hidden
@@ -168,7 +168,7 @@ export default function HomeScreen({
       </header>
 
       <motion.main
-        className="relative z-10 -mt-7 space-y-4 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-8"
+        className="relative z-10 -mt-8 space-y-4 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-8"
         initial={reduceMotion || sheetLoading ? false : "hidden"}
         animate="visible"
         variants={{

@@ -214,24 +214,32 @@ export default function BattleHubScreen({
   }
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      {/* Night arena hero */}
-      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-10 text-white">
+    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
+      {/* Night arena masthead — matches home hero */}
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-14 text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-20 right-[-48px] h-56 w-56 rounded-full bg-arc-purple-500/35 blur-3xl"
+          className="pointer-events-none absolute -top-14 -right-8 h-48 w-48 rounded-full bg-arc-purple-500/50 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[-28px] h-36 w-36 rounded-full bg-[#ffc928]/14 blur-3xl"
+          className="pointer-events-none absolute top-16 -left-12 h-36 w-36 rounded-full bg-[#ffc928]/12 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-30"
+          style={{
+            backgroundImage:
+              "radial-gradient(1.5px 1.5px at 14% 22%, #fff, transparent), radial-gradient(1px 1px at 78% 12%, #fff, transparent), radial-gradient(1.5px 1.5px at 58% 48%, #fff, transparent), radial-gradient(1px 1px at 32% 70%, #fff, transparent)",
+          }}
         />
 
-        <div className="relative flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+        <div className="relative flex items-end justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-extrabold tracking-[0.16em] text-[#ffc928] uppercase">
               Arena
             </p>
-            <h1 className="mt-1 font-display text-[26px] leading-[0.95] font-bold tracking-[-0.04em]">
+            <h1 className="mt-1.5 font-display text-[36px] leading-[0.88] font-bold tracking-[-0.045em]">
               Battle
             </h1>
           </div>
@@ -239,20 +247,20 @@ export default function BattleHubScreen({
           <Link
             href="/wallet"
             aria-label={`${coins.toLocaleString()} coins — open wallet`}
-            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-[#ffc928]/35 bg-[#ffc928]/12 py-1.5 pr-2.5 pl-1.5 transition-colors hover:bg-[#ffc928]/18 focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:outline-none"
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-2xl border-2 border-[#0f1220]/15 bg-[#ffc928] py-1 pr-2.5 pl-1 text-[#0f1220] shadow-[0_3px_0_#c79a2e] transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220] focus-visible:outline-none active:translate-y-px active:shadow-none"
           >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ffc928] text-[#0f1220] shadow-[0_2px_0_#c79a2e]">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-xl bg-black/15">
               <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
             </span>
-            <span className="font-display text-[15px] leading-none font-bold tracking-[-0.02em] text-white tabular-nums">
+            <span className="font-display text-[13px] leading-none font-bold tabular-nums">
               {coins.toLocaleString()}
             </span>
           </Link>
         </div>
 
-        {/* Stats board */}
-        <div className="relative mt-5 grid grid-cols-3 gap-2">
-          <StatTile
+        {/* Scoreboard — one clay panel, three columns */}
+        <div className="relative mt-4 grid grid-cols-3 divide-x divide-white/10 rounded-[20px] border border-white/12 bg-white/8 py-3">
+          <ScoreCol
             label="Streak"
             value={String(statsData.winStreak)}
             icon={
@@ -262,14 +270,16 @@ export default function BattleHubScreen({
                 strokeWidth={1.5}
               />
             }
-            accent
+            gold
           />
-          <StatTile
+          <ScoreCol
             label="Win rate"
             value={`${statsData.winRate}%`}
-            icon={<Trophy className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />}
+            icon={
+              <Trophy className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
+            }
           />
-          <StatTile
+          <ScoreCol
             label="Record"
             value={`${statsData.wins}–${statsData.losses}`}
             sub={`${statsData.draws}D · ${statsData.played} played`}
@@ -279,7 +289,11 @@ export default function BattleHubScreen({
         <div className="relative mt-3 flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-3 text-[11px] font-extrabold text-white/65">
             <span className="inline-flex items-center gap-1">
-              <Zap className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
+              <Zap
+                className="h-3.5 w-3.5 text-[#ffc928]"
+                strokeWidth={2.5}
+                fill="currentColor"
+              />
               {xp.toLocaleString()} XP
             </span>
             <span className="inline-flex items-center gap-1">
@@ -287,13 +301,13 @@ export default function BattleHubScreen({
               {gems} gems
             </span>
           </div>
-          <span className="shrink-0 rounded-full bg-[#ffc928] px-2.5 py-1 text-[10px] font-black tracking-[0.06em] text-[#0f1220] uppercase">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-[#ffc928]/35 bg-[#ffc928]/15 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.06em] text-[#ffc928] uppercase">
             {statsData.favoriteSubject}
           </span>
         </div>
       </header>
 
-      <div className="relative z-10 -mt-5 rounded-t-[28px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+88px)] shadow-[0_-12px_40px_rgba(0,0,0,0.18)]">
+      <div className="relative z-10 -mt-8 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+88px)]">
         <AnimatePresence>
           {showInviteEnded && inviteEnded ? (
             <motion.div
@@ -786,49 +800,35 @@ export default function BattleHubScreen({
   );
 }
 
-function StatTile({
+function ScoreCol({
   label,
   value,
   sub,
   icon,
-  accent,
+  gold,
 }: {
   label: string;
   value: string;
   sub?: string;
   icon?: React.ReactNode;
-  accent?: boolean;
+  gold?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-[16px] px-2.5 py-2.5",
-        accent
-          ? "bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e]"
-          : "bg-white/8 text-white",
-      )}
-    >
-      <p
-        className={cn(
-          "flex items-center gap-1 text-[9px] font-black tracking-[0.1em] uppercase",
-          accent ? "text-[#5c4810]" : "text-white/45",
-        )}
-      >
+    <div className="min-w-0 px-3">
+      <p className="flex items-center gap-1 text-[9px] font-black tracking-[0.1em] text-white/45 uppercase">
         {icon}
         {label}
       </p>
-      <p className="mt-1 font-display text-[20px] leading-none font-bold tracking-[-0.03em] tabular-nums">
+      <p
+        className={cn(
+          "mt-1 truncate font-display text-[20px] leading-none font-bold tracking-[-0.03em] tabular-nums",
+          gold ? "text-[#ffc928]" : "text-white",
+        )}
+      >
         {value}
       </p>
       {sub ? (
-        <p
-          className={cn(
-            "mt-1 truncate text-[9px] font-bold",
-            accent ? "text-[#5c4810]/80" : "text-white/40",
-          )}
-        >
-          {sub}
-        </p>
+        <p className="mt-1 truncate text-[9px] font-bold text-white/40">{sub}</p>
       ) : null}
     </div>
   );

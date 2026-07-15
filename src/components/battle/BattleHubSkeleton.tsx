@@ -8,18 +8,18 @@ import { Skeleton } from "@/components/ui";
 export function BattleHubSkeleton() {
   return (
     <div
-      className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded"
+      className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded"
       role="status"
       aria-busy="true"
       aria-label="Loading battle hub"
     >
-      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-10">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-14">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-20 right-[-48px] h-56 w-56 rounded-full bg-arc-purple-500/35 blur-3xl"
+          className="pointer-events-none absolute -top-14 -right-8 h-48 w-48 rounded-full bg-arc-purple-500/50 blur-3xl"
         />
 
-        <div className="relative flex items-start justify-between gap-3">
+        <div className="relative flex items-end justify-between gap-3">
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton
               animationType="shimmer"
@@ -27,28 +27,19 @@ export function BattleHubSkeleton() {
             />
             <Skeleton
               animationType="shimmer"
-              className="h-7 w-28 rounded-lg bg-white/20"
+              className="h-9 w-36 rounded-lg bg-white/20"
             />
           </div>
           <Skeleton
             animationType="shimmer"
-            className="h-9 w-20 shrink-0 rounded-full bg-white/15"
+            className="h-8 w-24 shrink-0 rounded-2xl bg-[#ffc928]/40"
           />
         </div>
 
-        <div className="relative mt-5 grid grid-cols-3 gap-2">
-          {[0, 1, 2].map((i) => (
-            <Skeleton
-              key={i}
-              animationType="shimmer"
-              className={
-                i === 0
-                  ? "h-[72px] rounded-[16px] bg-[#ffc928]/40"
-                  : "h-[72px] rounded-[16px] bg-white/10"
-              }
-            />
-          ))}
-        </div>
+        <Skeleton
+          animationType="shimmer"
+          className="mt-4 h-[76px] w-full rounded-[20px] bg-white/10"
+        />
 
         <div className="relative mt-3 flex items-center justify-between gap-2">
           <div className="flex gap-3">
@@ -68,7 +59,7 @@ export function BattleHubSkeleton() {
         </div>
       </header>
 
-      <div className="relative z-10 -mt-5 rounded-t-[28px] bg-[#f3effc] px-4 pt-5 pb-8">
+      <div className="relative z-10 -mt-8 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-8">
         <Skeleton
           animationType="shimmer"
           className="h-[88px] w-full rounded-[22px] bg-arc-purple-500/40"

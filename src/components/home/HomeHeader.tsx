@@ -27,8 +27,7 @@ function formatBalance(n: number): string {
 }
 
 /**
- * Arc clay wallet chips — same stamp language as Rank / CTAs.
- * Coin gold · XP blue · Gem purple + night bell.
+ * Arc clay wallet chips + night utility icons.
  */
 export function HomeHeader({
   coins,
@@ -81,41 +80,57 @@ export function HomeHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <Link
+        <IconBtn
           href="/friends?tab=requests"
-          aria-label={
+          label={
             friendRequestCount > 0
               ? `Friend requests, ${friendRequestCount} pending`
               : "Friend requests"
           }
-          className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+          count={friendRequestCount}
         >
           <UserPlus className="h-4 w-4" strokeWidth={2.25} />
-          {friendRequestCount > 0 ? (
-            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-arc-orange-400 px-[3px] text-[9px] font-extrabold text-white">
-              {friendRequestCount > 99 ? "99+" : friendRequestCount}
-            </span>
-          ) : null}
-        </Link>
-
-        <Link
+        </IconBtn>
+        <IconBtn
           href="/notifications"
-          aria-label={
+          label={
             notificationCount > 0
               ? `Notifications, ${notificationCount} unread`
               : "Notifications"
           }
-          className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+          count={notificationCount}
         >
           <Bell className="h-4 w-4" strokeWidth={2.25} />
-          {notificationCount > 0 ? (
-            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-arc-orange-400 px-[3px] text-[9px] font-extrabold text-white">
-              {notificationCount > 99 ? "99+" : notificationCount}
-            </span>
-          ) : null}
-        </Link>
+        </IconBtn>
       </div>
     </div>
+  );
+}
+
+function IconBtn({
+  href,
+  label,
+  count,
+  children,
+}: {
+  href: string;
+  label: string;
+  count: number;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]"
+    >
+      {children}
+      {count > 0 ? (
+        <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full border-2 border-[#0f1220] bg-arc-orange-400 px-[3px] text-[9px] font-extrabold text-white">
+          {count > 99 ? "99+" : count}
+        </span>
+      ) : null}
+    </Link>
   );
 }
 
@@ -137,7 +152,7 @@ function ClayChip({
       href={href}
       aria-label={label}
       className={cn(
-        "inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-xl py-1 pr-2.5 pl-1 transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220] active:translate-y-px active:shadow-none",
+        "inline-flex min-w-0 cursor-pointer items-center gap-1 rounded-2xl border-2 border-[#0f1220]/15 py-1 pr-2.5 pl-1 transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220] active:translate-y-px active:shadow-none",
         tone === "coin" &&
           "bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e]",
         tone === "xp" &&
@@ -146,7 +161,7 @@ function ClayChip({
           "bg-[#b35cff] text-white shadow-[0_3px_0_#7a2fc4]",
       )}
     >
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-black/15">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-xl bg-black/15">
         {icon}
       </span>
       <span className="truncate font-display text-[13px] leading-none font-bold tabular-nums">
@@ -163,17 +178,15 @@ function ChipsSkeleton() {
       role="status"
       aria-label="Loading balances"
     >
-      {[
-        "bg-[#ffc928]/40",
-        "bg-[#2d8cff]/40",
-        "bg-[#b35cff]/40",
-      ].map((bg, i) => (
-        <Skeleton
-          key={i}
-          animationType="shimmer"
-          className={cn("h-8 w-[4.5rem] rounded-xl", bg)}
-        />
-      ))}
+      {["bg-[#ffc928]/40", "bg-[#2d8cff]/40", "bg-[#b35cff]/40"].map(
+        (bg, i) => (
+          <Skeleton
+            key={i}
+            animationType="shimmer"
+            className={cn("h-8 w-[4.5rem] rounded-2xl", bg)}
+          />
+        ),
+      )}
     </div>
   );
 }
