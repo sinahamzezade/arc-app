@@ -5,24 +5,39 @@ import type {
   LessonCheckQuizResponse,
   LessonCompleteResponse,
   LessonPlayDto,
+  LessonQuizAnswerValue,
   LessonStartResponse,
 } from "./types";
 
 export type UpdateLessonProgressBody = {
   contentStep?: number;
   practiceDone?: boolean;
-  practiceOptionId?: string;
-  quizAnswers?: Record<string, string>;
+  quizAnswers?: Record<string, LessonQuizAnswerValue>;
   quizIndex?: number;
   timeSpentMinutes?: number;
   attemptId?: string;
 };
 
 export type CompleteLessonBody = {
-  quizAnswers?: Record<string, string>;
-  practiceOptionId?: string;
+  quizAnswers?: Record<string, LessonQuizAnswerValue>;
   timeSpentMinutes?: number;
   attemptId: string;
+};
+
+/** Self-attest the task is done (practice / mini_project / interactive). */
+export type CheckPracticeBody = {
+  attemptId: string;
+  done?: boolean;
+  hintUsed?: boolean;
+};
+
+/** One of optionIndex (mcq) / booleanAnswer (boolean) is required. */
+export type CheckQuizBody = {
+  attemptId: string;
+  questionId?: string;
+  questionIndex?: number;
+  optionIndex?: number;
+  booleanAnswer?: boolean;
 };
 
 function newIdempotencyKey() {
@@ -67,7 +82,7 @@ export const lessonsApi = {
 
   checkPractice(
     lessonId: string,
-    body: { optionId: string; attemptId: string; hintUsed?: boolean },
+    body: CheckPracticeBody,
     accessToken?: string | null,
   ) {
     return apiFetch<LessonCheckPracticeResponse>(
@@ -82,7 +97,7 @@ export const lessonsApi = {
 
   checkQuiz(
     lessonId: string,
-    body: { questionId: string; optionId: string; attemptId: string },
+    body: CheckQuizBody,
     accessToken?: string | null,
   ) {
     return apiFetch<LessonCheckQuizResponse>(

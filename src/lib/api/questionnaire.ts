@@ -1,5 +1,7 @@
 import { apiFetch } from "./client";
 import type {
+  LearnerProfileSummaryDto,
+  ProfilePreviewResponse,
   QuestionnaireAnswersPayload,
   QuestionnaireResponse,
   QuestionnaireSchema,
@@ -28,6 +30,10 @@ export type IntakeSuggestions = {
   options: IntakeSuggestionOption[];
   days?: string[];
   times?: IntakeSuggestionOption[];
+  /** Compound-step sub-question this chip set answers (e.g. exposure, deadline). */
+  subField?: string;
+  /** Skill being rated when subField is exposure. */
+  skillSlug?: string;
 };
 
 export type IntakeChatTurn = {
@@ -47,6 +53,10 @@ export type IntakeChatSelection = {
   otherText?: string;
   days?: string[];
   times?: string[];
+  /** Compound-step sub-question this selection answers (mirror of suggestions.subField). */
+  subField?: string;
+  /** Skill slug when answering an exposure sub-question. */
+  skillSlug?: string;
 };
 
 export type IntakeChatCompleteOk = {
@@ -140,10 +150,35 @@ export const questionnaireApi = {
   submit(
     answers: QuestionnaireAnswersPayload,
     accessToken?: string | null,
+    schemaVersion?: number,
   ) {
     return apiFetch<QuestionnaireSubmitResponse>("/questionnaire/submit", {
       method: "POST",
+      body: schemaVersion != null ? { answers, schemaVersion } : { answers },
+      accessToken,
+    });
+  },
+
+  profilePreview(
+    answers: QuestionnaireAnswersPayload,
+    accessToken?: string | null,
+  ) {
+    return apiFetch<ProfilePreviewResponse>("/questionnaire/profile-preview", {
+      method: "POST",
       body: { answers },
+      accessToken,
+    });
+  },
+
+  getProfile(accessToken?: string | null) {
+    return apiFetch<LearnerProfileSummaryDto>("/questionnaire/profile", {
+      accessToken,
+    });
+  },
+
+  reassess(accessToken?: string | null) {
+    return apiFetch<LearnerProfileSummaryDto>("/questionnaire/reassess", {
+      method: "POST",
       accessToken,
     });
   },

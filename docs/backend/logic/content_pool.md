@@ -1,51 +1,73 @@
 # Arc Backend — Central Content Pool
 
-**Version:** 2.0 integrated  
+**Version:** 3.2 (stage-path selection + proof preservation)
 **Canonical integration:** This is the detailed published-content layer behind the Skill Graph in doc 03. It never stores user progress or wallet state.
 
 See [00 — System Integration Contract](./00-system-integration.md).
 
-**Stack:** NestJS + TypeORM + PostgreSQL  
-**Consumers:** Questionnaire handoff, Roadmap Generator, Lesson Play, Battle question selection, Course Timing  
+**Stack:** NestJS + TypeORM + PostgreSQL
+**Consumers:** Questionnaire handoff, Roadmap Generator, Lesson Play, Battle question selection, Course Timing
 **Depends on:** `02-questionnaire.md`, `03-goals-and-roadmap.md`, `05-Learn_Lesson_Play_API.md`
 
 ---
 
-## 1. Existing Coverage and Boundary
+## 0. Design principle — two layers, deterministic selection
 
-The existing Skill Graph/Learning Document Pool is the correct foundation. This file does **not** introduce a second content system. It formalizes the same shared pool as an independently managed, versioned content platform.
+The pool is split into two layers that serve different masters:
 
-Invariant:
+1. **Authoring graph (source of truth).** Careers, recipes, skill nodes, course/module/lesson templates, versions, the question bank, resources, datasets. It is tree-shaped, deeply versioned, and optimized for editing and governance. Consumers never traverse it at request time.
 
-> Pool rows are shared authoring content. User roadmaps contain immutable/versioned instances. User progress never mutates the pool.
+2. **Compiled unit pool (read model).** On publish, the authoring graph is compiled into flat, **self-describing units** plus a **skills index** (the prerequisite DAG). Each unit carries everything the matcher needs — the skill it teaches, its prerequisite skills, difficulty level, time, formats, and its own body — so selection requires no tree-walking.
+
+Everything selectable or gradeable is decided by **deterministic backend code**, not by a model:
+
+- **Ordering** comes from the prerequisite DAG via topological sort. It is repeatable and cannot violate prerequisites.
+- **Selection and budgeting** are arithmetic over compiled units, computed in code.
+- **The LLM only narrates.** It phrases teaching copy, Arlo lines, and roadmap framing. It never grades, orders, selects across skills, awards, or unlocks. Its output is validated against pool IDs and schemas before use.
+- **Determinism is validated, not hoped for.** DAG acyclicity, prerequisite resolution, budget feasibility, and version pinning are checked in code with tests.
+
+Invariant (unchanged, now enforced at both layers):
+
+> Pool rows are shared authoring content. User roadmaps contain immutable, version-pinned instances of compiled units. User progress never mutates the pool.
 
 ---
 
-## 2. Content Pool Responsibilities
+## 1. Coverage and boundary
+
+The existing Skill Graph / Learning Document Pool is the correct foundation. This file does **not** introduce a second content system. It formalizes the same shared pool as an independently managed, versioned platform, and adds the compiled-unit read layer described in §0.
+
+The compiled layer is a _projection_ of the authoring graph, never a parallel store. If the two disagree, the authoring graph wins and the projection is rebuilt.
+
+---
+
+## 2. Responsibilities
+
+Owns:
 
 - careers and role recipes
-- subjects/technologies
-- skill graph and prerequisites
+- subjects / technologies
+- skill graph and prerequisites (the DAG)
 - course, module, lesson, assessment, and project templates
 - structured lesson content
-- question bank used by quizzes and Battles
+- the question bank used by quizzes and Battles
 - resources and downloadable datasets
 - localization
 - content versioning and publishing
+- **compilation of the authoring graph into self-describing units + skills index**
 - quality, moderation, and retirement
 - personalization metadata
 
-It does not own:
+Does **not** own:
 
 - user progress
 - wallet rewards
 - weekly schedules
 - Battle results
-- rank/league state
+- rank / league state
 
 ---
 
-## 3. Module Layout
+## 3. Module layout
 
 ```text
 content-pool/
@@ -53,7 +75,8 @@ content-pool/
   content-query.service.ts
   content-publication.service.ts
   content-version.service.ts
-  content-personalization.service.ts
+  content-compiler.service.ts          # NEW: authoring graph → compiled units
+  content-personalization.service.ts   # deterministic selection pipeline (§7)
   question-pool.service.ts
   admin/
   entities/
@@ -73,13 +96,17 @@ content-pool/
     resource.entity.ts
     dataset.entity.ts
     content-tag.entity.ts
+    compiled-unit.entity.ts             # NEW: flattened read model
+    skills-index.entity.ts              # NEW: compiled DAG snapshot
 ```
 
-Existing `skill-graph/` entities may retain their names. Migration should extend, not duplicate, them.
+Existing `skill-graph/` entities keep their names. The compiler **extends**, it does not duplicate: compiled units are derived rows keyed back to their source template + version.
 
 ---
 
-## 4. Content Hierarchy
+## 4. Content model — authoring graph and its projection
+
+### 4.1 Authoring graph (source of truth)
 
 ```text
 Career Role
@@ -96,9 +123,73 @@ Career Role
 
 A lesson can be reused across multiple courses and careers through join tables.
 
+### 4.2 Compiled units (read model)
+
+The compiler walks the authoring graph once per publish and emits one self-describing unit per playable lesson, copying down the parent skill's identity and prerequisites and deriving the fields the matcher needs:
+
+```json
+{
+  "id": "css-intro-read",
+  "title": "Selectors, colors and the cascade",
+  "skills_taught": ["html-css:css-intro"],
+  "prerequisites": ["html-css:html-intro"],
+  "level": 1,
+  "difficulty": 2,
+  "serves_stage": [1, 2],
+  "unit_role": "foundation",
+  "estimated_minutes": 50,
+  "formats": ["reading"],
+  "lesson_type": "reading",
+  "domain": "frontend",
+  "stack": "html-css",
+  "provider": "MDN",
+  "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics",
+  "xp": 40,
+  "source_template_id": "uuid",
+  "source_version_id": "uuid",
+  "content": { "objective": "…", "sections": ["…"], "keyTakeaways": ["…"] }
+}
+```
+
+`serves_stage` and `unit_role` let selection adapt to what a learner already knows (§7.1). `serves_stage` lists the learner stages (1–5) a unit is *for* — distinct from `difficulty` (how hard the lesson is): a refresher and a full foundation lesson can share a difficulty but serve different stages. `unit_role` is one of `foundation | refresher | checkpoint | project | proof`, so a partially-known skill can be served by a checkpoint or refresher rather than taught from scratch.
+
+Alongside the units, a **skills index** snapshots the DAG the topological sort runs on:
+
+```json
+{
+  "id": "html-css:css-intro",
+  "title": "CSS Basics",
+  "prerequisites": ["html-css:html-intro"],
+  "level": 1
+}
+```
+
+### 4.3 Field derivation (the compile pass)
+
+| Compiled field      | Source in authoring graph                                                    |
+| ------------------- | ---------------------------------------------------------------------------- |
+| `skills_taught`     | parent skill node's namespaced slug                                          |
+| `prerequisites`     | parent skill node's `prereqSlugs`, namespaced                                |
+| `estimated_minutes` | lesson template `estimatedMinutes`                                           |
+| `formats`           | lesson template `learningStyleTags` (+ `lesson_type`)                        |
+| `domain` / `stack`  | subject / tech-stack category                                                |
+| `content`           | published `lesson_version` body                                              |
+| `difficulty`        | lesson template `difficulty` (1–5)                                           |
+| `serves_stage`      | authored on the lesson template (which learner stages the unit is for)       |
+| `unit_role`         | authored on the lesson template (`foundation` \| `refresher` \| `checkpoint` \| `project` \| `proof`) |
+| `level`             | **derived** — recipe phase → level (foundations = 1, core = 2, advanced = 3) |
+
+`level` intentionally does light work: the real sequencing comes from `prerequisites` through the topological sort. `level` is used only to match a learner's starting point and to break ordering ties, so a coarse per-phase constant is sufficient. Finer granularity, if ever needed, is derived from prerequisite-chain depth within a stack — never hand-tuned per lesson.
+
+### 4.4 Compile rules
+
+- Compilation runs on `publish` and on `retire`; it is idempotent and fully rebuildable from the authoring graph.
+- A compiled unit is always keyed to `source_template_id` + `source_version_id`. Editing never mutates a unit in place — a new version compiles a new unit.
+- Compilation **fails closed**: if the skills index would contain a cycle, or a unit's prerequisite does not resolve to a known skill, publication is rejected (`CONTENT_GRAPH_CYCLE`, `CONTENT_PREREQ_UNRESOLVED`).
+
 ---
 
-## 5. Publication Lifecycle
+## 5. Publication lifecycle
 
 Statuses:
 
@@ -108,85 +199,50 @@ draft → review → published → retired
 
 Rules:
 
-- only `published` versions can enter new roadmaps
+- only `published` versions compile into the unit pool and can enter new roadmaps
 - existing user instances retain the version they were generated from
-- critical safety fixes can mark a version `blocked`
+- critical safety fixes can mark a version `blocked`; blocked units are dropped from the read pool immediately
 - retiring content prevents new use but does not erase history
-- publishing is immutable; editing creates a new version
+- publishing is immutable; editing creates a new version and recompiles
 - every version records author, reviewer, change note, and schema version
+- **every publish triggers a recompile** of the affected units + skills index, followed by DAG validation
 
 ---
 
-## 6. Core Data Model
+## 6. Core data model
 
 ### 6.1 `career_roles`
 
-- `slug`
-- `title`
-- `description`
-- `category`
-- `is_active`
-
+`slug`, `title`, `description`, `category`, `is_active`.
 Examples: `data-analyst`, `front-end-developer`, `marketing-specialist`.
 
 ### 6.2 `role_recipes`
 
-Maps questionnaire role token to content.
+Maps a questionnaire role token to content.
 
-- `career_role_id`
-- `version`
-- `default_timeline_weeks`
-- `required_skill_node_ids`
-- `optional_skill_node_ids`
-- `phase_blueprint` jsonb
-- `minimum_assessment_rules`
-- `is_active`
+`career_role_id`, `version`, `default_timeline_weeks`, `required_skill_node_ids`, `optional_skill_node_ids`, `phase_blueprint` jsonb, `minimum_assessment_rules`, `is_active`.
+
+The `phase_blueprint` also drives the `level` derivation in §4.3.
 
 ### 6.3 `skill_nodes`
 
-- subject/stack
-- title/slug
-- description
-- difficulty
-- estimated mastery minutes
-- tags matching questionnaire tokens
-- prerequisite edges
-- proof requirements
-- active state
+subject/stack, title/slug, description, difficulty, estimated mastery minutes, tags matching questionnaire tokens, prerequisite edges, proof requirements, active state.
 
-The skill graph must remain acyclic. Validate DAG on publication.
+The skill graph must remain acyclic — validated on every publish/compile.
 
 ### 6.4 `course_templates`
 
-- role/subject applicability
-- title
-- learning outcome
-- difficulty range
-- required/optional flag
-- estimated total minutes
-- quality score
-- language
-- publication status/version
+role/subject applicability, title, learning outcome, difficulty range, required/optional flag, estimated total minutes, quality score, language, publication status/version.
 
 ### 6.5 `lesson_templates`
 
 Metadata shared across versions:
 
-- stable slug
-- skill node
-- lesson type
-- estimated minutes
-- difficulty
-- learning-style tags
-- modality requirements
-- prerequisite lesson/skill IDs
-- default reward class, not final wallet amount
-- scheduling tags: `short`, `deep_work`, `commute_safe`
-- content safety flags
+stable slug, skill node, lesson type, estimated minutes, difficulty, learning-style tags, modality requirements, prerequisite lesson/skill IDs, default reward class (not final wallet amount), scheduling tags (`short`, `deep_work`, `commute_safe`), content safety flags.
 
 ### 6.6 `lesson_versions`
 
-Structured body:
+Structured body (compiled into a unit's `content`):
 
 ```json
 {
@@ -197,9 +253,9 @@ Structured body:
       "id": "s1",
       "title": "Why filters matter",
       "blocks": [
-        {"type": "text", "body": "..."},
-        {"type": "code", "language": "sql", "code": "..."},
-        {"type": "arlo_callout", "body": "..."}
+        { "type": "text", "body": "..." },
+        { "type": "code", "language": "sql", "code": "..." },
+        { "type": "arlo_callout", "body": "..." }
       ]
     }
   ],
@@ -209,312 +265,309 @@ Structured body:
 }
 ```
 
-### 6.7 `question_templates`
+### 6.7 `compiled_units` (NEW)
 
-Question bank used by lesson quiz, assessment, and Battle.
+The read model of §4.2. Derived rows, never hand-edited.
 
-Fields:
+`id` (unit slug), `skills_taught[]`, `prerequisites[]`, `level`, `difficulty`, `serves_stage[]`, `unit_role`, `estimated_minutes`, `formats[]`, `lesson_type`, `domain`, `stack`, `provider`, `url`, `xp`, `source_template_id`, `source_version_id`, `content` jsonb, `compiled_at`, `active`.
 
-- subject and skill node
-- question type
-- prompt version
-- option/answer version
-- difficulty calibrated score
-- estimated seconds
-- explanation
-- allowed contexts: lesson, assessment, battle
-- exposure limit
-- discrimination/quality metrics
-- status and version
+Query patterns the matcher uses: by `skills_taught`, by `stack`, filtered on `active` + `formats`. No joins to the authoring tree at request time.
 
-Correct answers are never sent in normal play payloads.
+### 6.8 `skills_index` (NEW)
 
-### 6.8 `datasets`
+Snapshot DAG: `id`, `title`, `prerequisites[]`, `level`, `recipe_version`. Rebuilt on publish; topological sort reads only this.
 
-- immutable file/object-storage key
-- schema metadata
-- preview rows
-- license/source
-- checksum
-- size and format
-- allowed lesson IDs
-- active state
+### 6.9 `question_templates`
 
-### 6.9 `resources`
+Question bank for lesson quiz, assessment, and Battle.
 
-Curated URLs only:
+subject and skill node, question type, prompt version, option/answer version, difficulty-calibrated score, estimated seconds, explanation, allowed contexts (lesson / assessment / battle), exposure limit, discrimination/quality metrics, status and version.
 
-- provider
-- URL
-- type
-- language
-- free/paid
-- last checked
-- quality score
-- active status
+**Correct answers are never sent in normal play payloads** and are never copied into compiled units — units carry only prompt/option shells; keys stay server-side (§14, and 05 §4.1).
 
-AI may select IDs but cannot invent URLs.
+### 6.10 `datasets`
+
+immutable object-storage key, schema metadata, preview rows, license/source, checksum, size and format, allowed lesson IDs, active state.
+
+### 6.11 `resources`
+
+Curated URLs only: provider, URL, type, language, free/paid, last checked, quality score, active status.
+**AI may select resource IDs but cannot invent URLs.**
+
+**Authoring requirement (role coverage).** Because stage-aware selection (§7.1, §7.3) substitutes a `checkpoint` or `refresher` for a partially-known skill, those units must *exist*. The course-authoring prompt requires every skill to include at least one `foundation` unit and at least one `checkpoint`/`refresher` spanning the stage range; a compiled skill lacking that coverage falls back to foundation-only and is flagged for authoring.
 
 ---
 
-## 7. Questionnaire → Personalized Content Selection
+## 7. Questionnaire → personalized selection (deterministic pipeline)
 
-Questionnaire submit produces validated goal tokens. The Content Personalization service consumes the saved `goals` row, not frontend labels.
+The questionnaire (doc 02 v2) no longer forwards raw skill tokens. It emits a versioned **`RoadmapGenerationProfile`** — a stable snapshot the Content Personalization service consumes by id, never re-interpreting UI labels. Its relevant fields:
 
-Inputs:
+- `primaryTrackSlug`, `targetStage`
+- `skillEstimates[]` — per-skill `{ skillSlug, stage (1–5), confidence }` (not a boolean known/unknown)
+- `capacity.effectiveWeeklyMinutes`, session length, days, timezone, `paceClass`
+- `preferences.learningStyleWeights`, `motivationTags`, `blockerTags`
+- `placement.required` + `reasonCodes`
+- `targetDeadline?`
 
-- target role
-- current profession
-- known skills
-- learning styles
-- confidence
-- weekly hours
-- availability
-- deadline
-- motivation/quit reasons
-- language
+The pipeline is **five deterministic code stages plus one narration stage**. Ordering and budget are never delegated to the model.
 
-### 7.1 Skill-gap calculation
+### 7.1 Stage 1 — Skill-gap calculation (stage-aware)
 
-1. load role recipe
-2. load required/optional skill subgraph
-3. map known-skill tokens to skill nodes
-4. mark known nodes as `candidate_refresh`, not automatically mastered
-5. require diagnostic assessment for high-confidence skip
-6. calculate missing prerequisite closure
+The profile speaks in coarse `skillSlug` (`"python"`); units teach namespaced concepts (`teaches: "python:variables"`). Resolve the two, then plan each node by the learner's *entry stage* rather than including/skipping whole skills:
 
-### 7.2 Content scoring
+1. load the role recipe and the required/optional skill subgraph from the skills index
+2. **resolve `skillSlug` → domain**: a `skillSlug` estimate applies to every `domain:*` node sharing that prefix (convention: unit `domain` = the prefix of its `teaches` ids; or supply an explicit `slugToDomain` map). Each node inherits an **entry stage** from the matching estimate, defaulting to stage 1 (full foundations) when unknown.
+3. per node, choose an action from entry stage + confidence (mirrors doc 02 §10.1 steps 5–7, §10.2):
+   - **verified mastered** → omit or mark completed-by-assessment
+   - **provisional mastered, high confidence** → `checkpoint` (fast validation, not re-teaching)
+   - **provisional mastered, lower confidence** → `refresher` (condensed)
+   - **claims high stage but low confidence** (and `placement.required`) → `placement` task first
+   - **stage 1 / unknown** → `foundation` (full teaching path spanning the learner's entry stage through the target stage)
+4. compute the missing-prerequisite closure over the DAG for every non-omitted node
+5. `placement.required` gates any high-confidence skip until the diagnostic clears
 
-```text
-selection_score =
-role_fit × 0.30
-+ skill_gap_fit × 0.25
-+ prerequisite_readiness × 0.15
-+ learning_style_fit × 0.10
-+ time_fit × 0.10
-+ quality_score × 0.10
-```
+The gap is the prerequisite-closed set of skills the learner still needs, each tagged with a chosen `unit_role` and entry stage.
 
-Hard filters:
+### 7.2 Stage 2 — Ordering (topological sort)
 
-- published
-- correct language or fallback
-- all required licenses valid
-- active resources
-- compatible modality
-- no blocked version
+Order the gap skills by running a topological sort over the skills index. This guarantees a skill never precedes its prerequisites (Flexbox cannot come before CSS basics). Within the topological constraint, break ties by `level` (low → high) and keep same-skill units contiguous.
 
-### 7.3 Time-budget selection
+Ordering is graph-derived, **not** score-derived and **not** anti-catalog. Two learners differ in order only because their gaps and entry stages differ.
+
+### 7.3 Stage 3 — Format filter and per-skill selection (stage + role aware)
+
+For each ordered skill, gather candidate compiled units, then filter on **both** the chosen `unit_role` and the learner's stage path:
+
+- for `foundation`, keep units whose `serves_stage` overlaps the path from the node's entry stage to the learner's target stage, so a beginner receives reading → practice/proof → checkpoint instead of only stage-1/2 readings;
+- for `checkpoint` / `refresher`, first prefer units whose `serves_stage` includes the node's entry stage **and** whose `unit_role` matches the planned action;
+- if authoring lacks that role, fall back to `required` foundation units so a skill is never left empty;
+- among survivors, drop a unit only if its `formats` share nothing with `learningStyleWeights` **and** another candidate still covers the skill; never drop the only `checkpoint` / `proof` unit that can produce stage evidence;
+- rank the remainder with the within-skill score below.
 
 ```text
-budget_minutes =
-weekly_minutes
-× target_weeks
-× 0.85 safety_factor
+selection_score =                     # ranks units WITHIN a skill, never across skills
+    role_fit                × 0.30
+  + skill_gap_fit           × 0.25
+  + prerequisite_readiness  × 0.15
+  + learning_style_fit      × 0.10
+  + time_fit                × 0.10
+  + quality_score           × 0.10
 ```
 
-Required content is selected first. Optional content fills remaining capacity. If required content exceeds budget, return a feasibility result to Course Timing rather than silently deleting required skills.
+Hard filters (applied before scoring): published, correct language or fallback, valid licenses, active resources, compatible modality, no blocked version.
 
-### 7.4 Learning-style balance
+### 7.4 Stage 4 — Format balance
 
-Preferences bias selection but do not create a one-format course.
+Preferences bias selection but never produce a single-format course. Every major skill normally retains: explanation, guided example, active practice, checkpoint, and recap/project evidence.
 
-Every major skill should normally include:
+### 7.5 Stage 5 — Budget packing
 
-- explanation
-- guided example
-- active practice
-- checkpoint
-- recap/project evidence
+```text
+budget_minutes = capacity.effectiveWeeklyMinutes × target_weeks × 0.85 (safety_factor)
+```
+
+`effectiveWeeklyMinutes` already accounts for declared capacity discounted by schedule realism and pace class (doc 02 §8). Required content is packed first; optional content fills remaining capacity. `budget_minutes` is **precomputed in code and passed as a single number** to any downstream step — it is never recomputed by the model.
+
+If required content exceeds budget, return a **feasibility result** to Course Timing rather than silently dropping required skills (`CONTENT_REQUIRED_BUDGET_EXCEEDED`).
+
+### 7.6 Stage 6 — Narration (LLM, validated)
+
+The ordered, selected, budgeted unit list is handed to the narrator model, whose only job is to group contiguous slices into 3–6 phases and write human titles, a description, and a one-sentence rationale. It must not add, drop, or reorder units. The response is validated in code:
+
+- every unit index appears exactly once (none added, none dropped);
+- no prerequisite appears after a unit that needs it;
+- total minutes ≤ `budget_minutes`.
+
+On violation, the app repairs ordering from the DAG (trivial — it holds the graph) or issues one repair turn. If the learner's quit-reason is "no clear path", the narration must lead with the full visible roadmap so the learner sees the end-to-end journey up front.
 
 ---
 
-## 8. User Content Instances
+## 8. User content instances
 
-When a roadmap is generated, copy references and snapshots into user instance rows:
+When a roadmap is generated, snapshot the selected compiled units into user instance rows:
 
-- source template ID
-- source version ID
-- title/mission snapshot
-- estimated minutes snapshot
-- reward class snapshot
-- order/prerequisite snapshot
+- `source_template_id`
+- `source_version_id`
+- title / mission snapshot
+- estimated-minutes snapshot
+- reward-class snapshot
+- order / prerequisite snapshot
 - resource version references
 
 Do not deep-copy large videos/files; reference immutable object keys.
 
-A later content update does not silently change an active lesson. Migration to a new version is an explicit operation.
+A later content update does not silently change an active lesson. Migrating an instance to a newer compiled unit is an explicit operation.
 
 ---
 
-## 9. Rolling Content Window
+## 9. Rolling content window
 
 For large paths:
 
-- full roadmap stores skill/milestone outline
-- next 2–4 weeks of lessons are materialized
-- Course Timing requests the next content batch as the user progresses
+- the full roadmap stores the skill/milestone outline (the ordered gap from §7.2)
+- the next 2–4 weeks of units are materialized
+- Course Timing requests the next content batch as the learner progresses
 - this permits pace adjustment without rewriting completed history
-- locked future batches can use new published versions after validation
+- locked future batches may adopt newer published versions after validation
 
-**Intake body personalization (optional):** when `lesson_body_ai_enabled` is on and LLM is configured, `materializeRoadmapContent` enqueues async jobs that rewrite teaching copy (`objective`, Arlo lines, `content[]` pages) onto the user lesson’s `play_content` from questionnaire + intake chat. Practice/quiz stay scaffold. Pool template / published version rows are never mutated. Soft-fail leaves the scaffold body playable immediately.
+**Intake body personalization (optional, LLM-narrates-only).** When `lesson_body_ai_enabled` is on and an LLM is configured, `materializeRoadmapContent` enqueues async jobs that rewrite teaching copy (`objective`, Arlo lines, `content[]` pages) onto the user lesson's `play_content` from the questionnaire + intake chat. **Practice and quiz stay scaffold** — the model never authors gradeable items. Pool templates and published version rows are never mutated. Soft-fail leaves the scaffold body immediately playable.
 
 ---
 
-## 10. Battle Question Selection
+## 10. Battle question selection
 
-`QuestionPoolService.selectBattleSet()` accepts:
-
-- subject
-- topic
-- difficulty mix
-- count
-- user exposure history
-- opponent exposure history
-- mode: live or async
+`QuestionPoolService.selectBattleSet()` accepts: subject, topic, difficulty mix, count, user exposure history, opponent exposure history, mode (live | async).
 
 Rules:
 
 - live: same question version for both players
 - async: equivalent calibrated questions
 - exclude recently exposed questions
-- minimum pool size: 5× requested count
+- minimum pool size: 5× requested count (`CONTENT_QUESTION_POOL_TOO_SMALL` otherwise)
 - snapshot questions into the Battle so later edits do not alter results
-- AI-generated questions are allowed only after offline review/publication, not live generation in MVP
+- AI-generated questions are allowed only after offline review/publication — never live generation in MVP
 
 ---
 
 ## 11. APIs
 
-### Internal APIs
+### Internal
 
 ```ts
-getRoleRecipe(roleSlug)
-getPersonalizationCandidates(goalId)
-materializeRoadmapContent(roadmapId, window)
-getPlayableLessonVersion(lessonId)
-selectAssessmentQuestions(input)
-selectBattleQuestions(input)
+getRoleRecipe(roleSlug);
+compileFromAuthoringGraph(scope); // NEW: (re)build compiled units + skills index
+getSkillsIndex(recipeVersion); // NEW: the DAG for topo-sort
+getCompiledUnits(query); // NEW: self-describing read model
+getPersonalizationCandidates(goalId); // runs the §7 pipeline
+materializeRoadmapContent(roadmapId, window);
+getPlayableLessonVersion(lessonId);
+selectAssessmentQuestions(input);
+selectBattleQuestions(input);
 ```
 
-### Admin API
+### Admin
 
-| Method | Path |
-|---|---|
-| `GET` | `/admin/content/*` |
-| `POST` | `/admin/content/lessons` |
-| `POST` | `/admin/content/lessons/:id/versions` |
+| Method | Path                                        |
+| ------ | ------------------------------------------- |
+| `GET`  | `/admin/content/*`                          |
+| `POST` | `/admin/content/lessons`                    |
+| `POST` | `/admin/content/lessons/:id/versions`       |
 | `POST` | `/admin/content/versions/:id/submit-review` |
-| `POST` | `/admin/content/versions/:id/publish` |
-| `POST` | `/admin/content/versions/:id/retire` |
-| `POST` | `/admin/content/validate-graph` |
+| `POST` | `/admin/content/versions/:id/publish`       |
+| `POST` | `/admin/content/versions/:id/retire`        |
+| `POST` | `/admin/content/validate-graph`             |
+| `POST` | `/admin/content/recompile`                  |
 
 Admin routes require role-based access and audit logging.
 
 ---
 
-## 12. Caching and Search
+## 12. Caching and search
 
-- PostgreSQL is source of truth
-- cache published recipe/graph snapshots in Redis
-- cache key includes recipe/content version
-- invalidate on publish/retire
-- use PostgreSQL full-text search for admin content discovery
-- object media delivered through signed/CDN URLs
+- PostgreSQL is the source of truth
+- cache the compiled units + skills index snapshot in Redis, keyed by recipe/content version
+- invalidate on publish/retire/recompile
+- PostgreSQL full-text search for admin content discovery
+- object media delivered through signed / CDN URLs
 - checksums protect dataset/file integrity
 
----
-
-## 13. Quality Metrics
-
-Record:
-
-- completion rate
-- median time vs estimate
-- quiz pass rate
-- hint/solution rate
-- user rating
-- dropout point
-- Battle answer discrimination
-- resource failure rate
-
-Do not auto-retire solely from one metric. Flag for review.
+Because consumers read the cached compiled projection, request-time cost does not grow with authoring-graph depth.
 
 ---
 
-## 14. Security and Integrity
+## 13. Quality metrics
 
-- correct answers encrypted or access-restricted at rest where appropriate
-- play APIs never expose grading keys
+Record: completion rate, median time vs estimate, quiz pass rate, hint/solution rate, user rating, dropout point, Battle answer discrimination, resource failure rate.
+
+Do not auto-retire from a single metric — flag for review.
+
+---
+
+## 14. Security and integrity
+
+- correct answers are encrypted or access-restricted at rest; they are never compiled into units and never sent in play payloads
+- play APIs never expose grading keys (see 05 §4.1)
 - admin actions audited
 - file uploads scanned
 - external resources checked periodically
 - content HTML sanitized
-- graph publication rejects cycles
-- AI output validated against IDs and schemas
+- graph publication rejects cycles and unresolved prerequisites
+- **AI output is validated against pool IDs and schemas** before it reaches a learner (URLs must resolve to a `resources` row; unit references must resolve to compiled units)
 - content deletion uses soft retirement
 
 ---
 
-## 15. Error Codes
+## 15. Error codes
 
 - `CONTENT_ROLE_RECIPE_MISSING`
 - `CONTENT_VERSION_NOT_PUBLISHED`
 - `CONTENT_GRAPH_CYCLE`
+- `CONTENT_PREREQ_UNRESOLVED` _(new — compile-time prerequisite that maps to no skill)_
 - `CONTENT_REQUIRED_BUDGET_EXCEEDED`
 - `CONTENT_LANGUAGE_UNAVAILABLE`
 - `CONTENT_RESOURCE_INACTIVE`
 - `CONTENT_QUESTION_POOL_TOO_SMALL`
 - `CONTENT_VERSION_BLOCKED`
 - `CONTENT_ADMIN_FORBIDDEN`
+- `CONTENT_NARRATION_INVALID` _(new — LLM phasing added/dropped/reordered units)_
 
 ---
 
-## 16. Analytics Events
+## 16. Analytics events
 
 - `content_version_published`
+- `content_compiled` _(new — units + skills index rebuilt)_
 - `content_selected_for_roadmap`
 - `content_skipped_known_skill`
 - `content_batch_materialized`
 - `content_resource_failed`
 - `content_quality_flagged`
+- `content_narration_repaired` _(new — DAG repair after invalid phasing)_
 - `battle_question_set_created`
 
 ---
 
-## 17. Acceptance Criteria
+## 17. Acceptance criteria
 
-- one shared pool powers every career/domain
-- questionnaire answers select content; they never store curriculum trees
-- content is versioned and published before use
-- required prerequisites form a validated DAG
-- user path instances preserve source versions
-- learning-style personalization keeps format diversity
-- impossible deadlines return a feasibility decision
-- Battle questions come from reviewed pool content
-- correct answers are never leaked in play payloads
-- new careers can be added through content and recipes without generator code changes
+- [ ] one shared pool powers every career/domain; the compiled layer is a projection of it, never a second store
+- [ ] questionnaire answers select content; they never store curriculum trees
+- [ ] content is versioned and published before use, and every publish recompiles units + skills index
+- [ ] required prerequisites form a validated acyclic DAG; a cycle or unresolved prerequisite blocks publication
+- [ ] lesson ordering is produced by topological sort over the skills index — deterministic and prerequisite-safe — not by model output or catalog index
+- [ ] `budget_minutes` is computed in code and never recomputed by the model
+- [ ] the LLM only narrates phases and copy; its output is validated to add/drop/reorder nothing, else repaired from the DAG
+- [ ] user path instances preserve source template + version
+- [ ] selection consumes the versioned `RoadmapGenerationProfile` (per-skill entry stages), not raw skill tokens
+- [ ] a partially-known skill is served by a `checkpoint`/`refresher` unit at the learner's entry stage, not omitted wholesale or re-taught from scratch
+- [ ] every published skill carries role coverage — at least one `foundation` unit and at least one `checkpoint`/`refresher` across the stage range — validated before publish
+- [ ] foundation paths include proof/checkpoint units; learning-style personalization must not reduce a beginner to reading-only content
+- [ ] impossible deadlines return a feasibility decision, never a silently pruned required skill
+- [ ] Battle questions come from reviewed pool content
+- [ ] correct answers are never compiled into units, exposed in play payloads, or sent to the model
+- [ ] new careers can be added through content + recipes without generator code changes
 
 ---
 
 ## Implementation map (arc-backend)
 
-| Doc area | Code |
-|----------|------|
-| Shared pool + publication lifecycle | `content-publication.service.ts`, `content-version.service.ts` |
-| Lesson/question versions | `entities/lesson-version.entity.ts`, `question-version.entity.ts` |
-| Battle pool | `question-pool.service.ts` → battles |
-| Courses / modules / datasets / prereqs | `content-catalog.service.ts`, admin routes |
-| Personalization + language | `content-personalization.service.ts` (profile language, diagnostic skip) |
-| Rolling window materialize | `ContentQueryService.materializeRoadmapContent` after roadmap assemble |
-| Intake lesson-body AI (async) | `LessonBodyPersonalizerService` via `lesson_body_personalization` queue; writes `lessons.play_content` only |
-| `sourceVersionId` on user lessons | `roadmaps/entities/lesson.entity.ts`, generator + `lesson-content.service` |
-| Cache / FTS stub | `content-cache.service.ts` (in-memory; Redis-ready) |
-| Quality metrics | `content-quality.service.ts` ← lesson complete + battle settle |
-| Analytics events | `content-analytics.service.ts` (structured logs) |
-| Admin RBAC | `AdminRolesGuard` + `User.isAdmin` on `/admin/content/*` |
-| Answer encryption / HTML sanitize | `content-security.util.ts`, `question-answer.util.ts` |
+| Doc area                                     | Code                                                                                                        |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Shared pool + publication lifecycle          | `content-publication.service.ts`, `content-version.service.ts`                                              |
+| Authoring graph → compiled units             | `content-compiler.service.ts` → `compiled-unit.entity.ts`, `skills-index.entity.ts`                         |
+| Lesson/question versions                     | `entities/lesson-version.entity.ts`, `question-version.entity.ts`                                           |
+| Deterministic selection pipeline (§7)        | `content-personalization.service.ts` (gap → topo-sort → filter → budget)                                    |
+| Narration + validation/repair (§7.6)         | `roadmap-narrator.service.ts` (+ DAG repair)                                                                |
+| Battle pool                                  | `question-pool.service.ts` → battles                                                                        |
+| Courses / modules / datasets / prereqs       | `content-catalog.service.ts`, admin routes                                                                  |
+| Rolling window materialize                   | `ContentQueryService.materializeRoadmapContent` after roadmap assemble                                      |
+| Intake lesson-body AI (async, narrates only) | `LessonBodyPersonalizerService` via `lesson_body_personalization` queue; writes `lessons.play_content` only |
+| `sourceVersionId` on user lessons            | `roadmaps/entities/lesson.entity.ts`, generator + `lesson-content.service`                                  |
+| Cache / FTS stub                             | `content-cache.service.ts` (in-memory; Redis-ready)                                                         |
+| Quality metrics                              | `content-quality.service.ts` ← lesson complete + battle settle                                              |
+| Analytics events                             | `content-analytics.service.ts` (structured logs)                                                            |
+| Admin RBAC                                   | `AdminRolesGuard` + `User.isAdmin` on `/admin/content/*`                                                    |
+| Answer encryption / HTML sanitize            | `content-security.util.ts`, `question-answer.util.ts`                                                       |
 
 **Still thin:** real Redis, CDN asset pipeline, upload malware scan, full Postgres FTS, dedicated admin FE.
 
-**Error codes added:** `CONTENT_ADMIN_FORBIDDEN` (plus existing §15 set).
+**Codes added this revision:** `CONTENT_PREREQ_UNRESOLVED`, `CONTENT_NARRATION_INVALID` (plus existing §15 set).

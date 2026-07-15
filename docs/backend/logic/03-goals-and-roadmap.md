@@ -1,7 +1,9 @@
 # 03 — Skill Graph, Roadmap Generator & AI Coach
 
-**Version:** 2.0 integrated  
-**Integration:** Shared curriculum is further specified in [content_pool.md](./content_pool.md). A generated roadmap is not Home-ready until Course Timing and the current Weekly Plan are ready.
+**Version:** 3.1 (stage-aware, consumes questionnaire-v2 profile)  
+**Integration:** Shared curriculum is further specified in [content_pool.md](./content_pool.md) v3.0, which now compiles the authoring graph into flat, self-describing **units** plus a **skills index** (the prerequisite DAG). This generator consumes that compiled projection, not the authoring tree. A generated roadmap is not Home-ready until Course Timing and the current Weekly Plan are ready.
+
+**What changed in 3.0:** ordering, selection, and budgeting are strictly deterministic backend code; the LLM is confined to narration (titles, phase grouping, copy) and its output is validated to add/drop/reorder nothing before persistence. See §5 and content_pool §7.
 
 **Engines:** Skill Graph Engine · Roadmap Generator · AI Coach (see [README](./README.md) four-engine map)  
 **Stack:** NestJS + TypeORM + PostgreSQL  
@@ -22,12 +24,12 @@ Domain content (Marketing, SEO, React, DevOps, AI, …) lives in the **Skill Gra
 
 ## 0. Four engines (this doc = 3 of 4)
 
-| Engine | Owns | Nest home |
-| --- | --- | --- |
-| Question Engine | Adaptive Q + branching → `goals` tokens | `questionnaire/` (doc 02) |
-| **Skill Graph Engine** | **Learning Document Pool** — skills, prerequisites, modules, lessons, assessments, resources | `skill-graph/` |
-| **Roadmap Generator** | After questionnaire: pick from pool → personalized learning path instance | `roadmaps/` (+ generator service) |
-| **AI Coach** | Continuous: replan from progress, assessments, learning behavior | `coach/` |
+| Engine                 | Owns                                                                                         | Nest home                         |
+| ---------------------- | -------------------------------------------------------------------------------------------- | --------------------------------- |
+| Question Engine        | Adaptive Q + branching → `goals` tokens                                                      | `questionnaire/` (doc 02)         |
+| **Skill Graph Engine** | **Learning Document Pool** — skills, prerequisites, modules, lessons, assessments, resources | `skill-graph/`                    |
+| **Roadmap Generator**  | After questionnaire: pick from pool → personalized learning path instance                    | `roadmaps/` (+ generator service) |
+| **AI Coach**           | Continuous: replan from progress, assessments, learning behavior                             | `coach/`                          |
 
 ```
                     ┌─────────────────────────────────────┐
@@ -51,14 +53,14 @@ The pool is the single source of teachable content for **all** careers and categ
 
 ### What lives in the pool
 
-| Pool piece | Table / seed | Role |
-| --- | --- | --- |
-| **Category / tech unit** | `tech_stacks` | e.g. `react`, `sql`, `marketing-seo` |
-| **Skill node** | `skill_nodes` | Graph vertex + tags that match questionnaire skill tokens |
-| **Lesson document** | `lesson_templates` | Customizable learning unit (video / reading / practice / quiz / …) |
-| **Assessment document** | `assessment_templates` | Checkpoints on the graph |
-| **External / curated resource** | `resources` | Stable URLs + metadata (never AI-invented) |
-| **Job → pool recipe** | `role_recipes` | Which stacks/phases a questionnaire `goal` token pulls |
+| Pool piece                      | Table / seed           | Role                                                               |
+| ------------------------------- | ---------------------- | ------------------------------------------------------------------ |
+| **Category / tech unit**        | `tech_stacks`          | e.g. `react`, `sql`, `marketing-seo`                               |
+| **Skill node**                  | `skill_nodes`          | Graph vertex + tags that match questionnaire skill tokens          |
+| **Lesson document**             | `lesson_templates`     | Customizable learning unit (video / reading / practice / quiz / …) |
+| **Assessment document**         | `assessment_templates` | Checkpoints on the graph                                           |
+| **External / curated resource** | `resources`            | Stable URLs + metadata (never AI-invented)                         |
+| **Job → pool recipe**           | `role_recipes`         | Which stacks/phases a questionnaire `goal` token pulls             |
 
 ### Customizable document format (authoring contract)
 
@@ -129,6 +131,8 @@ Stack seed file (illustrative) groups documents under a category:
 
 **Invariant:** questionnaire never embeds lesson trees. Pool never stores per-user progress. Path instance never mutates pool rows.
 
+**Compiled projection (v3.0):** the generator does not traverse the authoring graph at request time. On publish, content_pool compiles the pool into self-describing **units** (each carrying `skills_taught`, `prerequisites`, `level`, `estimated_minutes`, `formats`, and its `content`) plus a **skills index** (the DAG). Step 3b above ("Load the pool subgraph") means _read the compiled units + skills index for the recipe_, cached and version-pinned — never a live tree walk.
+
 ---
 
 ## 1. Goal
@@ -148,12 +152,13 @@ MVP seeds **Data Analyst** + **Front End (React)** (and recipes for all question
 
 ## 2. Core idea: pool (shared) vs path instance (per user)
 
-| Layer | Engine | Shared? | Mutates per user? |
-| --- | --- | --- | --- |
-| **Learning Document Pool** | Skill Graph | Yes (admin/content) | No |
-| **Role recipes** | Skill Graph (job → pool entry) | Yes | No |
-| **User learning path** | Roadmap Generator (create) / AI Coach (update) | No | Yes |
-| **Progress** | Coach inputs + gamification docs | No | Yes |
+| Layer                                               | Engine                                         | Shared?                  | Mutates per user? |
+| --------------------------------------------------- | ---------------------------------------------- | ------------------------ | ----------------- |
+| **Learning Document Pool** (authoring graph)        | Skill Graph                                    | Yes (admin/content)      | No                |
+| **Compiled units + skills index** (read projection) | content_pool compiler                          | Yes (derived on publish) | No                |
+| **Role recipes**                                    | Skill Graph (job → pool entry)                 | Yes                      | No                |
+| **User learning path**                              | Roadmap Generator (create) / AI Coach (update) | No                       | Yes               |
+| **Progress**                                        | Coach inputs + gamification docs               | No                       | Yes               |
 
 **Rule:** Never bake “React curriculum” into TypeScript enums only. Store it as pool documents. Generator **selects + orders + prunes** pool nodes into a user path. Coach **rewrites the path instance**, not the pool.
 
@@ -228,19 +233,19 @@ Keep AI prompt IDs versioned (`roadmap_generator_v1`, later `ai_coach_replan_v1`
 
 Submit path (already implemented) maps answers → `goals`. Generator reads **`goals`**, not the questionnaire response row, except `raw_answers` / `schema_version` when needed.
 
-| Goal column | Answer field | Schema step `id` | Notes |
-| --- | --- | --- | --- |
-| `target_roles` | `goal[]` | `goal` | Multi; primary = index 0 |
-| `motivation` | `motivation` + `motivationOther` | `motivation` | jsonb `{ values, other? }` |
-| `current_profession` | `currentJob` | `currentJob` | single (+ other text) |
-| `skills` | `skills` + `skillsOther` | `skills` | jsonb; `none` exclusive |
-| `weekly_hours` | `studyHours` | `studyHours` | **token** — decode before sizing |
-| `availability` | `schedule` | `schedule` | `{ days, times }` from schema schedule config |
-| `target_deadline` | `deadline` | `deadline` | **token** — decode before sizing |
-| `learning_styles` | `learningStyle` + other | `learningStyle` | jsonb |
-| `confidence` | `confidence` | `confidence` | single token |
-| `quit_reasons` | `quitReasons` + other | `quitReasons` | coaching bias later; optional for MVP size |
-| `raw_answers` | full object | — | includes `schemaVersion` at save time |
+| Goal column          | Answer field                     | Schema step `id` | Notes                                         |
+| -------------------- | -------------------------------- | ---------------- | --------------------------------------------- |
+| `target_roles`       | `goal[]`                         | `goal`           | Multi; primary = index 0                      |
+| `motivation`         | `motivation` + `motivationOther` | `motivation`     | jsonb `{ values, other? }`                    |
+| `current_profession` | `currentJob`                     | `currentJob`     | single (+ other text)                         |
+| `skills`             | `skills` + `skillsOther`         | `skills`         | jsonb; `none` exclusive                       |
+| `weekly_hours`       | `studyHours`                     | `studyHours`     | **token** — decode before sizing              |
+| `availability`       | `schedule`                       | `schedule`       | `{ days, times }` from schema schedule config |
+| `target_deadline`    | `deadline`                       | `deadline`       | **token** — decode before sizing              |
+| `learning_styles`    | `learningStyle` + other          | `learningStyle`  | jsonb                                         |
+| `confidence`         | `confidence`                     | `confidence`     | single token                                  |
+| `quit_reasons`       | `quitReasons` + other            | `quitReasons`    | coaching bias later; optional for MVP size    |
+| `raw_answers`        | full object                      | —                | includes `schemaVersion` at save time         |
 
 #### 4.0.1 Answer tokens (schema_version = 1 seed)
 
@@ -248,12 +253,12 @@ Source: `seed-data.ts` / active `GET /questionnaire/schema`. If schema bumps, up
 
 **`goal` (→ `role_recipes.target_role_slug`):**
 
-| Token | Recipe title (suggested) |
-| --- | --- |
-| `data-analyst` | Data Analyst |
-| `front-end-developer` | Front End Developer |
-| `back-end-developer` | Back End Developer |
-| `marketing-specialist` | Marketing Specialist |
+| Token                  | Recipe title (suggested) |
+| ---------------------- | ------------------------ |
+| `data-analyst`         | Data Analyst             |
+| `front-end-developer`  | Front End Developer      |
+| `back-end-developer`   | Back End Developer       |
+| `marketing-specialist` | Marketing Specialist     |
 
 **`skills` (→ prune / tag match on `skill_nodes.tags`):**
 
@@ -263,22 +268,22 @@ Note: seed has **no** `react` skill option. Prior React exposure arrives via `sk
 
 **`studyHours` → approximate weekly hours (midpoint):**
 
-| Token | Hours/week used for sizing |
-| --- | --- |
-| `lt-3` | 2 |
-| `3-5` | 4 |
-| `5-8` | 6.5 |
-| `8-12` | 10 |
-| `gt-12` | 14 |
+| Token   | Hours/week used for sizing |
+| ------- | -------------------------- |
+| `lt-3`  | 2                          |
+| `3-5`   | 4                          |
+| `5-8`   | 6.5                        |
+| `8-12`  | 10                         |
+| `gt-12` | 14                         |
 
 **`deadline` → timeline weeks (cap recipe default):**
 
-| Token | Timeline weeks |
-| --- | --- |
-| `1-3` | 8 |
-| `3-6` | 16 |
-| `6-12` | 24 |
-| `12+` | 40 |
+| Token  | Timeline weeks                  |
+| ------ | ------------------------------- |
+| `1-3`  | 8                               |
+| `3-6`  | 16                              |
+| `6-12` | 24                              |
+| `12+`  | 40                              |
 | `none` | recipe `default_timeline_weeks` |
 
 **`learningStyle` (→ `lesson_templates.learning_style_tags`):**
@@ -295,18 +300,18 @@ Note: seed has **no** `react` skill option. Prior React exposure arrives via `sk
 
 One row per technology / track unit (React, SQL, Excel, TypeScript, …).
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `slug` | varchar unique | `react`, `sql`, `excel`, `typescript` |
-| `name` | varchar | Display: `React` |
-| `category` | varchar | `frontend` \| `backend` \| `data` \| `tooling` \| `soft-skills` \| … |
-| `description` | text | Short blurb |
-| `icon_key` | varchar nullable | Frontend asset key |
-| `default_difficulty` | varchar | `beginner` \| `intermediate` \| `advanced` |
-| `is_active` | boolean | Soft-disable without delete |
-| `metadata` | jsonb | Extensible (docs URLs, tags) |
-| `created_at` / `updated_at` | timestamptz | |
+| Column                      | Type             | Notes                                                                |
+| --------------------------- | ---------------- | -------------------------------------------------------------------- |
+| `id`                        | uuid PK          |                                                                      |
+| `slug`                      | varchar unique   | `react`, `sql`, `excel`, `typescript`                                |
+| `name`                      | varchar          | Display: `React`                                                     |
+| `category`                  | varchar          | `frontend` \| `backend` \| `data` \| `tooling` \| `soft-skills` \| … |
+| `description`               | text             | Short blurb                                                          |
+| `icon_key`                  | varchar nullable | Frontend asset key                                                   |
+| `default_difficulty`        | varchar          | `beginner` \| `intermediate` \| `advanced`                           |
+| `is_active`                 | boolean          | Soft-disable without delete                                          |
+| `metadata`                  | jsonb            | Extensible (docs URLs, tags)                                         |
+| `created_at` / `updated_at` | timestamptz      |                                                                      |
 
 **Dynamic:** add Vue, Next.js, GraphQL later via seed/admin — no migration of “role enums” required.
 
@@ -316,19 +321,19 @@ One row per technology / track unit (React, SQL, Excel, TypeScript, …).
 
 Directed learning graph inside / across stacks. **This table family is the Skill Graph Engine.**
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `tech_stack_id` | uuid FK → `tech_stacks` | |
-| `slug` | varchar | Unique per stack: `hooks`, `select-basics` |
-| `title` | varchar | `React Hooks` |
-| `description` | text | |
-| `order_hint` | int | Default order inside stack |
-| `estimated_hours` | numeric | Rough content weight |
-| `difficulty` | varchar | |
-| `prerequisite_skill_ids` | uuid[] or join table | Edges for DAG |
-| `tags` | text[] | Match questionnaire skill **tokens** (`sql`, `javascript`, …) |
-| `is_active` | boolean | |
+| Column                   | Type                    | Notes                                                         |
+| ------------------------ | ----------------------- | ------------------------------------------------------------- |
+| `id`                     | uuid PK                 |                                                               |
+| `tech_stack_id`          | uuid FK → `tech_stacks` |                                                               |
+| `slug`                   | varchar                 | Unique per stack: `hooks`, `select-basics`                    |
+| `title`                  | varchar                 | `React Hooks`                                                 |
+| `description`            | text                    |                                                               |
+| `order_hint`             | int                     | Default order inside stack                                    |
+| `estimated_hours`        | numeric                 | Rough content weight                                          |
+| `difficulty`             | varchar                 |                                                               |
+| `prerequisite_skill_ids` | uuid[] or join table    | Edges for DAG                                                 |
+| `tags`                   | text[]                  | Match questionnaire skill **tokens** (`sql`, `javascript`, …) |
+| `is_active`              | boolean                 |                                                               |
 
 Prefer join table `skill_prerequisites (skill_id, requires_skill_id)` if graph gets large.
 
@@ -338,43 +343,43 @@ Prefer join table `skill_prerequisites (skill_id, requires_skill_id)` if graph g
 
 **Primary Learning Document Pool unit.** Reusable, customizable lesson documents bound to a skill node (not yet a user lesson). Same schema for every category / job — see §0.1 authoring contract.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `skill_node_id` | uuid FK | |
-| `slug` | varchar | Stable authoring id |
-| `title` | varchar | |
-| `mission_name_template` | varchar nullable | e.g. `Hook the dragon` |
-| `lesson_type` | varchar | `video` \| `reading` \| `practice` \| `quiz` \| `reflection` \| `mini_project` |
-| `estimated_minutes` | int | |
-| `difficulty` | varchar | |
-| `reward_class` | varchar | Input to Gamification calculator; optional preview snapshot only |
-| `learning_style_tags` | text[] | Same tokens as schema `learningStyle` options |
-| `order_hint` | int | |
-| `default_resource_id` | uuid FK nullable → `resources` | |
-| `content_outline` | jsonb | Objectives, checklist — customizable; AI may expand copy on instance |
-| `is_active` | boolean | Soft-remove from pool without delete |
+| Column                  | Type                           | Notes                                                                          |
+| ----------------------- | ------------------------------ | ------------------------------------------------------------------------------ |
+| `id`                    | uuid PK                        |                                                                                |
+| `skill_node_id`         | uuid FK                        |                                                                                |
+| `slug`                  | varchar                        | Stable authoring id                                                            |
+| `title`                 | varchar                        |                                                                                |
+| `mission_name_template` | varchar nullable               | e.g. `Hook the dragon`                                                         |
+| `lesson_type`           | varchar                        | `video` \| `reading` \| `practice` \| `quiz` \| `reflection` \| `mini_project` |
+| `estimated_minutes`     | int                            |                                                                                |
+| `difficulty`            | varchar                        |                                                                                |
+| `reward_class`          | varchar                        | Input to Gamification calculator; optional preview snapshot only               |
+| `learning_style_tags`   | text[]                         | Same tokens as schema `learningStyle` options                                  |
+| `order_hint`            | int                            |                                                                                |
+| `default_resource_id`   | uuid FK nullable → `resources` |                                                                                |
+| `content_outline`       | jsonb                          | Objectives, checklist — customizable; AI may expand copy on instance           |
+| `is_active`             | boolean                        | Soft-remove from pool without delete                                           |
 
 ---
 
 ### 4.4 Skill Graph — `resources` (product §12.8 / §10.2)
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `title` | varchar | |
-| `url` | text | Curated only in MVP — **no invented URLs from AI** |
-| `provider` | varchar | |
-| `resource_type` | varchar | `video` \| `article` \| `docs` \| `course` \| `tool` |
-| `skill_tags` | text[] | |
-| `tech_stack_ids` | uuid[] or M2M | Optional link |
-| `difficulty` | varchar | |
-| `estimated_minutes` | int nullable | |
-| `language` | varchar | default `en` |
-| `quality_score` | numeric nullable | |
-| `is_free` | boolean | |
-| `last_checked_at` | timestamptz nullable | |
-| `is_active` | boolean | |
+| Column              | Type                 | Notes                                                |
+| ------------------- | -------------------- | ---------------------------------------------------- |
+| `id`                | uuid PK              |                                                      |
+| `title`             | varchar              |                                                      |
+| `url`               | text                 | Curated only in MVP — **no invented URLs from AI**   |
+| `provider`          | varchar              |                                                      |
+| `resource_type`     | varchar              | `video` \| `article` \| `docs` \| `course` \| `tool` |
+| `skill_tags`        | text[]               |                                                      |
+| `tech_stack_ids`    | uuid[] or M2M        | Optional link                                        |
+| `difficulty`        | varchar              |                                                      |
+| `estimated_minutes` | int nullable         |                                                      |
+| `language`          | varchar              | default `en`                                         |
+| `quality_score`     | numeric nullable     |                                                      |
+| `is_free`           | boolean              |                                                      |
+| `last_checked_at`   | timestamptz nullable |                                                      |
+| `is_active`         | boolean              |                                                      |
 
 MVP: semi-curated library. AI may **pick** from this table by id/slug; must not invent links (product §9.3).
 
@@ -384,16 +389,16 @@ MVP: semi-curated library. AI may **pick** from this table by id/slug; must not 
 
 Maps questionnaire goal slugs → ordered stack plan.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `target_role_slug` | varchar unique | Exact `goal` option value from questionnaire schema |
-| `title` | varchar | `Front End Developer` (match option label) |
-| `summary` | text | |
-| `default_timeline_weeks` | int | Baseline before personalization |
-| `stack_plan` | jsonb | See below |
-| `prompt_hints` | jsonb | Extra context for AI generator |
-| `is_active` | boolean | |
+| Column                   | Type           | Notes                                               |
+| ------------------------ | -------------- | --------------------------------------------------- |
+| `id`                     | uuid PK        |                                                     |
+| `target_role_slug`       | varchar unique | Exact `goal` option value from questionnaire schema |
+| `title`                  | varchar        | `Front End Developer` (match option label)          |
+| `summary`                | text           |                                                     |
+| `default_timeline_weeks` | int            | Baseline before personalization                     |
+| `stack_plan`             | jsonb          | See below                                           |
+| `prompt_hints`           | jsonb          | Extra context for AI generator                      |
+| `is_active`              | boolean        |                                                     |
 
 #### `stack_plan` shape
 
@@ -437,22 +442,22 @@ Multi-goal questionnaire (`target_roles: ["front-end-developer", "data-analyst"]
 
 Created **after questionnaire submit**. This is the personalized path assembled from the Learning Document Pool — not the pool itself.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `user_id` | uuid FK | |
-| `goal_id` | uuid FK | |
-| `title` | varchar | |
-| `description` | text | |
-| `primary_role_slug` | varchar | |
-| `timeline_weeks` | int | Personalized |
-| `weekly_hours_target` | numeric nullable | From goal |
-| `status` | enum | `generating` \| `ready` \| `failed` \| `archived` |
-| `current_phase_id` | uuid nullable | |
-| `progress_percent` | numeric default 0 | |
-| `generated_by_prompt_version` | varchar | e.g. `roadmap_generator_v1` |
-| `generation_meta` | jsonb | Inputs snapshot, skipped skills, recipe id |
-| `created_at` / `updated_at` | timestamptz | |
+| Column                        | Type              | Notes                                             |
+| ----------------------------- | ----------------- | ------------------------------------------------- |
+| `id`                          | uuid PK           |                                                   |
+| `user_id`                     | uuid FK           |                                                   |
+| `goal_id`                     | uuid FK           |                                                   |
+| `title`                       | varchar           |                                                   |
+| `description`                 | text              |                                                   |
+| `primary_role_slug`           | varchar           |                                                   |
+| `timeline_weeks`              | int               | Personalized                                      |
+| `weekly_hours_target`         | numeric nullable  | From goal                                         |
+| `status`                      | enum              | `generating` \| `ready` \| `failed` \| `archived` |
+| `current_phase_id`            | uuid nullable     |                                                   |
+| `progress_percent`            | numeric default 0 |                                                   |
+| `generated_by_prompt_version` | varchar           | e.g. `roadmap_generator_v1`                       |
+| `generation_meta`             | jsonb             | Inputs snapshot, skipped skills, recipe id        |
+| `created_at` / `updated_at`   | timestamptz       |                                                   |
 
 Unique partial index: one **active/ready** roadmap per `goal_id` (or per user MVP).
 
@@ -460,68 +465,68 @@ Unique partial index: one **active/ready** roadmap per `goal_id` (or per user MV
 
 ### 4.7 Instance — `roadmap_phases` (§12.5)
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `roadmap_id` | uuid FK | |
-| `tech_stack_id` | uuid FK nullable | Traceability to catalog |
-| `title` | varchar | |
-| `description` | text | |
-| `order_index` | int | |
-| `locked` | boolean default true | Unlock sequentially |
-| `completed_at` | timestamptz nullable | |
+| Column          | Type                 | Notes                   |
+| --------------- | -------------------- | ----------------------- |
+| `id`            | uuid PK              |                         |
+| `roadmap_id`    | uuid FK              |                         |
+| `tech_stack_id` | uuid FK nullable     | Traceability to catalog |
+| `title`         | varchar              |                         |
+| `description`   | text                 |                         |
+| `order_index`   | int                  |                         |
+| `locked`        | boolean default true | Unlock sequentially     |
+| `completed_at`  | timestamptz nullable |                         |
 
 ---
 
 ### 4.8 Instance — `milestones` (§12.6)
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `phase_id` | uuid FK | |
-| `skill_node_id` | uuid FK nullable | Source skill |
-| `title` | varchar | |
-| `description` | text | |
-| `type` | varchar | `skill` \| `assessment` \| `project` |
-| `order_index` | int | |
-| `reward_rule_key` | varchar nullable | Milestone reward input; final grant via Gamification |
-| `completed_at` | timestamptz nullable | |
+| Column            | Type                 | Notes                                                |
+| ----------------- | -------------------- | ---------------------------------------------------- |
+| `id`              | uuid PK              |                                                      |
+| `phase_id`        | uuid FK              |                                                      |
+| `skill_node_id`   | uuid FK nullable     | Source skill                                         |
+| `title`           | varchar              |                                                      |
+| `description`     | text                 |                                                      |
+| `type`            | varchar              | `skill` \| `assessment` \| `project`                 |
+| `order_index`     | int                  |                                                      |
+| `reward_rule_key` | varchar nullable     | Milestone reward input; final grant via Gamification |
+| `completed_at`    | timestamptz nullable |                                                      |
 
 ---
 
 ### 4.9 Instance — `lessons` (§12.7)
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `milestone_id` | uuid FK | |
-| `lesson_template_id` | uuid FK nullable | Provenance |
-| `title` | varchar | |
-| `mission_name` | varchar nullable | |
-| `description` | text | |
-| `lesson_type` | varchar | |
-| `estimated_minutes` | int | |
-| `difficulty` | varchar | |
-| `reward_class` | varchar | Gamification rule input |
-| `reward_preview_xp` | int nullable | Non-binding UI snapshot |
-| `order_index` | int | |
-| `resource_id` | uuid FK nullable | From catalog |
-| `status` | varchar nullable | Compatibility only; serializer should derive state from progress + unlock evaluator |
+| Column               | Type             | Notes                                                                               |
+| -------------------- | ---------------- | ----------------------------------------------------------------------------------- |
+| `id`                 | uuid PK          |                                                                                     |
+| `milestone_id`       | uuid FK          |                                                                                     |
+| `lesson_template_id` | uuid FK nullable | Provenance                                                                          |
+| `title`              | varchar          |                                                                                     |
+| `mission_name`       | varchar nullable |                                                                                     |
+| `description`        | text             |                                                                                     |
+| `lesson_type`        | varchar          |                                                                                     |
+| `estimated_minutes`  | int              |                                                                                     |
+| `difficulty`         | varchar          |                                                                                     |
+| `reward_class`       | varchar          | Gamification rule input                                                             |
+| `reward_preview_xp`  | int nullable     | Non-binding UI snapshot                                                             |
+| `order_index`        | int              |                                                                                     |
+| `resource_id`        | uuid FK nullable | From catalog                                                                        |
+| `status`             | varchar nullable | Compatibility only; serializer should derive state from progress + unlock evaluator |
 
 ---
 
 ### 4.10 Instance — `lesson_progress` (§12.9)
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `user_id` | uuid FK | |
-| `lesson_id` | uuid FK | |
-| `status` | varchar | `not_started` \| `in_progress` \| `completed` |
-| `started_at` / `completed_at` | timestamptz nullable | |
-| `time_spent_minutes` | int default 0 | |
-| `xp_awarded` | int default 0 | Server-set only |
-| `retry_count` | int default 0 | |
+| Column                        | Type                 | Notes                                         |
+| ----------------------------- | -------------------- | --------------------------------------------- |
+| `id`                          | uuid PK              |                                               |
+| `user_id`                     | uuid FK              |                                               |
+| `lesson_id`                   | uuid FK              |                                               |
+| `status`                      | varchar              | `not_started` \| `in_progress` \| `completed` |
+| `started_at` / `completed_at` | timestamptz nullable |                                               |
+| `time_spent_minutes`          | int default 0        |                                               |
+| `xp_awarded`                  | int default 0        | Server-set only                               |
+| `retry_count`                 | int default 0        |                                               |
 
 Unique `(user_id, lesson_id)`.
 
@@ -529,16 +534,16 @@ Unique `(user_id, lesson_id)`.
 
 ### 4.11 Jobs — `roadmap_generation_jobs`
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | = `jobId` returned on questionnaire submit |
-| `goal_id` | uuid FK | |
-| `user_id` | uuid FK | |
-| `status` | enum | `queued` \| `processing` \| `ready` \| `failed` |
-| `roadmap_id` | uuid nullable | Set when ready |
-| `error_code` / `error_message` | varchar/text nullable | |
-| `attempts` | int | |
-| `created_at` / `updated_at` / `finished_at` | timestamptz | |
+| Column                                      | Type                  | Notes                                           |
+| ------------------------------------------- | --------------------- | ----------------------------------------------- |
+| `id`                                        | uuid PK               | = `jobId` returned on questionnaire submit      |
+| `goal_id`                                   | uuid FK               |                                                 |
+| `user_id`                                   | uuid FK               |                                                 |
+| `status`                                    | enum                  | `queued` \| `processing` \| `ready` \| `failed` |
+| `roadmap_id`                                | uuid nullable         | Set when ready                                  |
+| `error_code` / `error_message`              | varchar/text nullable |                                                 |
+| `attempts`                                  | int                   |                                                 |
+| `created_at` / `updated_at` / `finished_at` | timestamptz           |                                                 |
 
 Questionnaire submit already returns `{ status, jobId, roadmapId }` — keep that contract; fill real rows here.
 
@@ -550,38 +555,37 @@ Questionnaire submit already returns `{ status, jobId, roadmapId }` — keep tha
 
 Domain-agnostic: same steps for React, Marketing, DevOps — only pool documents + recipe data change.
 
-Inputs (from `goals` + profile):
+Inputs — the versioned **`RoadmapGenerationProfile`** snapshot from the Question Engine (doc 02 §10), consumed by id. The generator does **not** re-parse raw answer tokens for skill state; the profile has already derived per-skill stages.
 
-- `target_roles[]` — schema `goal` tokens
-- `skills.values[]` (+ `other`) — schema `skills` tokens; ignore prune if only `none`
-- `weekly_hours` / `target_deadline` — **decode tokens** (§4.0.1) before math
-- `availability` — days/times for later weekly plan (doc 04); optional soft bias now
-- `learning_styles.values[]`
-- `confidence` — ordered compare for optional phases
-- `quit_reasons` — optional: shorter milestones / more encouragement copy in AI pass
-- `raw_answers` + response `schema_version` — audit / AI context
+- `primaryTrackSlug` — resolves the role recipe
+- `targetStage` + per-skill `skillEstimates[]` (`{ skillSlug, stage 1–5, confidence }`) — drive the stage-aware gap (replaces the old `skills` token prune)
+- `capacity.effectiveWeeklyMinutes`, `preferredSessionMinutes`, `days`, `timeWindows`, `timezone`, `paceClass` — capacity + later weekly plan
+- `preferences.learningStyleWeights` — format filter / style bias
+- `preferences.motivationTags`, `blockerTags` — narration/framing bias (e.g. a "no clear path" blocker)
+- `placement.required` + `reasonCodes` — gate high-confidence skips behind a diagnostic
+- `targetDeadline?` — timeline sizing
+- `profilingModelVersion` — recorded in `generation_meta`
 
-Steps:
+Steps (five deterministic code stages, then one validated narration stage):
 
-1. **Resolve recipe** — `role_recipes` where `target_role_slug = goals.target_roles[0]`. Missing → `ROLE_RECIPE_MISSING`.
-2. **Decode capacity** — map `weekly_hours` + `target_deadline` tokens → `hoursPerWeek` × `timelineWeeks` = budget minutes.
-3. **Load pool subgraph** — `tech_stacks` + `skill_nodes` + `lesson_templates` (learning documents) + assessments for each phase in `stack_plan`.
-4. **Prune known skills** — if `skills.values` (minus `none`) intersect `skill_nodes.tags`, skip or compress those nodes to short “refresh” milestones. Never mutate pool rows.
-5. **Size to time** — sum document minutes vs budget. Over → drop `required: false` phases / advanced nodes first. Under + confidence ≥ `confident` → keep optional advanced phase.
-6. **Style bias** — prefer lesson documents whose `learning_style_tags` intersect user styles; keep ≥1 `practice` per skill when possible.
-7. **Order** — topological sort by prerequisites; then `order_hint`.
-8. **AI pass (optional, still Generator)** — pruned pool snapshot + `raw_answers` + goal summary → `roadmap_generator_v1` via OpenAI (`RoadmapAiService`):
-   - titles / mission names
-   - order tweaks within constraints (existing ids only)
-   - pick `resource_id`s **only from provided ids**
-   - structured JSON validated with Zod (`roadmap-ai.schema.ts`)
-9. **Validate** — Zod; reject unknown ids; scale lesson count already applied in deterministic sizing.
-10. **Persist learning path** — transaction: job → roadmap → phases → milestones → lessons (instance copies of pool documents); unlock first phase.
-11. **Fail soft** — missing `OPENAI_API_KEY`, timeout, invalid JSON, or Zod failure → deterministic pool assembly still ships a path. `generation_meta.aiUsed` / `aiSkippedReason` records outcome.
+1. **Resolve recipe** — `role_recipes` where `target_role_slug = profile.primaryTrackSlug`. Missing → `ROLE_RECIPE_MISSING`.
+2. **Decode capacity (in code)** — `budgetMinutes = capacity.effectiveWeeklyMinutes × timelineWeeks × 0.85`, where `timelineWeeks` comes from `targetDeadline` (or recipe default). `effectiveWeeklyMinutes` is already schedule-discounted by doc 02 §8. Computed once, passed downstream as a single number. **Never** recomputed by the model.
+3. **Load compiled units + skills index** — read the version-pinned compiled projection for each stack in `stack_plan` (content_pool §4.2, §6.7–6.8). No authoring-tree traversal.
+4. **Gap (stage-aware)** — resolve each `skillEstimate.skillSlug` onto its `domain:*` skill nodes (content_pool §7.1); each node inherits an **entry stage**. Per node, choose an action from entry stage + confidence: verified mastered → omit; provisional-mastered high-confidence → `checkpoint`; provisional-mastered lower-confidence → `refresher`; claimed-high-but-low-confidence with `placement.required` → `placement` first; stage 1 / unknown → `foundation` (full teaching path through the target stage). Then compute the missing-prerequisite closure over the skills index. Never mutate pool rows.
+5. **Order (topological sort)** — sort the gap skills topologically over the skills index; break ties by `level` (low → high, derived per content_pool §4.3) then `order_hint`. Ordering is graph-derived and prerequisite-safe — **not** score-derived, not anti-catalog. Two users differ in order only because their gaps and entry stages differ.
+6. **Select + fit (in code)** — per ordered skill: foundation keeps units whose `serves_stage` overlaps the path from entry stage to target stage; checkpoint/refresher first prefer units whose `serves_stage` includes the entry stage and whose `unit_role` matches the planned action. Fall back to foundation units if that role wasn't authored. Then drop a unit only if its `formats` share nothing with `learningStyleWeights` **and** another unit still covers the skill; never drop the only checkpoint/proof unit that can produce stage evidence. Rank survivors by the content_pool §7.3 within-skill score. Pack against `budgetMinutes`: required first, optional fills remaining capacity. Over budget on required content → return a feasibility result to Course Timing (`CONTENT_REQUIRED_BUDGET_EXCEEDED` / drop `required:false` phases), never silently delete a required skill.
+7. **Narration pass (optional LLM — titles/phases/copy ONLY)** — hand the already-ordered, already-selected unit list to `roadmap_generator_v1` (via `RoadmapAiService`). The model may only:
+   - write phase titles, mission names, and description/why copy;
+   - group the list into 3–6 **contiguous** phases;
+   - pick `resource_id`s **only from provided ids**.
+     It may **not** add, drop, or reorder units, and it does not select across skills. If `blockerTags` includes a "no clear path" signal, the narration must surface the full visible roadmap up front.
+8. **Validate narration (in code)** — Zod schema, plus: every unit index appears exactly once (none added/dropped); no prerequisite appears after a unit needing it; total minutes ≤ `budgetMinutes`; every id (unit, resource) resolves. On violation, repair ordering from the skills index (trivial — code holds the DAG) or issue one repair turn; emit `content_narration_repaired`. Reject unknown ids (`CONTENT_NARRATION_INVALID`).
+9. **Persist learning path** — transaction: job → roadmap → phases → milestones → lessons (instance snapshots of compiled units, each pinned to `source_template_id` + `source_version_id`); unlock first phase.
+10. **Fail soft** — missing `OPENAI_API_KEY`, timeout, invalid JSON, or Zod/validation failure → the deterministic result from stages 2–6 still ships a fully ordered, budgeted path (narration falls back to recipe/skill titles). `generation_meta.aiUsed` / `aiSkippedReason` records the outcome.
 
-**Deterministic fallback is required for MVP reliability.**
+**The deterministic path (stages 2–6) is the product; the narration pass only dresses it. Ordering and budget are correct with or without the LLM.**
 
-Store in `roadmaps.generation_meta`: `{ schemaVersion, recipeId, decodedHours, decodedWeeks, skippedSkillNodeIds, promptVersion, aiUsed, aiModel?, aiSkippedReason? }`.
+Store in `roadmaps.generation_meta`: `{ schemaVersion, recipeId, contentCatalogVersion, learnerProfileId, profilingModelVersion, entryStagesBySkill, decodedWeeks, budgetMinutes, skippedSkillNodeIds, promptVersion, aiUsed, aiModel?, aiSkippedReason?, narrationRepaired? }`.
 
 ---
 
@@ -589,19 +593,20 @@ Store in `roadmaps.generation_meta`: `{ schemaVersion, recipeId, decodedHours, d
 
 Separate from one-shot Roadmap Generator. Coach **patches the user roadmap instance** when signals change.
 
-| Input signal | Coach action (examples) |
-| --- | --- |
-| Lesson / assessment pass/fail | Insert remediation nodes from Skill Graph; skip ahead if mastery proven |
-| Pace vs `weekly_hours` / deadline | Compress optional phases; extend timeline weeks |
-| Learning-style / quit-reason bias | Prefer practice vs video templates already on graph |
-| Stuck / missed week | Soft replan (product `weekly_replanner_v1` — may live under Coach) |
+| Input signal                      | Coach action (examples)                                                 |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| Lesson / assessment pass/fail     | Insert remediation nodes from Skill Graph; skip ahead if mastery proven |
+| Pace vs `weekly_hours` / deadline | Compress optional phases; extend timeline weeks                         |
+| Learning-style / quit-reason bias | Prefer practice vs video templates already on graph                     |
+| Stuck / missed week               | Soft replan (product `weekly_replanner_v1` — may live under Coach)      |
 
 Rules:
 
-1. Read Skill Graph + current instance + progress — **never** invent catalog URLs or skill nodes.
+1. Read Skill Graph (compiled units + skills index) + current instance + progress — **never** invent catalog URLs or skill nodes.
 2. Write only instance tables (`roadmaps` / phases / milestones / lessons / progress meta).
 3. Version prompts (`ai_coach_replan_v1`); Zod-validate before apply.
 4. Idempotent jobs; respect lock state (do not unlock arbitrary future phases without product rules).
+5. **Any reorder the Coach proposes is re-validated against the skills index** (same check as §5 step 8). A proposed order that violates a prerequisite is rejected or repaired from the DAG — the Coach never finalizes ordering itself.
 
 MVP: Coach can be stubbed; Generator alone ships first path. Wire Coach after progress APIs (doc 04/05).
 
@@ -631,23 +636,24 @@ Decoded: ~6.5 h/week × 24 weeks ≈ 156h budget.
 
 Catalog seed (illustrative):
 
-| Stack slug | Skill nodes (abbrev.) | Tags overlap questionnaire |
-| --- | --- | --- |
-| `html-css` | selectors, layout, responsive | `html-css` |
-| `javascript` | es6, async, modules | `javascript` |
-| `react` | jsx-basics, components, hooks, state, effects, routing, data-fetching | (none in v1 skills — always taught unless `skillsOther` heuristics) |
-| `typescript` | types-basics, react-typescript | — |
-| `testing-library` | component-tests | — |
-| `portfolio` | project-plan, ship-app | — |
-| `interview-prep` | fe-system-design-lite, common-questions | — |
+| Stack slug        | Skill nodes (abbrev.)                                                 | Tags overlap questionnaire                                          |
+| ----------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `html-css`        | selectors, layout, responsive                                         | `html-css`                                                          |
+| `javascript`      | es6, async, modules                                                   | `javascript`                                                        |
+| `react`           | jsx-basics, components, hooks, state, effects, routing, data-fetching | (none in v1 skills — always taught unless `skillsOther` heuristics) |
+| `typescript`      | types-basics, react-typescript                                        | —                                                                   |
+| `testing-library` | component-tests                                                       | —                                                                   |
+| `portfolio`       | project-plan, ship-app                                                | —                                                                   |
+| `interview-prep`  | fe-system-design-lite, common-questions                               | —                                                                   |
 
 Generator behavior:
 
 1. Recipe: Foundations → React Core → Advanced (confidence ≥ `somewhat`) → Portfolio.
-2. Compress `html-css` + deep JS foundations (skills already selected); keep thin “JS for React” refresh.
-3. React Core = main bulk; lessons bias `video` + `practice`.
-4. Fit ~80–100 lessons into budget; drop advanced if over.
-5. User with `skills: ["none"]` gets full foundations; user with `html-css`+`javascript` skips ahead — **same Learning Document Pool, different path instance**.
+2. Gap (stage-aware): the profile reports `html-css` at stage 3 (high confidence) and `javascript` at stage 2 (medium). `html-css` nodes → `checkpoint` units (fast validation, not re-teaching); `javascript` nodes → `refresher` units at entry stage 2. React nodes default to stage 1 → `foundation`.
+3. Topological sort over the skills index orders the gap (html-css checkpoints → JS refreshers → React Core → optional Advanced → Portfolio); React Core is the main bulk.
+4. Per skill, foundation keeps the stage path toward the target, while checkpoint/refresher units must match the entry stage and planned role; intersect formats with `learningStyleWeights` without dropping the only proof/checkpoint. Pack against `budgetMinutes`. Drop the optional Advanced phase first if over.
+5. Narration pass (if enabled) names the phases and writes copy — it does not change the order or the set. Deterministic order stands if the AI pass is skipped.
+6. A learner reporting all skills at stage 1 gets full foundations; this learner at stage 3/2 gets checkpoints + refreshers — **same compiled pool, different entry stages, different path instance**.
 
 ---
 
@@ -655,11 +661,11 @@ Generator behavior:
 
 ### 7.1 Already exists (keep) — see doc 02
 
-| Endpoint | Role for roadmap |
-| --- | --- |
-| `GET /questionnaire/schema` | Source of allowed answer tokens (roles, skills, hours, …) |
+| Endpoint                     | Role for roadmap                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------- |
+| `GET /questionnaire/schema`  | Source of allowed answer tokens (roles, skills, hours, …)                    |
 | `POST /questionnaire/submit` | Creates/updates `goals`, returns `{ roadmap: { status, jobId, roadmapId } }` |
-| `GET /me` | `questionnaireStatus` gate before home / roadmap UI |
+| `GET /me`                    | `questionnaireStatus` gate before home / roadmap UI                          |
 
 Worker must persist real `jobId` from submit. Idempotent re-submit re-queues (current stub behavior) — decide later whether to no-op if roadmap `ready`.
 
@@ -762,19 +768,23 @@ From product §9.3 — enforce in generator + validators:
 - No job-ready claim without assessments
 - Cap roadmap size (max lessons / phases) to protect DB + UI
 - Never trust client for XP on complete (doc 05)
+- **The LLM never orders, selects across skills, grades, or budgets.** It narrates only; its output is validated to add/drop/reorder nothing and to keep prerequisites satisfied, else repaired from the skills index (§5 step 8).
+- **Ordering and budget are deterministic** and identical with or without the AI pass.
 
 ---
 
 ## 10. Error codes
 
-| Code | When |
-| --- | --- |
-| `GOAL_NOT_FOUND` | Generate for missing goal |
-| `ROLE_RECIPE_MISSING` | No recipe for target role |
-| `CATALOG_EMPTY` | Stack has no active skill nodes |
-| `ROADMAP_GENERATION_FAILED` | Worker exhausted retries |
-| `ROADMAP_NOT_READY` | Client fetched tree while generating |
-| `ROADMAP_NOT_FOUND` | No roadmap for user |
+| Code                               | When                                                                                               |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `GOAL_NOT_FOUND`                   | Generate for missing goal                                                                          |
+| `ROLE_RECIPE_MISSING`              | No recipe for target role                                                                          |
+| `CATALOG_EMPTY`                    | Stack has no active skill nodes                                                                    |
+| `ROADMAP_GENERATION_FAILED`        | Worker exhausted retries                                                                           |
+| `ROADMAP_NOT_READY`                | Client fetched tree while generating                                                               |
+| `ROADMAP_NOT_FOUND`                | No roadmap for user                                                                                |
+| `CONTENT_REQUIRED_BUDGET_EXCEEDED` | Required content exceeds `budgetMinutes`; feasibility returned to Course Timing (content_pool §15) |
+| `CONTENT_NARRATION_INVALID`        | LLM phasing added/dropped/reordered units or referenced unknown ids (content_pool §15)             |
 
 ---
 
@@ -793,6 +803,14 @@ From product §9.3 — enforce in generator + validators:
 - [ ] Progress % updates when lessons complete (hook for doc 04/05 + AI Coach)
 - [ ] Generator has no hard-coded “only Data Analyst” branch — role from recipe + pool data
 - [ ] New category/job seed works without editing Roadmap Generator / Coach algorithms
+- [ ] Generator reads the compiled units + skills index projection, not the authoring tree, at request time
+- [ ] Lesson order is produced by topological sort over the skills index — deterministic and prerequisite-safe — regardless of whether the AI pass runs
+- [ ] `budgetMinutes` is computed in code and never recomputed by the model
+- [ ] The AI pass only narrates (titles/phases/copy + resource ids); validation rejects or repairs any added/dropped/reordered unit
+- [ ] Lesson instances are pinned to `source_template_id` + `source_version_id` at generation time
+- [ ] Generator consumes the versioned `RoadmapGenerationProfile` (per-skill entry stages), not raw `goals` skill tokens
+- [ ] A partially-known skill produces a `checkpoint`/`refresher` at the learner's entry stage, not omission or full re-teaching
+- [ ] `placement.required` gates any high-confidence skip until the diagnostic clears
 
 ---
 
@@ -813,9 +831,9 @@ From product §9.3 — enforce in generator + validators:
 - [ ] Token decoders for `studyHours` + `deadline` (schema v1); versioned if schema bumps
 - [ ] Seed recipes for all four goal options; stacks: React path + Data Analyst (SQL/Excel/Python/…)
 - [ ] Tag skill nodes with questionnaire skill tokens where applicable
-- [ ] `SkillGraphService` load subgraph by recipe (no user logic)
-- [ ] `RoadmapGeneratorService.assemble(goalId)` deterministic traverse + prune
-- [x] Optional generator AI enrich + Zod validate (`RoadmapAiService`, soft-fail)
+- [ ] `SkillGraphService` load subgraph by recipe (no user logic) — served from compiled units + skills index
+- [ ] `RoadmapGeneratorService.assemble(goalId)` deterministic gap → topo-sort → format-filter → budget-pack (stages 2–6)
+- [x] Optional generator AI enrich — **narration only** + Zod + reorder/id validation (`RoadmapAiService`, soft-fail, DAG repair)
 - [x] Queue processor wired from `RoadmapsService.enqueueGenerate`
 - [ ] `CoachService` stub hooks for progress/assessment events
 - [ ] `GET /roadmaps/current` + job poll
@@ -848,12 +866,12 @@ Only one roadmap is active per user. A replacement roadmap is generated/validate
 
 Each lesson instance references:
 
-- stable lesson template ID
-- published lesson version ID
+- stable lesson template ID (`source_template_id`)
+- published lesson/compiled-unit version ID (`source_version_id`)
 - source skill node/version
 - content/reward-class snapshot
 
-A later Content Pool edit does not silently alter a lesson already assigned to a user.
+These are the same provenance fields carried on compiled units (content_pool §4.2, §6.7). A later Content Pool edit recompiles new units but does not silently alter a lesson already assigned to a user; migration to a newer version is an explicit operation.
 
 ### 14.3 Roadmap generation completion
 

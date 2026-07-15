@@ -20,6 +20,7 @@ import { BackButton } from "@/components/BackButton";
 import { assets } from "@/lib/assets";
 import { lessonsApi } from "@/lib/api/lessons";
 import type { LessonPlayDto } from "@/lib/api/types";
+import { startHrefFor } from "@/lib/lesson/map-play";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { useLessonStore } from "@/store/useLessonStore";
@@ -27,6 +28,33 @@ import { LessonPrimaryButton } from "./LessonShell";
 import { LessonLoadState } from "./LessonLoadState";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
+
+const START_LABELS: Record<string, string> = {
+  reading: "Start reading",
+  video: "Start watching",
+  quiz: "Start quiz",
+  practice: "Start practice",
+  mini_project: "Start project",
+  interactive: "Start practice",
+};
+
+const REVIEW_LABELS: Record<string, string> = {
+  reading: "Review reading",
+  video: "Watch again",
+  quiz: "Review quiz",
+  practice: "Review practice",
+  mini_project: "Review project",
+  interactive: "Review practice",
+};
+
+const TYPE_TAGS: Record<string, string> = {
+  reading: "Read",
+  video: "Watch",
+  quiz: "Quiz",
+  practice: "Practice",
+  mini_project: "Mini project",
+  interactive: "Interactive",
+};
 
 /**
  * Lesson launch — night-hero family (Home / Learn desk).
@@ -134,7 +162,7 @@ export default function LessonOverviewScreen({
           <div className="min-w-0 pb-1">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-[#ffc928]/15 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.1em] text-[#ffc928] uppercase">
               <Sparkles className="h-3 w-3" strokeWidth={2.5} />
-              {lesson.missionName}
+              {lesson.status === "completed" ? "Cleared · review" : lesson.missionName}
             </p>
             <h1 className="mt-3 font-display text-[34px] leading-[0.92] font-bold tracking-[-0.04em] text-balance">
               {lesson.title}
@@ -154,11 +182,9 @@ export default function LessonOverviewScreen({
               <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold ring-1 ring-white/15">
                 +{lesson.reward.gems} gems · +{lesson.reward.coins} coins
               </span>
-              {lesson.contentSource?.rewardClass ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold ring-1 ring-white/15">
-                  {lesson.contentSource.rewardClass}
-                </span>
-              ) : null}
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold ring-1 ring-white/15">
+                {TYPE_TAGS[lesson.lessonType] ?? lesson.lessonType}
+              </span>
             </div>
           </div>
 
@@ -200,9 +226,9 @@ export default function LessonOverviewScreen({
           </p>
         </div>
 
-        {lesson.resource.href.startsWith("http") ? (
+        {lesson.url?.startsWith("http") ? (
           <a
-            href={lesson.resource.href}
+            href={lesson.url}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 flex items-start gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]"
@@ -215,10 +241,10 @@ export default function LessonOverviewScreen({
                 Resource
               </span>
               <span className="mt-0.5 block font-display text-[15px] leading-snug font-bold text-[#0f1220]">
-                {lesson.resource.label}
+                {lesson.provider ?? "External resource"}
               </span>
-              <span className="mt-1 block text-[12px] font-bold text-arc-lavender-700">
-                {lesson.resource.note}
+              <span className="mt-1 block truncate text-[12px] font-bold text-arc-lavender-700">
+                {lesson.url}
               </span>
             </span>
           </a>
@@ -227,10 +253,12 @@ export default function LessonOverviewScreen({
         <div className="mt-auto pt-6">
           <motion.div whileTap={{ scale: 0.98, y: 2 }} transition={softSpring}>
             <LessonPrimaryButton
-              href={`/learn/${lesson.id}/content`}
+              href={startHrefFor(lesson)}
               className="rounded-[18px] py-4 text-[16px] shadow-[0_5px_0_var(--color-arc-purple-700)]"
             >
-              Start lesson
+              {lesson.status === "completed"
+                ? (REVIEW_LABELS[lesson.lessonType] ?? "Review lesson")
+                : (START_LABELS[lesson.lessonType] ?? "Start lesson")}
               <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
             </LessonPrimaryButton>
           </motion.div>

@@ -46,6 +46,22 @@ export function messageForCode(code: string, fallback: string): string {
       return "You already finished this questionnaire";
     case "QUESTIONNAIRE_NOT_FOUND":
       return "No questionnaire found";
+    case "QUESTIONNAIRE_SCHEMA_STALE":
+      return "The questionnaire was updated — refresh and check your answers";
+    case "PROFILE_PREVIEW_INCOMPLETE":
+      return "Answer a few more questions to preview your profile";
+    case "PROFILE_DERIVATION_FAILED":
+      return "Could not build your learner profile — try again";
+    case "PROFILE_VERSION_CONFLICT":
+      return "Your profile changed elsewhere — refresh and retry";
+    case "PROFILE_NOT_FOUND":
+      return "No learner profile yet — complete the questionnaire first";
+    case "TARGET_BELOW_CURRENT_STAGE":
+      return "Your target is below your current level — pick a higher outcome";
+    case "DEADLINE_NOT_FEASIBLE":
+      return "That deadline doesn't fit your weekly time — adjust one of them";
+    case "PLACEMENT_REQUIRED":
+      return "A short placement check is needed before content can be skipped";
     case "ROADMAP_GENERATION_FAILED":
       return "Could not start roadmap generation";
     case "ROADMAP_ROLE_NOT_FOUND":

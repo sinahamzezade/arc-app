@@ -36,6 +36,81 @@ export type QuestionnaireResponse = {
   goalId: string | null;
   submittedAt: string | null;
   updatedAt: string | null;
+  /** Present on GET /questionnaire when a learner profile exists. */
+  learnerProfile?: LearnerProfileSummaryDto | null;
+};
+
+export type StageConfidence = "low" | "medium" | "high";
+
+export type PaceClass = "light" | "balanced" | "focused" | "intensive";
+
+export type LearnerSkillEstimateDto = {
+  skillSlug: string;
+  provisionalStage: number;
+  verifiedStage: number | null;
+  confidence: StageConfidence;
+  exposureLevel: string;
+  evidenceSource: string;
+};
+
+export type LearnerProfileSummaryDto = {
+  id: string;
+  version: number;
+  status: "provisional" | "verified" | "superseded";
+  primaryTrackSlug: string;
+  secondaryTrackSlugs: string[];
+  selfReportedStage: number;
+  provisionalStage: number;
+  verifiedStage: number | null;
+  stageConfidence: StageConfidence;
+  targetStage: number;
+  stageGap: number;
+  paceClass: PaceClass;
+  weeklyEffectiveMinutes: number;
+  preferredSessionMinutes: number;
+  diagnosticRequired: boolean;
+  diagnosticReasonCodes: string[];
+  skillEstimates: LearnerSkillEstimateDto[];
+  createdAt: string | null;
+};
+
+export type FeasibilityDto = {
+  state: "feasible" | "slightly_tight" | "intensive_option" | "unrealistic";
+  requiredWeeksEstimate: number | null;
+  deadlineWeeks: number | null;
+  message: string;
+  alternatives: string[];
+};
+
+export type ProfilePreviewDto = {
+  primaryTrackSlug: string;
+  secondaryTrackSlugs: string[];
+  selfReportedStage: number;
+  provisionalStage: number;
+  stageConfidence: StageConfidence;
+  targetStage: number;
+  stageGap: number;
+  paceClass: PaceClass;
+  weeklyEffectiveMinutes: number;
+  preferredSessionMinutes: number;
+  skillMap: Array<{
+    skillSlug: string;
+    provisionalStage: number;
+    confidence: StageConfidence;
+    exposureLevel: string;
+  }>;
+  diagnosticRequired: boolean;
+  diagnosticReasonCodes: string[];
+  feasibility: FeasibilityDto;
+  youAreHere: string;
+  youWantToReach: string;
+  yourPace: string;
+};
+
+export type ProfilePreviewResponse = {
+  preview: ProfilePreviewDto;
+  incompleteFields: string[];
+  schemaVersion: number;
 };
 
 export type QuestionnaireSubmitResponse = {
@@ -47,6 +122,12 @@ export type QuestionnaireSubmitResponse = {
     weeklyHours: string | null;
     targetDeadline: string | null;
   } | null;
+  learnerProfile?: LearnerProfileSummaryDto | null;
+  placement?: {
+    required: boolean;
+    reasonCodes: string[];
+  };
+  feasibility?: FeasibilityDto;
   roadmap: {
     status: "queued" | "processing" | "ready" | "failed";
     jobId: string;
@@ -59,6 +140,8 @@ export type QuestionnaireOptionDto = {
   label: string;
   icon?: string;
   iconClassName?: string;
+  /** Safe display metadata only — never scoring weights. */
+  profileHint?: string;
 };
 
 export type StepVisibleWhen = {
@@ -67,6 +150,16 @@ export type StepVisibleWhen = {
   value: string | string[];
 };
 
+export type QuestionnaireUiKind =
+  | "options"
+  | "schedule"
+  | "track-select"
+  | "skill-evidence"
+  | "capacity"
+  | "outcome"
+  | "context"
+  | "confidence-barriers";
+
 export type QuestionnaireStepDto = {
   id: string;
   stepNumber: number;
@@ -74,12 +167,18 @@ export type QuestionnaireStepDto = {
   subtitle: string;
   selection: "single" | "multi";
   allowOther?: boolean;
-  uiKind: "options" | "schedule";
+  uiKind: QuestionnaireUiKind;
   reviewLabel: string;
   reviewIcon: string;
   options: QuestionnaireOptionDto[];
   scheduleDays?: string[];
   scheduleTimes?: QuestionnaireOptionDto[];
+  /** Exposure levels for skill-evidence uiKind. */
+  exposureOptions?: QuestionnaireOptionDto[];
+  /** Session length choices for capacity uiKind. */
+  sessionOptions?: QuestionnaireOptionDto[];
+  /** Secondary options for compound screens (outcome deadline, context frequency, barriers). */
+  secondaryOptions?: QuestionnaireOptionDto[];
   visibleWhen?: StepVisibleWhen | StepVisibleWhen[];
 };
 
@@ -380,59 +479,103 @@ export type WeekCurrentResponse = {
 
 /* ─── Lesson play ─────────────────────────────────────────────── */
 
-export type LessonContentBlockDto =
-  | { type: "text"; body: string }
-  | { type: "callout"; title: string; body: string }
-  | { type: "code"; label: string; code: string };
+export type LessonTypeDto =
+  | "reading"
+  | "video"
+  | "practice"
+  | "mini_project"
+  | "interactive"
+  | "quiz";
 
-export type LessonContentSourceDto = {
-  lessonTemplateId: string | null;
-  lessonVersionId: string | null;
-  version: number | null;
-  status: string | null;
-  rewardClass: string | null;
+export type LessonSectionBlockDto = {
+  type: "text" | "callout" | "code";
+  /** text/callout body copy */
+  body?: string;
+  /** callout heading */
+  title?: string;
+  /** code block source */
+  code?: string;
+  /** code block label (e.g. language or filename) */
+  label?: string;
 };
+
+export type LessonSectionDto = {
+  id: string;
+  title: string;
+  blocks: LessonSectionBlockDto[];
+};
+
+export type LessonReadingBodyDto = {
+  objective: string;
+  sections: LessonSectionDto[];
+  keyTakeaways: string[];
+};
+
+export type LessonVideoBodyDto = {
+  objective: string;
+  note: string;
+};
+
+/** practice | mini_project | interactive */
+export type LessonTaskBodyDto = {
+  objective: string;
+  task: string;
+  acceptanceCriteria: string[];
+  hints?: string[];
+  starterHtml?: string;
+};
+
+export type LessonQuizQuestionDto = {
+  id: string;
+  q: string;
+  type: "mcq" | "boolean";
+  options?: string[];
+};
+
+export type LessonQuizBodyDto = {
+  objective: string;
+  passScore: number;
+  questions: LessonQuizQuestionDto[];
+};
+
+/** Type-specific unit body — secrets (answer/explain) stripped by server. */
+export type LessonPlayBodyDto =
+  | LessonReadingBodyDto
+  | LessonVideoBodyDto
+  | LessonTaskBodyDto
+  | LessonQuizBodyDto;
+
+export type LessonQuizAnswerValue = number | boolean;
 
 export type LessonPlayDto = {
   id: string;
   lessonNumber: number;
   title: string;
   missionName: string | null;
+  lessonType: LessonTypeDto;
   minutes: number;
+  /** Base lesson XP from the roadmap row. */
+  xp: number;
+  /** Previewed XP after reward rules. */
   xpReward: number;
   objective: string;
   status: "locked" | "available" | "completed";
+  provider: string | null;
+  url: string | null;
+  level: number;
+  unitId: string | null;
   contentVersionId?: string;
-  contentSchemaVersion?: number;
   rewardRuleVersion?: string;
   attemptId?: string | null;
   serverTime?: string;
-  /** Content-pool provenance when backend attaches it. */
-  contentSource?: LessonContentSourceDto | null;
-  resource: {
-    id: string | null;
-    label: string;
-    href: string;
-    note: string;
-    provider: string | null;
+  /** Safe unit snapshot context — no private learner profile data. */
+  adaptive?: {
+    unitRole: string | null;
+    servesStage: number[];
+    entryAction: string | null;
+    skillsTaught: string[];
   };
-  arloPrompt: string;
-  content: Array<{
-    id: string;
-    title: string;
-    blocks: LessonContentBlockDto[];
-  }>;
-  practice: {
-    id: string;
-    prompt: string;
-    hint: string;
-    options: Array<{ id: string; label: string }>;
-  };
-  quiz: Array<{
-    id: string;
-    prompt: string;
-    options: Array<{ id: string; label: string }>;
-  }>;
+  body: LessonPlayBodyDto;
   rewardPreview: {
     xp: number;
     gems: number;
@@ -441,13 +584,11 @@ export type LessonPlayDto = {
     badgeLabel?: string;
     arloLine: string;
   };
-  suggestedArlo: string[];
   progress: {
     status: "not_started" | "in_progress" | "completed";
     contentStep: number;
     practiceDone: boolean;
-    practiceOptionId?: string | null;
-    quizAnswers: Record<string, string>;
+    quizAnswers: Record<string, LessonQuizAnswerValue>;
     quizIndex: number;
     startedAt: string | null;
     completedAt: string | null;
@@ -466,14 +607,15 @@ export type LessonStartResponse = {
 
 export type LessonCheckPracticeResponse = {
   correct: boolean;
-  correctOptionId: string;
-  feedback: string;
+  done: boolean;
 };
 
 export type LessonCheckQuizResponse = {
+  questionId: string;
   correct: boolean;
-  correctOptionId: string;
-  explanation: string;
+  /** Correct answer — option index (mcq) or boolean. */
+  answer: LessonQuizAnswerValue;
+  explain: string | null;
 };
 
 export type LessonCompleteResponse = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
@@ -26,7 +26,11 @@ import type { QuestionnaireAnswers } from "@/schemas/questionnaire";
 import {
   asOptionalString,
   asSchedule,
+  asSkillEvidence,
+  asString,
   asStringArray,
+  asTrackSelection,
+  detectTimezone,
 } from "@/schemas/questionnaire";
 import { useQuestionnaireStore } from "@/store/useQuestionnaireStore";
 import { QuestionnaireLayout } from "./QuestionnaireLayout";
@@ -202,12 +206,432 @@ export default function QuestionnaireStepScreen({
         </div>
       }
     >
-      {step.uiKind === "schedule" ? (
-        <ScheduleStep step={step} answers={answers} setAnswers={setAnswers} />
-      ) : (
-        <StandardStep step={step} answers={answers} setAnswers={setAnswers} />
-      )}
+      <StepBody step={step} answers={answers} setAnswers={setAnswers} />
     </QuestionnaireLayout>
+  );
+}
+
+type StepBodyProps = {
+  step: QuestionnaireStepConfig;
+  answers: QuestionnaireAnswers;
+  setAnswers: (patch: Partial<QuestionnaireAnswers>) => void;
+};
+
+function StepBody({ step, answers, setAnswers }: StepBodyProps) {
+  switch (step.uiKind) {
+    case "schedule":
+      return (
+        <ScheduleStep step={step} answers={answers} setAnswers={setAnswers} />
+      );
+    case "track-select":
+      return (
+        <TrackSelectStep
+          step={step}
+          answers={answers}
+          setAnswers={setAnswers}
+        />
+      );
+    case "skill-evidence":
+      return (
+        <SkillEvidenceStep
+          step={step}
+          answers={answers}
+          setAnswers={setAnswers}
+        />
+      );
+    case "capacity":
+      return (
+        <CompoundSingleStep
+          step={step}
+          answers={answers}
+          setAnswers={setAnswers}
+          primaryHeading="Weekly time"
+          secondaryHeading="Session length"
+          secondaryKey="preferredSessionMinutes"
+          secondaryOptions={step.sessionOptions}
+        />
+      );
+    case "outcome":
+      return (
+        <CompoundSingleStep
+          step={step}
+          answers={answers}
+          setAnswers={setAnswers}
+          primaryHeading="Target outcome"
+          secondaryHeading="Deadline"
+          secondaryKey="deadline"
+          secondaryOptions={step.secondaryOptions}
+        />
+      );
+    case "context":
+      return (
+        <CompoundSingleStep
+          step={step}
+          answers={answers}
+          setAnswers={setAnswers}
+          primaryHeading="Your situation"
+          secondaryHeading="How often do you use this subject?"
+          secondaryKey="useFrequency"
+          secondaryOptions={step.secondaryOptions}
+        />
+      );
+    case "confidence-barriers":
+      return (
+        <ConfidenceBarriersStep
+          step={step}
+          answers={answers}
+          setAnswers={setAnswers}
+        />
+      );
+    default:
+      return (
+        <StandardStep step={step} answers={answers} setAnswers={setAnswers} />
+      );
+  }
+}
+
+function SectionHeading({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="mb-2.5 text-[10px] font-black tracking-[0.12em] text-[#7a6fa3] uppercase">
+      {children}
+    </h2>
+  );
+}
+
+/** track-select: required primary track + optional secondary interests. */
+function TrackSelectStep({ step, answers, setAnswers }: StepBodyProps) {
+  const [query, setQuery] = useState("");
+  const track = asTrackSelection(answers, step.id);
+
+  const filteredOptions = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return step.options;
+    return step.options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
+    );
+  }, [query, step.options]);
+
+  const setPrimary = (value: string) => {
+    const primary = track.primary === value ? "" : value;
+    setAnswers({
+      [step.id]: {
+        primary,
+        secondary: track.secondary.filter((s) => s !== primary),
+      },
+    });
+  };
+
+  const toggleSecondary = (value: string) => {
+    const next = track.secondary.includes(value)
+      ? track.secondary.filter((s) => s !== value)
+      : [...track.secondary, value];
+    setAnswers({ [step.id]: { primary: track.primary, secondary: next } });
+  };
+
+  const secondaryChoices = step.options.filter(
+    (o) => o.value !== track.primary,
+  );
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <SectionHeading>Primary track</SectionHeading>
+        {step.options.length > 4 ? (
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search tracks…"
+            className="mb-2.5 h-11 w-full rounded-[14px] border-2 border-[#ebe4f6] bg-white px-3.5 text-[13px] font-semibold text-[#0f1220] placeholder:text-[#c3badb] shadow-[0_3px_0_#ebe4f6] focus:border-arc-purple-500 focus:outline-none"
+            aria-label="Search tracks"
+          />
+        ) : null}
+        <div className="space-y-2.5">
+          {filteredOptions.length === 0 ? (
+            <p className="rounded-[16px] border-2 border-dashed border-[#ebe4f6] bg-white/70 px-4 py-6 text-center text-[13px] font-semibold text-[#7a6fa3]">
+              No tracks match — try another search.
+            </p>
+          ) : (
+            filteredOptions.map((option) => (
+              <QuestionnaireOptionCard
+                key={option.value}
+                option={option}
+                selected={track.primary === option.value}
+                onToggle={() => setPrimary(option.value)}
+              />
+            ))
+          )}
+        </div>
+      </section>
+
+      {track.primary && secondaryChoices.length ? (
+        <section>
+          <SectionHeading>Secondary interests (optional)</SectionHeading>
+          <div className="flex flex-wrap gap-2">
+            {secondaryChoices.map((option) => {
+              const selected = track.secondary.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => toggleSecondary(option.value)}
+                  className={cn(
+                    "rounded-[12px] px-3.5 py-2 text-[13px] font-bold transition-colors",
+                    selected
+                      ? "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
+                      : "border-2 border-[#ebe4f6] bg-white text-[#7a6fa3] shadow-[0_2px_0_#ebe4f6]",
+                  )}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+/** skill-evidence: pick skills, then rate exposure per selected skill. */
+function SkillEvidenceStep({ step, answers, setAnswers }: StepBodyProps) {
+  const evidence = asSkillEvidence(answers, step.id);
+  const otherKey = `${step.id}Other`;
+  const otherValue = asOptionalString(answers, otherKey) ?? "";
+  const defaultExposure = step.exposureOptions[0]?.value ?? "heard_of";
+
+  const toggleSkill = (skillSlug: string) => {
+    const next = evidence.some((e) => e.skillSlug === skillSlug)
+      ? evidence.filter((e) => e.skillSlug !== skillSlug)
+      : [...evidence, { skillSlug, exposureLevel: defaultExposure }];
+    setAnswers({ [step.id]: next });
+  };
+
+  const setExposure = (skillSlug: string, exposureLevel: string) => {
+    setAnswers({
+      [step.id]: evidence.map((e) =>
+        e.skillSlug === skillSlug ? { ...e, exposureLevel } : e,
+      ),
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <SectionHeading>Skills you already have</SectionHeading>
+        <div className="space-y-2.5">
+          {step.options.map((option) => (
+            <QuestionnaireOptionCard
+              key={option.value}
+              option={option}
+              selected={evidence.some((e) => e.skillSlug === option.value)}
+              onToggle={() => toggleSkill(option.value)}
+            />
+          ))}
+        </div>
+      </section>
+
+      {evidence.length ? (
+        <section>
+          <SectionHeading>How independently can you use each?</SectionHeading>
+          <div className="space-y-3">
+            {evidence.map((item) => (
+              <div
+                key={item.skillSlug}
+                className="rounded-[16px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_3px_0_#ebe4f6]"
+              >
+                <p className="mb-2 text-[13px] font-bold text-[#0f1220]">
+                  {step.options.find((o) => o.value === item.skillSlug)
+                    ?.label ?? item.skillSlug}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {step.exposureOptions.map((exp) => {
+                    const selected = item.exposureLevel === exp.value;
+                    return (
+                      <button
+                        key={exp.value}
+                        type="button"
+                        onClick={() => setExposure(item.skillSlug, exp.value)}
+                        className={cn(
+                          "rounded-[12px] px-3 py-1.5 text-[12px] font-bold transition-colors",
+                          selected
+                            ? "bg-arc-purple-500 text-white shadow-[0_2px_0_#4b2fd6]"
+                            : "border-2 border-[#ebe4f6] bg-white text-[#7a6fa3]",
+                        )}
+                      >
+                        {exp.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <p className="rounded-[16px] border-2 border-dashed border-[#ebe4f6] bg-white/70 px-4 py-4 text-center text-[13px] font-semibold text-[#7a6fa3]">
+          No skills yet? That&apos;s fine — we&apos;ll start from foundations.
+        </p>
+      )}
+
+      {step.allowOther ? (
+        <OtherField
+          value={otherValue}
+          onChange={(text) => setAnswers({ [otherKey]: text })}
+          placeholder="Another skill…"
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** capacity / outcome / context: single primary answer + single secondary answer. */
+function CompoundSingleStep({
+  step,
+  answers,
+  setAnswers,
+  primaryHeading,
+  secondaryHeading,
+  secondaryKey,
+  secondaryOptions,
+}: StepBodyProps & {
+  primaryHeading: string;
+  secondaryHeading: string;
+  secondaryKey: string;
+  secondaryOptions: QuestionnaireStepConfig["secondaryOptions"];
+}) {
+  const otherKey = `${step.id}Other`;
+  const otherValue = asOptionalString(answers, otherKey) ?? "";
+  const primary = asString(answers, step.id);
+  const secondary = asString(answers, secondaryKey);
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <SectionHeading>{primaryHeading}</SectionHeading>
+        <div className="space-y-2.5">
+          {step.options.map((option) => (
+            <QuestionnaireOptionCard
+              key={option.value}
+              option={option}
+              selected={primary === option.value}
+              onToggle={() =>
+                setAnswers({
+                  [step.id]: primary === option.value ? "" : option.value,
+                })
+              }
+            />
+          ))}
+        </div>
+        {step.allowOther ? (
+          <div className="mt-2.5">
+            <OtherField
+              value={otherValue}
+              onChange={(text) => setAnswers({ [otherKey]: text })}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      <section>
+        <SectionHeading>{secondaryHeading}</SectionHeading>
+        <div className="flex flex-wrap gap-2">
+          {secondaryOptions.map((option) => {
+            const selected = secondary === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() =>
+                  setAnswers({
+                    [secondaryKey]: selected ? "" : option.value,
+                  })
+                }
+                className={cn(
+                  "rounded-[12px] px-3.5 py-2 text-[13px] font-bold transition-colors",
+                  selected
+                    ? "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
+                    : "border-2 border-[#ebe4f6] bg-white text-[#7a6fa3] shadow-[0_2px_0_#ebe4f6]",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/** confidence-barriers: single confidence + multi barriers. */
+function ConfidenceBarriersStep({ step, answers, setAnswers }: StepBodyProps) {
+  const otherKey = `${step.id}Other`;
+  const otherValue = asOptionalString(answers, otherKey) ?? "";
+  const confidence = asString(answers, "confidence");
+  const barriers = asStringArray(answers, step.id);
+
+  const toggleBarrier = (value: string) => {
+    const next = barriers.includes(value)
+      ? barriers.filter((b) => b !== value)
+      : [...barriers, value];
+    setAnswers({ [step.id]: next });
+  };
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <SectionHeading>Your confidence</SectionHeading>
+        <div className="space-y-2.5">
+          {step.options.map((option) => (
+            <QuestionnaireOptionCard
+              key={option.value}
+              option={option}
+              selected={confidence === option.value}
+              onToggle={() =>
+                setAnswers({
+                  confidence: confidence === option.value ? "" : option.value,
+                })
+              }
+            />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <SectionHeading>What usually gets in the way?</SectionHeading>
+        <div className="flex flex-wrap gap-2">
+          {step.secondaryOptions.map((option) => {
+            const selected = barriers.includes(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => toggleBarrier(option.value)}
+                className={cn(
+                  "rounded-[12px] px-3.5 py-2 text-[13px] font-bold transition-colors",
+                  selected
+                    ? "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
+                    : "border-2 border-[#ebe4f6] bg-white text-[#7a6fa3] shadow-[0_2px_0_#ebe4f6]",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        {step.allowOther ? (
+          <div className="mt-2.5">
+            <OtherField
+              value={otherValue}
+              onChange={(text) => setAnswers({ [otherKey]: text })}
+              placeholder="Another barrier…"
+            />
+          </div>
+        ) : null}
+      </section>
+    </div>
   );
 }
 
@@ -344,19 +768,28 @@ function ScheduleStep({
 }) {
   const schedule = asSchedule(answers, step.id);
   const { days, times } = schedule;
+  const timezone = schedule.timezone ?? detectTimezone();
 
   const toggleDay = (day: string) => {
     const next = days.includes(day)
       ? days.filter((d) => d !== day)
       : [...days, day];
-    setAnswers({ [step.id]: { ...schedule, days: next } });
+    setAnswers({
+      [step.id]: { ...schedule, days: next, ...(timezone ? { timezone } : {}) },
+    });
   };
 
   const toggleTime = (time: string) => {
     const next = times.includes(time)
       ? times.filter((t) => t !== time)
       : [...times, time];
-    setAnswers({ [step.id]: { ...schedule, times: next } });
+    setAnswers({
+      [step.id]: {
+        ...schedule,
+        times: next,
+        ...(timezone ? { timezone } : {}),
+      },
+    });
   };
 
   return (

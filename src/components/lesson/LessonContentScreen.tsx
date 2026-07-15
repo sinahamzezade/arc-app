@@ -1,13 +1,21 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Lightbulb, Terminal } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ExternalLink,
+  Lightbulb,
+  PlayCircle,
+} from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
-import type { LessonContentBlock } from "@/lib/lesson/types";
 import { InlineMarkdown } from "@/lib/lesson/inline-markdown";
 import { lessonsApi } from "@/lib/api/lessons";
+import type { LessonSectionBlockDto } from "@/lib/api/types";
+import { startSegmentFor, finishHrefFor, finishLabelFor, type PlayableLesson } from "@/lib/lesson/map-play";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton, LessonShell } from "./LessonShell";
@@ -16,7 +24,8 @@ import { LessonLoadState } from "./LessonLoadState";
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
- * Lesson content pager — night chrome + clay study sheet.
+ * Lesson content — reading pager (sections + key takeaways) or video note.
+ * Task/quiz lessons are redirected to their own routes.
  */
 export default function LessonContentScreen({
   lessonId,
@@ -24,22 +33,18 @@ export default function LessonContentScreen({
   lessonId: string;
 }) {
   const router = useRouter();
-  const { data: session } = useSession();
   const { lesson, isLoading, isError, error, refetch } =
     usePlayableLesson(lessonId);
-  const contentStep = useLessonStore((s) => s.contentStep);
-  const setContentStep = useLessonStore((s) => s.setContentStep);
 
-  const progressMutation = useMutation({
-    mutationFn: (step: number) =>
-      lessonsApi.saveProgress(
-        lessonId,
-        { contentStep: step },
-        session?.accessToken,
-      ),
-  });
+  // Wrong route for this lesson type — bounce to the right one.
+  const wrongSegment =
+    lesson && lesson.body.kind !== "reading" && lesson.body.kind !== "video";
+  useEffect(() => {
+    if (!lesson || !wrongSegment) return;
+    router.replace(`/learn/${lesson.id}/${startSegmentFor(lesson.lessonType)}`);
+  }, [lesson, wrongSegment, router]);
 
-  if (isLoading) {
+  if (isLoading || wrongSegment) {
     return (
       <LessonShell
         lessonId={lessonId}
@@ -61,13 +66,42 @@ export default function LessonContentScreen({
     );
   }
 
-  const page = lesson.content[contentStep] ?? lesson.content[0];
-  const total = lesson.content.length;
-  const isLast = contentStep >= total - 1;
-  const progress = 15 + ((contentStep + 1) / total) * 35;
+  if (lesson.body.kind === "video") {
+    return <VideoContent lesson={lesson} />;
+  }
 
-  const goNext = () => {
-    const next = contentStep + 1;
+  return <ReadingContent lesson={lesson} />;
+}
+
+function ReadingContent({ lesson }: { lesson: PlayableLesson }) {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const contentStep = useLessonStore((s) => s.contentStep);
+  const setContentStep = useLessonStore((s) => s.setContentStep);
+
+  const progressMutation = useMutation({
+    mutationFn: (step: number) =>
+      lessonsApi.saveProgress(
+        lesson.id,
+        { contentStep: step },
+        session?.accessToken,
+      ),
+  });
+
+  const body = lesson.body;
+  if (body.kind !== "reading") return null;
+
+  const sections = body.sections;
+  const hasTakeaways = body.keyTakeaways.length > 0;
+  // Key takeaways get their own final beat.
+  const total = Math.max(sections.length + (hasTakeaways ? 1 : 0), 1);
+  const step = Math.min(contentStep, total - 1);
+  const isTakeaways = hasTakeaways && step === total - 1;
+  const section = isTakeaways ? null : sections[step];
+  const isLast = step >= total - 1;
+  const progress = 15 + ((step + 1) / total) * 70;
+
+  const goTo = (next: number) => {
     setContentStep(next);
     progressMutation.mutate(next);
   };
@@ -75,20 +109,18 @@ export default function LessonContentScreen({
   return (
     <LessonShell
       lessonId={lesson.id}
-      stepLabel={`Learn · ${contentStep + 1}/${total}`}
+      stepLabel={`Read · ${step + 1}/${total}`}
       progress={progress}
       onBack={() => {
-        if (contentStep > 0) {
-          const prev = contentStep - 1;
-          setContentStep(prev);
-          progressMutation.mutate(prev);
+        if (step > 0) {
+          goTo(step - 1);
         } else {
           router.push(`/learn/${lesson.id}`);
         }
       }}
     >
       <motion.div
-        key={page.id}
+        key={step}
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={softSpring}
@@ -97,34 +129,53 @@ export default function LessonContentScreen({
         <div className="min-h-0 flex-1 overflow-y-auto pb-2">
           <div className="grid grid-cols-[auto_1fr] items-start gap-3">
             <span className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0f1220] font-display text-[15px] font-bold text-[#ffc928] shadow-[0_3px_0_#2a2f45]">
-              {contentStep + 1}
+              {step + 1}
             </span>
             <div className="min-w-0 pt-0.5">
               <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
-                Beat {contentStep + 1} of {total}
+                {isTakeaways ? "Wrap-up" : `Beat ${step + 1} of ${total}`}
               </p>
               <h1 className="mt-1 font-display text-[28px] leading-[0.95] font-bold tracking-[-0.035em] text-[#0f1220] text-balance">
-                {page.title}
+                {isTakeaways
+                  ? "Key takeaways"
+                  : section?.title?.trim() || lesson.title}
               </h1>
             </div>
           </div>
 
           <div className="mt-5 space-y-3">
-            {(page.blocks ?? []).map((block, i) => (
-              <ContentBlock key={i} block={block} />
-            ))}
+            {isTakeaways
+              ? body.keyTakeaways.map((takeaway, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]"
+                  >
+                    <CheckCircle2
+                      className="mt-0.5 h-5 w-5 shrink-0 text-arc-purple-500"
+                      strokeWidth={2.5}
+                    />
+                    <InlineMarkdown
+                      as="p"
+                      text={takeaway}
+                      className="text-[14px] leading-snug font-bold text-[#0f1220] text-pretty"
+                    />
+                  </div>
+                ))
+              : (section?.blocks ?? []).map((block, i) => (
+                  <SectionBlock key={i} block={block} />
+                ))}
           </div>
         </div>
 
         <div className="shrink-0 pt-6">
           <motion.div whileTap={{ scale: 0.98, y: 2 }} transition={softSpring}>
             {isLast ? (
-              <LessonPrimaryButton href={`/learn/${lesson.id}/practice`}>
-                Practice time
+              <LessonPrimaryButton href={finishHrefFor(lesson)}>
+                {finishLabelFor(lesson)}
                 <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
               </LessonPrimaryButton>
             ) : (
-              <LessonPrimaryButton onClick={goNext}>
+              <LessonPrimaryButton onClick={() => goTo(step + 1)}>
                 Continue
                 <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
               </LessonPrimaryButton>
@@ -136,50 +187,150 @@ export default function LessonContentScreen({
   );
 }
 
-function ContentBlock({ block }: { block: LessonContentBlock }) {
-  if (block.type === "text") {
-    return (
-      <InlineMarkdown
-        as="p"
-        text={block.body}
-        className="max-w-[28rem] text-[15px] leading-relaxed font-bold text-arc-lavender-700 text-pretty"
-      />
-    );
-  }
-
-  if (block.type === "callout") {
-    return (
-      <aside className="relative overflow-hidden rounded-[20px] bg-[#0f1220] p-4 text-white shadow-[0_12px_28px_rgba(15,18,32,0.22)]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-8 -right-6 h-24 w-24 rounded-full bg-[#ffc928]/20 blur-2xl"
-        />
-        <div className="relative z-[1] flex items-center gap-2 text-[#ffc928]">
-          <Lightbulb className="h-4 w-4" strokeWidth={2.5} />
-          <p className="text-[10px] font-extrabold tracking-[0.12em] uppercase">
-            {block.title}
-          </p>
-        </div>
-        <InlineMarkdown
-          as="p"
-          text={block.body}
-          className="relative z-[1] mt-2 text-[14px] leading-snug font-bold text-white/85 text-pretty [&_code]:bg-white/15"
-        />
-      </aside>
-    );
-  }
+function VideoContent({ lesson }: { lesson: PlayableLesson }) {
+  const router = useRouter();
+  const body = lesson.body;
+  if (body.kind !== "video") return null;
 
   return (
-    <div className="overflow-hidden rounded-[20px] border-2 border-[#ebe4f6] bg-[#0f1220] shadow-[0_4px_0_#ebe4f6]">
-      <div className="flex items-center gap-2 border-b border-white/10 px-3.5 py-2.5">
-        <Terminal className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
-        <span className="text-[10px] font-black tracking-[0.1em] text-white/50 uppercase">
-          {block.label}
-        </span>
-      </div>
-      <pre className="overflow-x-auto p-3.5 font-mono text-[12px] leading-relaxed whitespace-pre text-[#e8e0ff]">
-        {block.code}
-      </pre>
-    </div>
+    <LessonShell
+      lessonId={lesson.id}
+      stepLabel="Watch"
+      progress={50}
+      onBack={() => router.push(`/learn/${lesson.id}`)}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={softSpring}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto pb-2">
+          <div className="grid grid-cols-[auto_1fr] items-start gap-3">
+            <span className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0f1220] text-[#ffc928] shadow-[0_3px_0_#2a2f45]">
+              <PlayCircle className="h-5 w-5" strokeWidth={2.5} />
+            </span>
+            <div className="min-w-0 pt-0.5">
+              <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
+                {lesson.provider ?? "Video"}
+              </p>
+              <h1 className="mt-1 font-display text-[28px] leading-[0.95] font-bold tracking-[-0.035em] text-[#0f1220] text-balance">
+                {lesson.title}
+              </h1>
+            </div>
+          </div>
+
+          <aside className="relative mt-5 overflow-hidden rounded-[20px] bg-[#0f1220] p-4 text-white shadow-[0_12px_28px_rgba(15,18,32,0.22)]">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -top-8 -right-6 h-24 w-24 rounded-full bg-[#ffc928]/20 blur-2xl"
+            />
+            <div className="relative z-[1] flex items-center gap-2 text-[#ffc928]">
+              <Lightbulb className="h-4 w-4" strokeWidth={2.5} />
+              <p className="text-[10px] font-extrabold tracking-[0.12em] uppercase">
+                Watch for
+              </p>
+            </div>
+            <InlineMarkdown
+              as="p"
+              text={body.note}
+              className="relative z-[1] mt-2 text-[14px] leading-snug font-bold text-white/85 text-pretty [&_code]:bg-white/15"
+            />
+          </aside>
+
+          {lesson.url?.startsWith("http") ? (
+            <a
+              href={lesson.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex items-center gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]">
+                <ExternalLink className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[10px] font-black tracking-[0.1em] text-arc-lavender-500 uppercase">
+                  Open video
+                </span>
+                <span className="mt-0.5 block truncate font-display text-[15px] leading-snug font-bold text-[#0f1220]">
+                  {lesson.url}
+                </span>
+              </span>
+            </a>
+          ) : null}
+
+          <p className="mt-4 text-[13px] leading-snug font-bold text-arc-lavender-600 text-pretty">
+            About {lesson.minutes} min. Come back and claim your reward when
+            you&apos;re done watching.
+          </p>
+        </div>
+
+        <div className="shrink-0 pt-6">
+          <motion.div whileTap={{ scale: 0.98, y: 2 }} transition={softSpring}>
+            <LessonPrimaryButton href={finishHrefFor(lesson)}>
+              {lesson.status === "completed"
+                ? "Back to Path"
+                : "I watched it — claim reward"}
+              <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
+            </LessonPrimaryButton>
+          </motion.div>
+        </div>
+      </motion.div>
+    </LessonShell>
   );
+}
+
+function SectionBlock({ block }: { block: LessonSectionBlockDto }) {
+  switch (block.type) {
+    case "callout":
+      return (
+        <aside className="rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]">
+          <div className="flex items-center gap-2 text-arc-purple-500">
+            <Lightbulb className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+            <p className="text-[10px] font-extrabold tracking-[0.12em] uppercase">
+              {block.title?.trim() || "Note"}
+            </p>
+          </div>
+          {block.body ? (
+            <InlineMarkdown
+              as="p"
+              text={block.body}
+              className="mt-2 text-[14px] leading-snug font-bold text-[#0f1220] text-pretty"
+            />
+          ) : null}
+        </aside>
+      );
+    case "code":
+      return (
+        <div className="overflow-hidden rounded-[18px] bg-[#0f1220] shadow-[0_4px_0_#2a2f45]">
+          <p className="border-b border-white/10 px-4 py-2 text-[10px] font-extrabold tracking-[0.12em] text-[#ffc928] uppercase">
+            {block.label?.trim() || "Code"}
+          </p>
+          <pre className="overflow-x-auto p-4 text-[13px] leading-relaxed text-white/90">
+            <code>{block.code ?? ""}</code>
+          </pre>
+        </div>
+      );
+    default:
+      return (
+        <>
+          {splitParagraphs(block.body ?? "").map((para, i) => (
+            <InlineMarkdown
+              key={i}
+              as="p"
+              text={para}
+              className="max-w-[28rem] text-[15px] leading-relaxed font-bold text-arc-lavender-700 text-pretty"
+            />
+          ))}
+        </>
+      );
+  }
+}
+
+function splitParagraphs(section: string): string[] {
+  const parts = section
+    .split(/\n{2,}|\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts : [section];
 }

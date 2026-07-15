@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui";
 import { questionnaireApi } from "@/lib/api/questionnaire";
 import { meApi } from "@/lib/api/auth";
+import type { ProfilePreviewDto } from "@/lib/api/types";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import { formatAnswerValue } from "@/lib/questionnaire/format-answers";
 import { useHydrateQuestionnaire } from "@/lib/questionnaire/api-sync";
@@ -25,14 +26,40 @@ export default function QuestionnaireReviewScreen() {
   const router = useRouter();
   const { data: session, update } = useSession();
   const queryClient = useQueryClient();
-  const { answers, schema } = useQuestionnaireStore();
+  const { answers, schema, hydrated } = useQuestionnaireStore();
   const { loading, error: hydrateError } = useHydrateQuestionnaire();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ProfilePreviewDto | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const reviewItems = getReviewItems(schema, answers);
   const visibleLast =
     reviewItems[reviewItems.length - 1]?.stepNumber ?? schema?.totalSteps ?? 10;
   const isRebuild = session?.profile?.questionnaireStatus === "completed";
+
+  useEffect(() => {
+    if (!hydrated || !schema || !session?.accessToken) return;
+    let cancelled = false;
+    setPreviewLoading(true);
+    void (async () => {
+      try {
+        const res = await questionnaireApi.profilePreview(
+          answers,
+          session.accessToken,
+        );
+        if (!cancelled) setPreview(res.preview);
+      } catch {
+        // Preview is best-effort (e.g. PROFILE_PREVIEW_INCOMPLETE) — answers list still works.
+        if (!cancelled) setPreview(null);
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, schema, session?.accessToken]);
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -42,6 +69,7 @@ export default function QuestionnaireReviewScreen() {
       const result = await questionnaireApi.submit(
         answers,
         session?.accessToken,
+        schema?.schemaVersion,
       );
       try {
         const me = await meApi.get();
@@ -58,9 +86,13 @@ export default function QuestionnaireReviewScreen() {
         }
       }
       await queryClient.invalidateQueries({ queryKey: ["roadmaps"] });
+      const placementRequired =
+        result.placement?.required ??
+        result.learnerProfile?.diagnosticRequired ??
+        false;
       // Prefer path so user sees Roadmap Generator result (polls while queued)
       if (result.roadmap?.jobId) {
-        router.push(`/path`);
+        router.push(placementRequired ? "/path?placement=required" : "/path");
       } else {
         router.push("/home");
       }
@@ -132,7 +164,9 @@ export default function QuestionnaireReviewScreen() {
       </section>
 
       <div className="relative z-10 -mt-6 flex min-h-0 flex-1 flex-col rounded-t-[28px] bg-[#f3effc]">
-        <ul className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-4 pt-5 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-4">
+          <ProfilePreviewPanel preview={preview} loading={previewLoading} />
+          <ul className="space-y-2.5">
           {reviewItems.map((item) => {
             const Icon = item.icon;
 
@@ -164,7 +198,8 @@ export default function QuestionnaireReviewScreen() {
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </div>
 
         <div className="shrink-0 space-y-2 border-t border-[#ebe4f6]/80 bg-[#f3effc]/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+14px)] backdrop-blur-sm">
           {error ? (
@@ -197,6 +232,100 @@ export default function QuestionnaireReviewScreen() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+const STAGE_LABELS: Record<number, string> = {
+  1: "Beginner",
+  2: "Medium",
+  3: "Pro",
+  4: "Advanced",
+  5: "Job-ready",
+};
+
+function ProfilePreviewPanel({
+  preview,
+  loading,
+}: {
+  preview: ProfilePreviewDto | null;
+  loading: boolean;
+}) {
+  if (loading && !preview) {
+    return (
+      <div className="mb-4 h-32 animate-pulse rounded-[20px] border-2 border-[#ebe4f6] bg-white/70 shadow-[0_3px_0_#ebe4f6]" />
+    );
+  }
+  if (!preview) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-4 space-y-3 rounded-[20px] border-2 border-[#ebe4f6] bg-white p-4 shadow-[0_3px_0_#ebe4f6]"
+    >
+      <p className="text-[10px] font-black tracking-[0.14em] text-arc-purple-500 uppercase">
+        Your learner profile (estimate)
+      </p>
+
+      <div className="space-y-2">
+        <PreviewRow label="You are here" value={preview.youAreHere} />
+        <PreviewRow label="You want to reach" value={preview.youWantToReach} />
+        <PreviewRow label="Your pace" value={preview.yourPace} />
+      </div>
+
+      {preview.skillMap.length ? (
+        <div>
+          <p className="mb-1.5 text-[10px] font-black tracking-[0.1em] text-[#b3a8d6] uppercase">
+            Skill map
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {preview.skillMap.map((s) => (
+              <span
+                key={s.skillSlug}
+                className="rounded-[10px] bg-[#f3effc] px-2.5 py-1 text-[11px] font-bold text-[#7a6fa3]"
+              >
+                {s.skillSlug} · Stage {s.provisionalStage}
+                {STAGE_LABELS[s.provisionalStage]
+                  ? ` (${STAGE_LABELS[s.provisionalStage]})`
+                  : ""}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {preview.diagnosticRequired ? (
+        <p className="rounded-[12px] bg-[#fff7e0] px-3 py-2 text-[12px] font-bold text-[#8a6d1a]">
+          A short placement check will confirm your level before we skip
+          content.
+        </p>
+      ) : null}
+
+      {preview.feasibility?.message ? (
+        <p
+          className={
+            preview.feasibility.state === "feasible"
+              ? "text-[12px] font-bold text-[#3e9a63]"
+              : "text-[12px] font-bold text-[#b0731d]"
+          }
+        >
+          {preview.feasibility.message}
+        </p>
+      ) : null}
+    </motion.div>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-black tracking-[0.1em] text-[#b3a8d6] uppercase">
+        {label}
+      </p>
+      <p className="text-[13px] leading-snug font-bold text-[#0f1220]">
+        {value}
+      </p>
     </div>
   );
 }

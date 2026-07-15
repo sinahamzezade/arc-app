@@ -27,7 +27,6 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
   const { lesson, isLoading, isError, error, refetch } =
     usePlayableLesson(lessonId);
   const quizAnswers = useLessonStore((s) => s.quizAnswers);
-  const practiceOptionId = useLessonStore((s) => s.practiceOptionId);
   const attemptId = useEnsureLessonAttempt(lessonId);
   const setCompleted = useLessonStore((s) => s.setCompleted);
   const hydrateFromProfile = useEconomyStore((s) => s.hydrateFromProfile);
@@ -59,7 +58,6 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
         lessonId,
         {
           quizAnswers,
-          practiceOptionId: practiceOptionId ?? undefined,
           attemptId: id,
         },
         session?.accessToken,

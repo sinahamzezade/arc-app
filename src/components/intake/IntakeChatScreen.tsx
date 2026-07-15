@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowUp,
@@ -23,21 +22,23 @@ import {
   type IntakeChatTurn,
   type IntakeSuggestions,
 } from "@/lib/api/questionnaire";
-import { meApi } from "@/lib/api/auth";
+import type { QuestionnaireSchema } from "@/lib/api/types";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { isStepComplete } from "@/lib/questionnaire/format-answers";
+import { emptyQuestionnaireAnswers } from "@/schemas/questionnaire";
+import { useQuestionnaireStore } from "@/store/useQuestionnaireStore";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
-const TOTAL_FIELDS = 10;
+const FALLBACK_TOTAL_FIELDS = 10;
 
 export default function IntakeChatScreen() {
   const router = useRouter();
-  const { data: session, update } = useSession();
-  const queryClient = useQueryClient();
+  const { data: session } = useSession();
   const [turn, setTurn] = useState<IntakeChatTurn | null>(null);
+  const [schema, setSchema] = useState<QuestionnaireSchema | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [pickedDays, setPickedDays] = useState<string[]>([]);
@@ -80,8 +81,12 @@ export default function IntakeChatScreen() {
       setLoading(true);
       setError(null);
       try {
-        const cfg = await questionnaireApi.getIntakeConfig(session.accessToken);
+        const [cfg, schemaRes] = await Promise.all([
+          questionnaireApi.getIntakeConfig(session.accessToken),
+          questionnaireApi.getSchema(session.accessToken),
+        ]);
         if (cancelled) return;
+        setSchema(schemaRes);
         if (!cfg.chatEnabled) {
           router.replace("/questionnaire");
           return;
@@ -169,6 +174,13 @@ export default function IntakeChatScreen() {
     }
   };
 
+  /** Echo compound-step routing back so the backend applies the right sub-question. */
+  const selectionBase = (s: IntakeSuggestions) => ({
+    fieldId: s.fieldId,
+    ...(s.subField ? { subField: s.subField } : {}),
+    ...(s.skillSlug ? { skillSlug: s.skillSlug } : {}),
+  });
+
   const onSinglePick = (value: string) => {
     if (!suggestions || sending) return;
     if (value === "other" && suggestions.allowOther) {
@@ -176,7 +188,7 @@ export default function IntakeChatScreen() {
       return;
     }
     void sendSelection({
-      fieldId: suggestions.fieldId,
+      ...selectionBase(suggestions),
       values: [value],
     });
   };
@@ -190,7 +202,7 @@ export default function IntakeChatScreen() {
   const confirmMulti = () => {
     if (!suggestions || !picked.length || sending) return;
     void sendSelection({
-      fieldId: suggestions.fieldId,
+      ...selectionBase(suggestions),
       values: picked,
       ...(picked.includes("other") && otherText.trim()
         ? { otherText: otherText.trim() }
@@ -202,7 +214,7 @@ export default function IntakeChatScreen() {
     if (!suggestions || sending) return;
     if (!pickedDays.length || !pickedTimes.length) return;
     void sendSelection({
-      fieldId: suggestions.fieldId,
+      ...selectionBase(suggestions),
       values: pickedTimes,
       days: pickedDays,
       times: pickedTimes,
@@ -212,65 +224,30 @@ export default function IntakeChatScreen() {
   const confirmOtherSingle = () => {
     if (!suggestions || !otherText.trim() || sending) return;
     void sendSelection({
-      fieldId: suggestions.fieldId,
+      ...selectionBase(suggestions),
       values: ["other"],
       otherText: otherText.trim(),
     });
   };
 
-  const complete = async () => {
-    if (completing) return;
-    setCompleting(true);
-    setError(null);
-    try {
-      const result = await questionnaireApi.chatComplete(session?.accessToken);
-      if (!result.ok) {
-        setError(
-          `Still missing: ${result.missingFields.join(", ") || "answers"}`,
-        );
-        setTurn((prev) =>
-          prev
-            ? {
-                ...prev,
-                answers: result.answers,
-                transcript: result.transcript,
-                missingFields: result.missingFields,
-                done: false,
-                suggestions: result.suggestions ?? prev.suggestions,
-              }
-            : prev,
-        );
-        return;
-      }
-      try {
-        const me = await meApi.get();
-        await update({ profile: me.profile });
-      } catch {
-        if (session?.profile) {
-          await update({
-            profile: {
-              ...session.profile,
-              questionnaireStatus: "completed",
-              questionnaireCompletedAt: new Date().toISOString(),
-            },
-          });
-        }
-      }
-      await queryClient.invalidateQueries({ queryKey: ["roadmaps"] });
-      if (result.roadmap?.jobId) {
-        router.push("/path");
-      } else {
-        router.push("/home");
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(messageForCode(err.code, err.message));
-      } else {
-        setError("Could not build roadmap");
-      }
-    } finally {
-      setCompleting(false);
+  /** Chat answers → store → shared Review screen (single submit path). */
+  const goReview = () => {
+    const chatAnswers = turn?.answers ?? {};
+    if (schema) {
+      // Atomic write, mirrors api-sync hydrate — keeps store fresh for review.
+      useQuestionnaireStore.setState({
+        schema,
+        answers: {
+          ...emptyQuestionnaireAnswers(schema.steps),
+          ...chatAnswers,
+        },
+        hydrated: true,
+      });
+    } else {
+      // No schema loaded — force review screen to re-hydrate from backend.
+      useQuestionnaireStore.getState().reset();
     }
+    router.push("/questionnaire/review");
   };
 
   const switchToForm = async () => {
@@ -279,16 +256,28 @@ export default function IntakeChatScreen() {
     } catch {
       /* still navigate */
     }
+    // Chat wrote answers server-side; drop any stale store snapshot so the
+    // form flow re-hydrates instead of showing pre-chat answers.
+    useQuestionnaireStore.getState().reset();
     // Skip intro — admin default may still be chat and would bounce back.
     router.push("/questionnaire/1");
   };
 
-  const filled =
-    turn && turn.missingFields
-      ? Math.max(0, TOTAL_FIELDS - turn.missingFields.length)
-      : 0;
-  const progressPct = Math.min(100, filled * 10);
-  const leftCount = turn?.missingFields.length ?? null;
+  const totalFields = schema?.totalSteps ?? FALLBACK_TOTAL_FIELDS;
+  const filled = (() => {
+    if (!turn) return 0;
+    if (schema) {
+      return schema.steps.filter((step) =>
+        isStepComplete(step.id, turn.answers ?? {}, schema),
+      ).length;
+    }
+    return Math.max(0, totalFields - turn.missingFields.length);
+  })();
+  const progressPct = Math.min(
+    100,
+    Math.round((filled / Math.max(1, totalFields)) * 100),
+  );
+  const leftCount = turn ? Math.max(0, totalFields - filled) : null;
 
   const resizeComposer = () => {
     const el = inputRef.current;
@@ -386,7 +375,7 @@ export default function IntakeChatScreen() {
               </span>
             </div>
             <div className="flex gap-[3px]">
-              {Array.from({ length: TOTAL_FIELDS }).map((_, i) => (
+              {Array.from({ length: totalFields }).map((_, i) => (
                 <motion.div
                   key={i}
                   className={`h-1.5 flex-1 rounded-full ${
@@ -549,17 +538,16 @@ export default function IntakeChatScreen() {
                   Interview complete
                 </p>
                 <p className="mt-1 font-display text-[20px] leading-tight font-bold tracking-[-0.03em]">
-                  Ready to build your path
+                  Ready to review your answers
                 </p>
               </div>
               <motion.div whileTap={{ scale: 0.98 }}>
                 <Button
                   type="button"
                   className={authCtaClassName}
-                  isDisabled={completing}
-                  onPress={() => void complete()}
+                  onPress={goReview}
                 >
-                  {completing ? "Building roadmap…" : "Generate roadmap"}
+                  Review &amp; build roadmap
                 </Button>
               </motion.div>
             </motion.div>

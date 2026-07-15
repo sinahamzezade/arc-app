@@ -3,14 +3,26 @@ import { z } from "zod";
 export type ScheduleAnswer = {
   days: string[];
   times: string[];
+  timezone?: string;
 };
 
-/** Dynamic answers keyed by schema step id (+ `${id}Other`). */
+export type SkillEvidenceAnswer = {
+  skillSlug: string;
+  exposureLevel: string;
+};
+
+export type TrackSelectionAnswer = {
+  primary: string;
+  secondary: string[];
+};
+
+/** Dynamic answers keyed by schema step id (+ `${id}Other` + compound keys). */
 export type QuestionnaireAnswers = Record<string, unknown>;
 
 export const scheduleAnswerSchema = z.object({
   days: z.array(z.string()),
   times: z.array(z.string()),
+  timezone: z.string().optional(),
 });
 
 /** Loose client schema — server enforces against active questionnaire definition. */
@@ -20,6 +32,24 @@ export function isScheduleAnswer(value: unknown): value is ScheduleAnswer {
   if (!value || typeof value !== "object") return false;
   const row = value as Record<string, unknown>;
   return Array.isArray(row.days) && Array.isArray(row.times);
+}
+
+export function isSkillEvidenceAnswer(
+  value: unknown,
+): value is SkillEvidenceAnswer {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.skillSlug === "string" && typeof row.exposureLevel === "string"
+  );
+}
+
+export function isTrackSelectionAnswer(
+  value: unknown,
+): value is TrackSelectionAnswer {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.primary === "string" && Array.isArray(row.secondary);
 }
 
 export function asStringArray(
@@ -59,9 +89,62 @@ export function asSchedule(
     return {
       days: value.days.filter((d): d is string => typeof d === "string"),
       times: value.times.filter((t): t is string => typeof t === "string"),
+      timezone:
+        typeof value.timezone === "string" && value.timezone.trim()
+          ? value.timezone.trim()
+          : undefined,
     };
   }
   return { days: [], times: [] };
+}
+
+export function asSkillEvidence(
+  answers: QuestionnaireAnswers,
+  key = "skills",
+): SkillEvidenceAnswer[] {
+  const value = answers[key];
+  if (!Array.isArray(value)) return [];
+  // Legacy flat skill list → default exposure
+  if (value.every((item) => typeof item === "string")) {
+    return (value as string[])
+      .filter((s) => s && s !== "none")
+      .map((skillSlug) => ({ skillSlug, exposureLevel: "heard_of" }));
+  }
+  return value.filter(isSkillEvidenceAnswer).map((item) => ({
+    skillSlug: item.skillSlug.trim(),
+    exposureLevel: item.exposureLevel.trim(),
+  }));
+}
+
+export function asTrackSelection(
+  answers: QuestionnaireAnswers,
+  key = "goal",
+): TrackSelectionAnswer {
+  const value = answers[key];
+  if (isTrackSelectionAnswer(value)) {
+    return {
+      primary: value.primary.trim(),
+      secondary: value.secondary
+        .filter((s): s is string => typeof s === "string")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    };
+  }
+  // Legacy multi-select: first = primary
+  const roles = asStringArray(answers, key);
+  return {
+    primary: roles[0] ?? "",
+    secondary: roles.slice(1),
+  };
+}
+
+/** Browser IANA timezone, e.g. "Europe/Berlin". */
+export function detectTimezone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function emptyQuestionnaireAnswers(
@@ -70,12 +153,24 @@ export function emptyQuestionnaireAnswers(
   if (!schemaSteps?.length) return {};
   const out: QuestionnaireAnswers = {};
   for (const step of schemaSteps) {
-    if (step.uiKind === "schedule") {
-      out[step.id] = { days: [], times: [] };
-    } else if (step.selection === "single") {
-      out[step.id] = "";
-    } else {
-      out[step.id] = [];
+    switch (step.uiKind) {
+      case "schedule":
+        out[step.id] = { days: [], times: [] };
+        break;
+      case "track-select":
+        out[step.id] = { primary: "", secondary: [] };
+        break;
+      case "skill-evidence":
+      case "confidence-barriers":
+        out[step.id] = [];
+        break;
+      case "capacity":
+      case "outcome":
+      case "context":
+        out[step.id] = "";
+        break;
+      default:
+        out[step.id] = step.selection === "single" ? "" : [];
     }
   }
   return out;

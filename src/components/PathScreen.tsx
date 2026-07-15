@@ -239,13 +239,16 @@ export default function PathScreen({
 }: {
   data?: PathData;
 }) {
-  const { data, isLoading, isError, error, retry } = useCurrentRoadmap();
+  const { data, isPending, isError, error, retry } = useCurrentRoadmap();
 
   if (dataProp) {
     return <RoadMap data={dataProp} />;
   }
 
-  if (isLoading) {
+  // isPending (not isLoading) — the query is disabled until the session
+  // resolves, and a disabled query is never "loading". Without this the
+  // screen flashes the empty gate state before the first fetch even starts.
+  if (isPending && !isError) {
     return <PathScreenSkeleton />;
   }
 
@@ -715,7 +718,7 @@ function GantrySign({ row }: { row: Extract<TrailRow, { kind: "gantry" }> }) {
   );
 }
 
-/** Cleared stop — small waypoint on the paved road. */
+/** Cleared stop — tap to re-open and review the finished lesson. */
 function ClearedStop({ row }: { row: Extract<TrailRow, { kind: "stone" }> }) {
   return (
     <motion.div
@@ -723,24 +726,30 @@ function ClearedStop({ row }: { row: Extract<TrailRow, { kind: "stone" }> }) {
       className="absolute inset-x-0"
       style={{ top: row.top, height: row.h }}
     >
-      <span
-        className="absolute top-1/2 z-[2] flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-arc-purple-500 text-white ring-4 ring-white"
-        style={{ left: pct(row.ax) }}
+      <Link
+        href={`/learn/${row.node.id}`}
+        aria-label={`Review ${row.node.title}`}
+        className="absolute inset-0 z-[2] cursor-pointer"
       >
-        <Check className="h-4 w-4" strokeWidth={3} />
-      </span>
-      <div
-        className={cn(
-          "absolute inset-y-0 z-[1] flex items-center",
-          row.side === "left"
-            ? "left-[42%] right-4 justify-start"
-            : "left-4 right-[42%] justify-end",
-        )}
-      >
-        <p className="max-w-full truncate rounded-full bg-white/85 px-3 py-1.5 text-[12px] font-bold text-[#6b5f92] ring-1 ring-[#ebe4f6]">
-          {row.node.title}
-        </p>
-      </div>
+        <span
+          className="absolute top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-arc-purple-500 text-white ring-4 ring-white transition hover:ring-arc-purple-500/40"
+          style={{ left: pct(row.ax) }}
+        >
+          <Check className="h-4 w-4" strokeWidth={3} />
+        </span>
+        <div
+          className={cn(
+            "absolute inset-y-0 flex items-center",
+            row.side === "left"
+              ? "left-[42%] right-4 justify-start"
+              : "left-4 right-[42%] justify-end",
+          )}
+        >
+          <p className="max-w-full truncate rounded-full bg-white/85 px-3 py-1.5 text-[12px] font-bold text-[#6b5f92] ring-1 ring-[#ebe4f6] transition hover:bg-white hover:text-[#0f1220] hover:ring-arc-purple-500/40">
+            {row.node.title}
+          </p>
+        </div>
+      </Link>
     </motion.div>
   );
 }

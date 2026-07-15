@@ -6,6 +6,7 @@ import type {
   QuestionnaireOptionDto,
   QuestionnaireSchema,
   QuestionnaireStepDto,
+  QuestionnaireUiKind,
 } from "@/lib/api/types";
 import { getVisibleSteps, isStepVisible } from "@/lib/questionnaire/branching";
 import { resolveQuestionnaireIcon } from "@/lib/questionnaire/icons";
@@ -18,6 +19,7 @@ export type StepOption = {
   label: string;
   icon?: LucideIcon;
   iconClassName?: string;
+  profileHint?: string;
 };
 
 export type QuestionnaireStepConfig = {
@@ -27,12 +29,15 @@ export type QuestionnaireStepConfig = {
   subtitle: string;
   selection: "single" | "multi";
   allowOther?: boolean;
-  uiKind: "options" | "schedule";
+  uiKind: QuestionnaireUiKind;
   reviewLabel: string;
   reviewIcon: string;
   options: StepOption[];
   scheduleDays: string[];
   scheduleTimes: StepOption[];
+  exposureOptions: StepOption[];
+  sessionOptions: StepOption[];
+  secondaryOptions: StepOption[];
   visibleWhen?: QuestionnaireStepDto["visibleWhen"];
 };
 
@@ -49,6 +54,7 @@ function mapOption(option: QuestionnaireOptionDto): StepOption {
     label: option.label,
     icon: resolveQuestionnaireIcon(option.icon),
     iconClassName: option.iconClassName,
+    profileHint: option.profileHint,
   };
 }
 
@@ -66,6 +72,9 @@ export function mapSchemaStep(step: QuestionnaireStepDto): QuestionnaireStepConf
     options: step.options.map(mapOption),
     scheduleDays: step.scheduleDays ?? [],
     scheduleTimes: (step.scheduleTimes ?? []).map(mapOption),
+    exposureOptions: (step.exposureOptions ?? []).map(mapOption),
+    sessionOptions: (step.sessionOptions ?? []).map(mapOption),
+    secondaryOptions: (step.secondaryOptions ?? []).map(mapOption),
     visibleWhen: step.visibleWhen,
   };
 }
@@ -117,7 +126,13 @@ export function getOptionLabel(
     );
   }
 
-  return step.options.find((o) => o.value === value)?.label ?? value;
+  return (
+    step.options.find((o) => o.value === value)?.label ??
+    step.secondaryOptions?.find((o) => o.value === value)?.label ??
+    step.sessionOptions?.find((o) => o.value === value)?.label ??
+    step.exposureOptions?.find((o) => o.value === value)?.label ??
+    value
+  );
 }
 
 export { isStepVisible, getVisibleSteps };

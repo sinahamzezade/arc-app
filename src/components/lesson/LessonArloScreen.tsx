@@ -3,12 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowUp,
-  GraduationCap,
-  Loader2,
-  Sparkles,
-} from "lucide-react";
+import { ArrowUp, GraduationCap, Loader2, Sparkles } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
@@ -151,7 +146,10 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
         <div className="relative flex items-center gap-3">
           <BackButton tone="dark" onClick={() => router.back()} />
           <span className="ml-auto flex items-center gap-1.5 text-[12px] font-bold text-arc-lavender-500">
-            <GraduationCap className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
+            <GraduationCap
+              className="h-3.5 w-3.5 text-[#ffc928]"
+              strokeWidth={2.5}
+            />
             Lesson coach
           </span>
         </div>
@@ -188,7 +186,10 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
         <div className="relative mt-5">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-[10px] font-black tracking-[0.14em] text-white/35 uppercase">
-              <Sparkles className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
+              <Sparkles
+                className="h-3.5 w-3.5 text-[#ffc928]"
+                strokeWidth={2.5}
+              />
               Focus
             </span>
             <span className="font-display text-[13px] font-bold tracking-[-0.02em] text-white/55">

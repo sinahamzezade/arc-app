@@ -18,9 +18,35 @@ function fieldValues(
 ): string[] {
   const value = answers[field];
   if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === "string");
+    // skill-evidence: [{ skillSlug, exposureLevel }] → slugs
+    return value
+      .map((item) =>
+        typeof item === "string"
+          ? item
+          : item &&
+              typeof item === "object" &&
+              typeof (item as { skillSlug?: unknown }).skillSlug === "string"
+            ? (item as { skillSlug: string }).skillSlug
+            : null,
+      )
+      .filter((item): item is string => typeof item === "string");
   }
   if (typeof value === "string" && value) return [value];
+  // track-select: { primary, secondary[] }
+  if (
+    value &&
+    typeof value === "object" &&
+    "primary" in value &&
+    "secondary" in value
+  ) {
+    const track = value as { primary: unknown; secondary: unknown };
+    const primary =
+      typeof track.primary === "string" && track.primary ? [track.primary] : [];
+    const secondary = Array.isArray(track.secondary)
+      ? track.secondary.filter((s): s is string => typeof s === "string")
+      : [];
+    return [...primary, ...secondary];
+  }
   if (
     value &&
     typeof value === "object" &&
