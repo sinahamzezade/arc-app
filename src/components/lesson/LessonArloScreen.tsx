@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
 import { assets } from "@/lib/assets";
+import { sanitizeArloReply } from "@/lib/lesson/arlo-reply";
 import { lessonsApi } from "@/lib/api/lessons";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
@@ -107,7 +108,14 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
         trimmed,
         session?.accessToken,
       );
-      setMsgs((prev) => [...prev, { role: "arlo", text: res.reply }]);
+      const reply = sanitizeArloReply(res.reply);
+      setMsgs((prev) => [
+        ...prev,
+        {
+          role: "arlo",
+          text: reply || `Hmm, lost my train of thought — ask me again.`,
+        },
+      ]);
     } catch {
       setMsgs((prev) => [
         ...prev,
