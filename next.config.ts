@@ -13,6 +13,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  experimental: {
+    // Client router cache: revisiting a tab within 30s reuses the RSC
+    // payload instead of re-running server prefetch (React Query keeps
+    // data fresh client-side anyway).
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
   images: {
     remotePatterns: [
       {

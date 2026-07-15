@@ -2,7 +2,7 @@ import "server-only";
 
 import { backendApiBase } from "@/lib/auth/backend";
 
-const SERVER_FETCH_TIMEOUT_MS = 5_000;
+const SERVER_FETCH_TIMEOUT_MS = 3_000;
 
 /**
  * Authenticated backend read for Server Components.

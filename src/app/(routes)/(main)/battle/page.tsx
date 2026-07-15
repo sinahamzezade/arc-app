@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { auth } from "@/auth";
 import BattleHubScreen from "@/components/battle/BattleHubScreen";
+import { BattleHubSkeleton } from "@/components/battle/BattleHubSkeleton";
 import type {
   BattleDto,
   BattleHistoryItemDto,
@@ -28,7 +29,7 @@ export default async function BattlePage() {
     stats || history || invites ? { stats, history, invites } : undefined;
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<BattleHubSkeleton />}>
       <BattleHubScreen initialData={initialData} />
     </Suspense>
   );
