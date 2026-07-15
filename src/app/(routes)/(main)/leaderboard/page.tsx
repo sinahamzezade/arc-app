@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { auth } from "@/auth";
 import LeaderboardScreen from "@/components/LeaderboardScreen";
+import { LeaderboardSkeleton } from "@/components/leaderboard/LeaderboardSkeleton";
 import type {
   LeagueCurrentResponse,
   LeagueLeaderboardEntryDto,
@@ -48,5 +50,9 @@ export default async function LeaderboardPage() {
       ? await loadLeaderboard(session.accessToken, session.user.id)
       : undefined;
 
-  return <LeaderboardScreen data={data} />;
+  return (
+    <Suspense fallback={<LeaderboardSkeleton />}>
+      <LeaderboardScreen data={data} />
+    </Suspense>
+  );
 }

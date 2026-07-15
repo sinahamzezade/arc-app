@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BackButton } from "@/components/BackButton";
 import { BookOpen, Clock, Plus, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { studyApi, type StudySessionDto } from "@/lib/api/study";
@@ -53,7 +52,6 @@ export default function StudyHubScreen() {
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
       <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-10 text-white">
         <div className="relative flex items-center gap-3">
-          <BackButton />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
               Crew learning

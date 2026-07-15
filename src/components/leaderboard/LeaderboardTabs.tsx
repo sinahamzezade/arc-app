@@ -23,11 +23,11 @@ export function LeaderboardTabs({
   onTabChange: (tab: LeaderboardTab) => void;
 }) {
   return (
-    <div className="relative z-[1] -mt-5 px-4 pt-2">
+    <div className="relative z-[1] -mt-4 px-4">
       <nav
         role="tablist"
         aria-label="League sections"
-        className="flex gap-1 rounded-[20px] border border-[#ebe4f6] bg-white p-1.5 shadow-[0_14px_32px_rgba(70,40,150,0.1)]"
+        className="flex gap-1 rounded-[20px] border-2 border-[#ebe4f6] bg-white p-1.5 shadow-[0_6px_0_#ebe4f6]"
       >
         {tabs.map((tab) => {
           const active = activeTab === tab.id;
@@ -40,12 +40,14 @@ export function LeaderboardTabs({
               aria-selected={active}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-[14px] py-2.5 font-display text-[13px] font-semibold",
-                active ? "bg-[#0f1220] text-[#ffc928]" : "text-[#8a7cb8]",
+                "flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-[14px] py-2.5 font-display text-[12px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none sm:gap-1.5 sm:text-[13px]",
+                active
+                  ? "bg-[#0f1220] text-[#ffc928] shadow-[0_2px_0_#2a2f45]"
+                  : "text-arc-lavender-600 hover:text-[#0f1220]",
               )}
             >
-              <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
-              {tab.label}
+              <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+              <span className="truncate">{tab.label}</span>
             </button>
           );
         })}

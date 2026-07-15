@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Lightbulb } from "lucide-react";
 import { motion } from "motion/react";
 import { InlineMarkdown } from "@/lib/lesson/inline-markdown";
 import type { StudyContentDto } from "@/lib/api/study";
@@ -38,26 +38,31 @@ export function StudyReadingPanel({
   return (
     <motion.div
       key={step}
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={softSpring}
-      className="min-h-0 flex-1 overflow-y-auto"
+      className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
     >
-      <div className="min-w-0">
-        <p className="text-[10px] font-black tracking-widest text-arc-lavender-600 uppercase">
-          {isTakeaways ? "Wrap-up" : `Beat ${step + 1} of ${total}`}
-        </p>
-        <h2 className="mt-0.5 font-display text-[20px] leading-tight font-bold tracking-[-0.03em] text-[#1b1730] text-balance">
-          {isTakeaways ? "Key takeaways" : sectionTitle}
-        </h2>
+      <div className="grid grid-cols-[auto_1fr] items-start gap-3">
+        <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0f1220] font-display text-[15px] font-bold text-[#ffc928] shadow-[0_3px_0_#2a2f45]">
+          {step + 1}
+        </span>
+        <div className="min-w-0 pt-0.5">
+          <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
+            {isTakeaways ? "Wrap-up" : `Beat ${step + 1} of ${total}`}
+          </p>
+          <h2 className="mt-1 font-display text-[24px] leading-[0.95] font-bold tracking-[-0.035em] text-[#0f1220] text-balance">
+            {isTakeaways ? "Key takeaways" : sectionTitle}
+          </h2>
+        </div>
       </div>
 
-      <div className="mt-3 space-y-2.5">
+      <div className="mt-5 space-y-3">
         {isTakeaways
           ? takeaways.map((takeaway, i) => (
               <div
                 key={i}
-                className="flex items-start gap-3 rounded-arc-md border border-[#ebe4f6] bg-white p-3.5"
+                className="flex items-start gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]"
               >
                 <CheckCircle2
                   className="mt-0.5 h-5 w-5 shrink-0 text-arc-purple-500"
@@ -75,7 +80,7 @@ export function StudyReadingPanel({
                 <InlineMarkdown
                   as="p"
                   text={section}
-                  className="rounded-arc-md border border-[#ebe4f6] bg-white p-3.5 text-[14px] leading-relaxed font-bold text-[#0f1220] text-pretty"
+                  className="max-w-[28rem] text-[15px] leading-relaxed font-bold text-arc-lavender-700 text-pretty"
                 />
               )
             : (section?.blocks ?? []).map((block, i) => (
@@ -89,32 +94,40 @@ export function StudyReadingPanel({
 function Block({ block }: { block: LessonSectionBlockDto }) {
   if (block.type === "callout") {
     return (
-      <aside className="rounded-arc-md border border-arc-purple-500/20 bg-arc-purple-500/5 p-3.5">
-        {block.title ? (
-          <p className="text-[11px] font-extrabold tracking-[0.08em] text-arc-purple-500 uppercase">
-            {block.title}
+      <aside className="rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]">
+        <div className="flex items-center gap-2 text-arc-purple-500">
+          <Lightbulb className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+          <p className="text-[10px] font-extrabold tracking-[0.12em] uppercase">
+            {block.title?.trim() || "Note"}
           </p>
+        </div>
+        {block.body ? (
+          <InlineMarkdown
+            as="p"
+            text={block.body}
+            className="mt-2 text-[14px] leading-snug font-bold text-[#0f1220] text-pretty"
+          />
         ) : null}
-        <InlineMarkdown
-          as="p"
-          text={block.body ?? ""}
-          className="mt-1 text-[14px] leading-snug font-bold text-[#1b1730] text-pretty"
-        />
       </aside>
     );
   }
   if (block.type === "code") {
     return (
-      <pre className="overflow-x-auto rounded-arc-md bg-[#0f1220] p-3.5 text-[12px] leading-relaxed font-mono text-[#e8e4ff]">
-        {block.code ?? block.body}
-      </pre>
+      <div className="overflow-hidden rounded-[18px] bg-[#0f1220] shadow-[0_4px_0_#2a2f45]">
+        <p className="border-b border-white/10 px-4 py-2 text-[10px] font-extrabold tracking-[0.12em] text-[#ffc928] uppercase">
+          {block.label?.trim() || "Code"}
+        </p>
+        <pre className="overflow-x-auto p-4 text-[13px] leading-relaxed text-white/90">
+          <code>{block.code ?? block.body ?? ""}</code>
+        </pre>
+      </div>
     );
   }
   return (
     <InlineMarkdown
       as="p"
       text={block.body ?? ""}
-      className="rounded-arc-md border border-[#ebe4f6] bg-white p-3.5 text-[14px] leading-relaxed font-bold text-[#0f1220] text-pretty"
+      className="max-w-[28rem] text-[15px] leading-relaxed font-bold text-arc-lavender-700 text-pretty"
     />
   );
 }

@@ -5,8 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
 import { StudyChatPanel } from "@/components/study/StudyChatPanel";
 import { StudyReadingPanel } from "@/components/study/StudyReadingPanel";
-import { Check, Gem, LogOut, Zap } from "lucide-react";
-import { motion } from "motion/react";
+import {
+  BookOpen,
+  Check,
+  Gem,
+  LogOut,
+  MoreHorizontal,
+  Timer,
+  Users,
+  Zap,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import {
   studyApi,
@@ -29,11 +38,11 @@ const TERMINAL = new Set([
 ]);
 
 const DISCONNECT_GRACE_MS = 60_000;
+const softSpring = { type: "spring" as const, stiffness: 420, damping: 32 };
 
 /**
  * Read-together room — lesson-first layout.
- * Slim header (timer + partner), thin step progress, reading fills the
- * viewport, sticky ack footer, collapsed chat dock.
+ * Immersive reading, dual-ack sync strip, sheet chat, clear lobby states.
  */
 export default function StudyRoomScreen() {
   const router = useRouter();
@@ -49,6 +58,7 @@ export default function StudyRoomScreen() {
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [partnerOnline, setPartnerOnline] = useState(true);
   const [soloWarn, setSoloWarn] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const applySession = useStudyLiveStore((s) => s.applySession);
   const clearLive = useStudyLiveStore((s) => s.clear);
 
@@ -256,6 +266,7 @@ export default function StudyRoomScreen() {
   async function onLeave() {
     if (!sessionId || busy) return;
     setBusy(true);
+    setMenuOpen(false);
     try {
       await studyApi.leave(sessionId);
       clearLive();
@@ -306,6 +317,7 @@ export default function StudyRoomScreen() {
     ["accepted", "waiting", "active"].includes(session.status);
   const youAcked = session.you.ackedStep >= session.contentStep;
   const partnerAcked = session.partner.ackedStep >= session.contentStep;
+  const bothAcked = youAcked && partnerAcked;
   const stepCount = Math.max(session.stepCount, 1);
   const showReading =
     Boolean(content) &&
@@ -317,54 +329,150 @@ export default function StudyRoomScreen() {
     session.you.meaningfulActionCompleted &&
     session.partner.meaningfulActionCompleted;
   const partnerFirst = session.partner.name.split(" ")[0];
+  const timerUrgent =
+    remaining != null && remaining > 0 && remaining <= 60 && session.status === "active";
+
+  const canCancelInvite =
+    session.role === "creator" &&
+    ["invited", "accepted", "waiting"].includes(session.status);
+  const canEndEarly =
+    session.status === "active" &&
+    !session.you.completionConfirmed &&
+    !readingComplete;
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#f3effc] font-rounded">
-      {/* Slim header — one row, everything glanceable */}
-      <header className="shrink-0 bg-[#0f1220] px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-2.5 text-white">
-        <div className="flex items-center gap-2.5">
-          <BackButton />
+      {/* Night header */}
+      <header className="relative z-40 shrink-0 overflow-hidden bg-[#0f1220] px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-3 text-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-16 right-[-40px] h-40 w-40 rounded-full bg-arc-purple-500/30 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-[-24px] h-24 w-24 rounded-full bg-[#ffc928]/12 blur-2xl"
+        />
+
+        <div className="relative flex items-center gap-2.5">
+          <BackButton tone="dark" />
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-display text-[15px] leading-tight font-bold tracking-[-0.02em]">
+            <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+              {ended
+                ? "Session done"
+                : showReading
+                  ? `Beat ${session.contentStep + 1} · ${stepCount}`
+                  : isInviteePending
+                    ? "Invite"
+                    : "Study room"}
+            </p>
+            <h1 className="mt-0.5 truncate font-display text-[16px] leading-tight font-bold tracking-[-0.02em]">
               {session.lessonTitle ?? session.subject}
             </h1>
-            <p className="mt-0.5 text-[10px] font-extrabold tracking-[0.08em] text-white/45 uppercase">
-              {ended
-                ? "Complete"
-                : showReading
-                  ? `Step ${session.contentStep + 1}/${stepCount}`
-                  : session.status === "invited"
-                    ? "Waiting for accept"
-                    : "Read together"}
-            </p>
           </div>
 
-          <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 font-display text-[13px] font-bold tracking-[-0.02em] tabular-nums text-[#ffc928]">
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 font-display text-[13px] font-bold tracking-[-0.02em] tabular-nums",
+              timerUrgent
+                ? "bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e]"
+                : "bg-white/10 text-[#ffc928]",
+            )}
+          >
+            <Timer className="h-3.5 w-3.5" strokeWidth={2.5} />
             {timerLabel}
           </span>
 
-          <span className="relative shrink-0" title={partnerFirst}>
-            <span className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-arc-purple-500 font-display text-[13px] font-bold">
-              {session.partner.initial}
-            </span>
-            <span
-              aria-hidden
-              className={cn(
-                "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0f1220]",
-                partnerOnline ? "bg-[#16c784]" : "bg-white/30",
-              )}
-            />
-          </span>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              aria-label="Room options"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-2xl bg-white/10 text-white transition-colors hover:bg-white/16 focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:outline-none"
+            >
+              <MoreHorizontal className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+            <AnimatePresence>
+              {menuOpen ? (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                  transition={softSpring}
+                  className="absolute top-[calc(100%+8px)] right-0 z-40 w-44 overflow-hidden rounded-[16px] border border-white/10 bg-[#1a1e30] shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
+                >
+                  {canEndEarly ? (
+                    <MenuItem
+                      label="End my session"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        void run(
+                          () =>
+                            studyApi.complete(sessionId, {
+                              meaningfulAction: true,
+                            }),
+                          "Complete failed",
+                        );
+                      }}
+                      disabled={busy}
+                    />
+                  ) : null}
+                  {canCancelInvite ? (
+                    <MenuItem
+                      label="Cancel invite"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        void run(
+                          () => studyApi.cancel(sessionId),
+                          "Cancel failed",
+                        );
+                      }}
+                      disabled={busy}
+                    />
+                  ) : null}
+                  {!ended ? (
+                    <MenuItem
+                      label="Leave room"
+                      danger
+                      icon={<LogOut className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                      onClick={() => void onLeave()}
+                      disabled={busy}
+                    />
+                  ) : null}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
         </div>
 
-        {/* Segmented step progress */}
+        {/* Dual presence */}
+        <div className="relative mt-3 flex items-center gap-2">
+          <PresenceChip
+            label="You"
+            initial={session.you.initial}
+            online
+            ready={session.you.ready || showReading}
+            accent="#6B4EFF"
+          />
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
+            <BookOpen className="h-3.5 w-3.5" strokeWidth={2.75} />
+          </span>
+          <PresenceChip
+            label={partnerFirst}
+            initial={session.partner.initial}
+            online={partnerOnline && !partnerDisconnected}
+            ready={session.partner.ready || partnerAcked}
+            accent="#8a7cb8"
+          />
+        </div>
+
         {showReading ? (
-          <div className="mt-2 flex gap-1">
+          <div className="relative mt-3 flex gap-1.5" aria-label="Reading progress">
             {Array.from({ length: stepCount }, (_, i) => (
               <span
                 key={i}
                 className={cn(
-                  "h-1 flex-1 rounded-full",
+                  "h-1.5 flex-1 rounded-full transition-colors",
                   i < session.contentStep
                     ? "bg-[#16c784]"
                     : i === session.contentStep
@@ -377,97 +485,91 @@ export default function StudyRoomScreen() {
         ) : null}
       </header>
 
-      {/* Lesson content — owns the viewport */}
-      <main className="flex min-h-0 flex-1 flex-col px-3 pt-3">
-        {showReading && content ? (
-          <div className="flex min-h-0 flex-1 flex-col rounded-arc-lg border border-[#ebe4f6] bg-white p-4 shadow-[0_10px_24px_rgba(70,40,150,0.06)]">
-            <StudyReadingPanel
-              content={content}
-              lessonTitle={session.lessonTitle ?? session.subject}
-            />
-          </div>
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-[#0f1220] font-display text-[20px] font-bold text-[#ffc928]">
-              {session.partner.initial}
-            </span>
-            <div>
-              <p className="font-display text-[18px] font-semibold text-[#1b1730]">
-                {ended
-                  ? "Session complete"
-                  : isInviteePending
-                    ? `${partnerFirst} invited you`
-                    : session.status === "invited"
-                      ? `Waiting for ${partnerFirst}…`
-                      : "Ready to read together?"}
-              </p>
-              <p className="mt-1 text-[13px] font-bold text-arc-lavender-600">
-                {session.lessonTitle ?? session.subject} ·{" "}
-                {session.durationMinutes}m
-              </p>
-            </div>
+      {/* Backdrop for menu */}
+      {menuOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-30 cursor-default"
+          onClick={() => setMenuOpen(false)}
+        />
+      ) : null}
 
-            {session.sharedBonusGranted && session.sharedBonus ? (
-              <div className="flex items-center gap-3 rounded-arc-md bg-[#1b1433] px-4 py-3 text-white">
-                <span className="inline-flex items-center gap-1 text-[13px] font-extrabold text-[#ffc928]">
-                  <Zap className="h-4 w-4" strokeWidth={2.5} />+
-                  {session.sharedBonus.coins}c
-                </span>
-                <span className="inline-flex items-center gap-1 text-[13px] font-extrabold">
-                  <Gem
-                    className="h-4 w-4 text-arc-purple-500"
-                    strokeWidth={2.5}
-                  />
-                  +{session.sharedBonus.gems} gems
-                </span>
-              </div>
-            ) : null}
-          </div>
+      <main className="flex min-h-0 flex-1 flex-col px-4 pt-4">
+        {showReading && content ? (
+          <StudyReadingPanel
+            content={content}
+            lessonTitle={session.lessonTitle ?? session.subject}
+          />
+        ) : (
+          <LobbyState
+            ended={ended}
+            isInviteePending={isInviteePending}
+            partnerFirst={partnerFirst}
+            partnerInitial={session.partner.initial}
+            youInitial={session.you.initial}
+            status={session.status}
+            lessonTitle={session.lessonTitle ?? session.subject}
+            durationMinutes={session.durationMinutes}
+            sharedBonus={session.sharedBonus}
+            sharedBonusGranted={session.sharedBonusGranted}
+            inviteMessage={session.message}
+          />
         )}
 
         {error ? (
-          <p className="mt-2 shrink-0 rounded-2xl bg-[#fdecef] px-3.5 py-2 text-center text-[12px] font-bold text-[#c0392b]">
+          <p
+            role="alert"
+            className="mt-3 shrink-0 rounded-[16px] border border-[#f5c6cb] bg-[#fdecef] px-3.5 py-2.5 text-center text-[12px] font-bold text-[#c0392b]"
+          >
             {error}
           </p>
         ) : null}
       </main>
 
-      {/* Sticky action footer */}
-      <footer className="shrink-0 px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+8px)]">
+      <footer className="shrink-0 space-y-2.5 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
         {soloWarn && showReading && !partnerAcked ? (
-          <p className="mb-2 rounded-xl bg-[#fff8e6] px-3 py-1.5 text-center text-[11px] font-bold text-[#8a6d00]">
-            {partnerFirst} disconnected — you can continue alone.
-          </p>
+          <div className="rounded-[16px] border-2 border-[#ffc928]/40 bg-[#fff8e6] px-3.5 py-2.5 text-center">
+            <p className="text-[12px] font-bold text-[#8a6d00]">
+              {partnerFirst} dropped — you can keep going alone.
+            </p>
+          </div>
         ) : null}
 
         {showReading && !readingComplete ? (
-          <div className="flex items-center gap-2">
-            <motion.button
-              type="button"
-              disabled={busy || (youAcked && !soloWarn)}
-              onClick={() =>
-                void onAckRead(Boolean(soloWarn && session.role === "creator"))
-              }
-              whileTap={{ scale: 0.98, y: 2 }}
-              className="min-w-0 flex-1 cursor-pointer rounded-arc-md bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-arc-button transition-opacity disabled:opacity-50"
-            >
-              {youAcked && soloWarn
+          <SyncStrip
+            youAcked={youAcked}
+            partnerAcked={partnerAcked}
+            partnerFirst={partnerFirst}
+            youInitial={session.you.initial}
+            partnerInitial={session.partner.initial}
+          />
+        ) : null}
+
+        {showReading && !readingComplete ? (
+          <PrimaryBtn
+            busy={busy}
+            disabled={busy || (youAcked && !soloWarn)}
+            label={
+              youAcked && soloWarn
                 ? "Continue alone"
                 : youAcked
                   ? `Waiting for ${partnerFirst}…`
-                  : "I read"}
-            </motion.button>
-
-            <AckDot label="You" acked={youAcked} />
-            <AckDot label={partnerFirst} acked={partnerAcked} />
-          </div>
+                  : bothAcked
+                    ? "Next beat"
+                    : "I finished this beat"
+            }
+            onClick={() =>
+              void onAckRead(Boolean(soloWarn && session.role === "creator"))
+            }
+          />
         ) : null}
 
         {isInviteePending ? (
           <div className="space-y-2">
             <PrimaryBtn
               busy={busy}
-              label="Accept invite"
+              label={`Accept · study with ${partnerFirst}`}
               onClick={() =>
                 void run(() => studyApi.accept(sessionId), "Accept failed")
               }
@@ -478,9 +580,9 @@ export default function StudyRoomScreen() {
               onClick={() =>
                 void run(() => studyApi.decline(sessionId), "Decline failed")
               }
-              className="w-full cursor-pointer rounded-arc-md py-2 text-[13px] font-extrabold text-arc-lavender-600 transition-colors hover:text-[#4a3d78] disabled:opacity-50"
+              className="w-full cursor-pointer rounded-[18px] py-2.5 text-[13px] font-extrabold text-arc-lavender-600 transition-colors hover:text-[#4a3d78] focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none disabled:opacity-50"
             >
-              Decline
+              Decline invite
             </button>
           </div>
         ) : null}
@@ -488,7 +590,7 @@ export default function StudyRoomScreen() {
         {needsReady && !isInviteePending ? (
           <PrimaryBtn
             busy={busy}
-            label="I'm ready"
+            label="I'm ready — start reading"
             onClick={() =>
               void run(() => studyApi.ready(sessionId), "Ready failed")
             }
@@ -498,7 +600,7 @@ export default function StudyRoomScreen() {
         {readingComplete && !ended && !session.you.completionConfirmed ? (
           <PrimaryBtn
             busy={busy}
-            label="Finish session"
+            label="Finish session · claim bonus"
             onClick={() =>
               void run(
                 () => studyApi.complete(sessionId, { meaningfulAction: true }),
@@ -511,72 +613,22 @@ export default function StudyRoomScreen() {
         {ended ? (
           <PrimaryBtn
             busy={false}
-            label="Back to hub"
+            label="Back to Study hub"
             onClick={() => router.push("/study")}
           />
         ) : null}
 
-        {/* Quiet secondary row */}
-        {!ended && !isInviteePending ? (
-          <div className="mt-1.5 flex items-center justify-center gap-4">
-            {session.status === "active" &&
-            !session.you.completionConfirmed &&
-            !readingComplete ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void run(
-                    () =>
-                      studyApi.complete(sessionId, { meaningfulAction: true }),
-                    "Complete failed",
-                  )
-                }
-                className="cursor-pointer py-1 text-[11px] font-extrabold text-arc-lavender-600 transition-colors hover:text-[#4a3d78] disabled:opacity-50"
-              >
-                End my session
-              </button>
-            ) : null}
-
-            {session.role === "creator" &&
-            ["invited", "accepted", "waiting"].includes(session.status) ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void run(() => studyApi.cancel(sessionId), "Cancel failed")
-                }
-                className="cursor-pointer py-1 text-[11px] font-extrabold text-arc-lavender-600 transition-colors hover:text-[#4a3d78] disabled:opacity-50"
-              >
-                Cancel invite
-              </button>
-            ) : null}
-
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void onLeave()}
-              className="inline-flex cursor-pointer items-center gap-1 py-1 text-[11px] font-extrabold text-arc-lavender-600 transition-colors hover:text-[#c0392b] disabled:opacity-50"
-            >
-              <LogOut className="h-3 w-3" strokeWidth={2.75} />
-              Leave
-            </button>
-          </div>
-        ) : null}
-
-        {/* Chat dock — collapsed by default */}
         {!ended ? (
-          <div className="mt-2 overflow-hidden rounded-arc-md border border-[#ebe4f6] bg-white">
-            <StudyChatPanel
-              messages={messages}
-              partnerTyping={partnerTyping}
-              partnerName={session.partner.name}
-              onSend={onSendChat}
-              onTyping={emitTyping}
-              disabled={busy}
-              defaultOpen={false}
-            />
-          </div>
+          <StudyChatPanel
+            messages={messages}
+            partnerTyping={partnerTyping}
+            partnerName={session.partner.name}
+            youUserId={session.you.userId}
+            onSend={onSendChat}
+            onTyping={emitTyping}
+            disabled={busy}
+            defaultOpen={false}
+          />
         ) : null}
       </footer>
     </div>
@@ -585,36 +637,246 @@ export default function StudyRoomScreen() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-md bg-[#f3effc] px-4 pt-[calc(env(safe-area-inset-top)+14px)] font-rounded">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center bg-[#f3effc] px-4 font-rounded">
       {children}
     </div>
   );
 }
 
-function AckDot({ label, acked }: { label: string; acked: boolean }) {
+function PresenceChip({
+  label,
+  initial,
+  online,
+  ready,
+  accent,
+}: {
+  label: string;
+  initial: string;
+  online: boolean;
+  ready: boolean;
+  accent: string;
+}) {
   return (
-    <span
+    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-[14px] bg-white/8 px-2 py-1.5">
+      <span className="relative shrink-0">
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-[12px] font-display text-[12px] font-bold text-white"
+          style={{ backgroundColor: accent }}
+        >
+          {initial}
+        </span>
+        <span
+          aria-hidden
+          className={cn(
+            "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0f1220]",
+            online ? "bg-[#16c784]" : "bg-white/30",
+          )}
+        />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-[12px] font-extrabold text-white">
+          {label}
+        </span>
+        <span className="block text-[10px] font-bold text-white/45">
+          {ready ? "In sync" : online ? "Here" : "Away"}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function SyncStrip({
+  youAcked,
+  partnerAcked,
+  partnerFirst,
+  youInitial,
+  partnerInitial,
+}: {
+  youAcked: boolean;
+  partnerAcked: boolean;
+  partnerFirst: string;
+  youInitial: string;
+  partnerInitial: string;
+}) {
+  const both = youAcked && partnerAcked;
+  return (
+    <div
       className={cn(
-        "flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-[16px] border text-center",
-        acked
-          ? "border-[#16c784]/30 bg-[#e8faf0]"
+        "rounded-[18px] border-2 px-3 py-2.5",
+        both
+          ? "border-[#16c784]/35 bg-[#e8faf0]"
           : "border-[#ebe4f6] bg-white",
       )}
-      title={acked ? `${label} read` : `${label} reading`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
+          {both
+            ? "Both ready"
+            : youAcked
+              ? `Waiting on ${partnerFirst}`
+              : partnerAcked
+                ? `${partnerFirst} ready — your turn`
+                : "Read, then tap done"}
+        </p>
+        <div className="flex items-center gap-1.5">
+          <AckBadge label="You" initial={youInitial} acked={youAcked} />
+          <AckBadge
+            label={partnerFirst}
+            initial={partnerInitial}
+            acked={partnerAcked}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AckBadge({
+  label,
+  initial,
+  acked,
+}: {
+  label: string;
+  initial: string;
+  acked: boolean;
+}) {
+  return (
+    <span
+      title={acked ? `${label} finished` : `${label} still reading`}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-extrabold",
+        acked
+          ? "border-[#16c784]/35 bg-[#e8faf0] text-[#178a52]"
+          : "border-[#ebe4f6] bg-[#f8f6fc] text-arc-lavender-600",
+      )}
     >
       {acked ? (
-        <Check className="h-4 w-4 text-[#178a52]" strokeWidth={3} />
+        <Check className="h-3 w-3" strokeWidth={3} />
       ) : (
-        <span className="flex h-4 items-center gap-0.5">
-          <span className="h-1 w-1 animate-pulse rounded-full bg-arc-lavender-600" />
-          <span className="h-1 w-1 animate-pulse rounded-full bg-arc-lavender-600 [animation-delay:150ms]" />
-          <span className="h-1 w-1 animate-pulse rounded-full bg-arc-lavender-600 [animation-delay:300ms]" />
+        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-[#0f1220]/8 text-[8px] font-black text-white">
+          {initial}
         </span>
       )}
-      <span className="max-w-[44px] truncate text-[8px] font-extrabold tracking-wide text-arc-lavender-600 uppercase">
-        {label}
-      </span>
+      {label}
     </span>
+  );
+}
+
+function LobbyState({
+  ended,
+  isInviteePending,
+  partnerFirst,
+  partnerInitial,
+  youInitial,
+  status,
+  lessonTitle,
+  durationMinutes,
+  sharedBonus,
+  sharedBonusGranted,
+  inviteMessage,
+}: {
+  ended: boolean;
+  isInviteePending: boolean;
+  partnerFirst: string;
+  partnerInitial: string;
+  youInitial: string;
+  status: string;
+  lessonTitle: string;
+  durationMinutes: number;
+  sharedBonus: { coins: number; gems: number } | null;
+  sharedBonusGranted: boolean;
+  inviteMessage: string | null;
+}) {
+  const title = ended
+    ? "Session complete"
+    : isInviteePending
+      ? `${partnerFirst} invited you`
+      : status === "invited"
+        ? `Waiting for ${partnerFirst}…`
+        : "Ready to read together?";
+
+  const sub = ended
+    ? "Nice work — head back when you're done celebrating."
+    : isInviteePending
+      ? "Same lesson. Shared timer. No camera."
+      : status === "invited"
+        ? "They'll see your invite and jump in."
+        : "Tap ready when you're set — reading unlocks for both.";
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+      <div className="flex items-center gap-3">
+        <span className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-arc-purple-500 font-display text-[20px] font-bold text-white shadow-[0_5px_0_#4b2fd6]">
+          {youInitial}
+        </span>
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ffc928] text-[#0f1220] shadow-[0_4px_0_#c79a2e]">
+          <Users className="h-4 w-4" strokeWidth={2.75} />
+        </span>
+        <span className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-[#0f1220] font-display text-[20px] font-bold text-[#ffc928] shadow-[0_5px_0_#2a2f45]">
+          {partnerInitial}
+        </span>
+      </div>
+
+      <div className="max-w-[20rem]">
+        <p className="font-display text-[22px] leading-tight font-bold tracking-[-0.03em] text-[#0f1220] text-balance">
+          {title}
+        </p>
+        <p className="mt-2 text-[13px] font-bold text-arc-lavender-600 text-pretty">
+          {sub}
+        </p>
+        <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-extrabold text-[#0f1220] shadow-[0_3px_0_#ebe4f6]">
+          <BookOpen className="h-3.5 w-3.5 text-arc-purple-500" strokeWidth={2.5} />
+          {lessonTitle} · {durationMinutes}m
+        </p>
+      </div>
+
+      {inviteMessage ? (
+        <p className="max-w-[18rem] rounded-[16px] border-2 border-[#ebe4f6] bg-white px-3.5 py-2.5 text-[13px] font-bold text-[#0f1220] shadow-[0_3px_0_#ebe4f6]">
+          “{inviteMessage}”
+        </p>
+      ) : null}
+
+      {sharedBonusGranted && sharedBonus ? (
+        <div className="flex items-center gap-3 rounded-[18px] bg-[#0f1220] px-4 py-3 text-white shadow-[0_5px_0_#2a2f45]">
+          <span className="inline-flex items-center gap-1 text-[13px] font-extrabold text-[#ffc928]">
+            <Zap className="h-4 w-4" strokeWidth={2.5} />+{sharedBonus.coins}c
+          </span>
+          <span className="inline-flex items-center gap-1 text-[13px] font-extrabold">
+            <Gem className="h-4 w-4 text-arc-purple-400" strokeWidth={2.5} />+
+            {sharedBonus.gems} gems
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MenuItem({
+  label,
+  onClick,
+  disabled,
+  danger,
+  icon,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex w-full cursor-pointer items-center gap-2 px-3.5 py-3 text-left text-[13px] font-bold transition-colors hover:bg-white/8 disabled:opacity-50",
+        danger ? "text-[#ff8a8a]" : "text-white",
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
@@ -622,20 +884,22 @@ function PrimaryBtn({
   label,
   busy,
   onClick,
+  disabled,
 }: {
   label: string;
   busy: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <motion.button
       type="button"
-      disabled={busy}
+      disabled={disabled ?? busy}
       onClick={onClick}
       whileTap={{ scale: 0.98, y: 2 }}
-      className="w-full cursor-pointer rounded-arc-md bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-arc-button transition-opacity disabled:opacity-50"
+      className="w-full cursor-pointer rounded-[20px] bg-arc-purple-500 py-4 font-display text-[15px] font-semibold text-white shadow-[0_6px_0_#4b2fd6] transition-opacity focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
     >
-      {busy ? "…" : label}
+      {busy ? "Working…" : label}
     </motion.button>
   );
 }

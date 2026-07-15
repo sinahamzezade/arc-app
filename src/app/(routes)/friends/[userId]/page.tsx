@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import LeaguePeerProfileScreen from "@/components/LeaguePeerProfileScreen";
+import { PeerProfileSkeleton } from "@/components/leaderboard/PeerProfileSkeleton";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import { socialApi } from "@/lib/api/social";
 import { peerFromSocial } from "@/lib/social/peer-from-social";
@@ -58,13 +59,7 @@ export default function FriendProfilePage({
   }, [userId, valid]);
 
   if (loading) {
-    return (
-      <div className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center bg-[#f3effc] font-rounded">
-        <p className="font-display text-[18px] font-bold text-[#1b1730]">
-          Loading profile…
-        </p>
-      </div>
-    );
+    return <PeerProfileSkeleton />;
   }
 
   if (error || !peer) {

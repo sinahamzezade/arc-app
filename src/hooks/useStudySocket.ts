@@ -4,7 +4,11 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { getWsBase } from "@/lib/api/ws";
-import type { StudyMessageDto, StudySessionDto, StudyStepDto } from "@/lib/api/study";
+import type {
+  StudyMessageDto,
+  StudySessionDto,
+  StudyStepDto,
+} from "@/lib/api/study";
 
 type UseStudySocketOpts = {
   sessionId: string | null;
@@ -15,6 +19,20 @@ type UseStudySocketOpts = {
   onPartnerTyping?: (userId: string) => void;
   onPartnerPresence?: (payload: { online: boolean; userId?: string }) => void;
 };
+
+function asMessage(res: unknown): StudyMessageDto | null {
+  if (!res || typeof res !== "object") return null;
+  const obj = res as Record<string, unknown>;
+  // Nest sometimes wraps ack payloads
+  const data =
+    obj.data && typeof obj.data === "object"
+      ? (obj.data as Record<string, unknown>)
+      : obj;
+  if (typeof data.id === "string" && typeof data.body === "string") {
+    return data as unknown as StudyMessageDto;
+  }
+  return null;
+}
 
 export function useStudySocket({
   sessionId,
@@ -28,6 +46,7 @@ export function useStudySocket({
   const { data: session } = useSession();
   const socketRef = useRef<Socket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [joined, setJoined] = useState(false);
 
   // Callbacks live in refs so inline handlers don't tear down the socket
   // on every render (reconnect loop breaks chat/step delivery).
@@ -50,19 +69,20 @@ export function useStudySocket({
 
   const emitHeartbeat = useCallback(
     (payload?: { appVisible?: boolean; focusActive?: boolean }) => {
-      if (!sessionId || !socketRef.current?.connected) return;
+      if (!sessionId || !socketRef.current?.connected || !joined) return;
       socketRef.current.emit("heartbeat", {
         sessionId,
         appVisible: payload?.appVisible ?? true,
         focusActive: payload?.focusActive ?? true,
       });
     },
-    [sessionId],
+    [sessionId, joined],
   );
 
   const emitAckRead = useCallback(
     (soloAdvance?: boolean) => {
-      if (!sessionId || !socketRef.current?.connected) return Promise.resolve(null);
+      if (!sessionId || !socketRef.current?.connected || !joined)
+        return Promise.resolve(null);
       return new Promise<unknown>((resolve) => {
         socketRef.current?.emit(
           "ack_read",
@@ -71,39 +91,39 @@ export function useStudySocket({
         );
       });
     },
-    [sessionId],
+    [sessionId, joined],
   );
 
   const emitChatSend = useCallback(
     (body: string) => {
-      if (!sessionId || !socketRef.current?.connected) return Promise.resolve(null);
+      if (!sessionId || !socketRef.current?.connected || !joined)
+        return Promise.resolve(null);
       return new Promise<StudyMessageDto | null>((resolve) => {
         socketRef.current?.emit(
           "chat:send",
           { sessionId, body },
-          (res: StudyMessageDto | { error?: string }) => {
-            if (res && "id" in res) resolve(res);
-            else resolve(null);
-          },
+          (res: unknown) => resolve(asMessage(res)),
         );
       });
     },
-    [sessionId],
+    [sessionId, joined],
   );
 
   const emitTyping = useCallback(() => {
-    if (!sessionId || !socketRef.current?.connected) return;
+    if (!sessionId || !socketRef.current?.connected || !joined) return;
     socketRef.current.emit("typing", { sessionId });
-  }, [sessionId]);
+  }, [sessionId, joined]);
 
   useEffect(() => {
     const token = session?.accessToken;
     if (!enabled || !sessionId || !token) {
       setConnected(false);
+      setJoined(false);
       return;
     }
 
-    const socket = io(`${getWsBase()}/study`, {
+    const wsBase = getWsBase();
+    const socket = io(`${wsBase}/study`, {
       auth: { token },
       transports: ["websocket", "polling"],
       reconnection: true,
@@ -111,11 +131,28 @@ export function useStudySocket({
     });
     socketRef.current = socket;
 
+    const joinRoom = () => {
+      socket.emit(
+        "join",
+        { sessionId },
+        (res: { ok?: boolean; error?: string } | undefined) => {
+          setJoined(res?.ok === true);
+        },
+      );
+    };
+
     socket.on("connect", () => {
       setConnected(true);
-      socket.emit("join", { sessionId }, () => undefined);
+      joinRoom();
     });
-    socket.on("disconnect", () => setConnected(false));
+    socket.on("disconnect", () => {
+      setConnected(false);
+      setJoined(false);
+    });
+    socket.on("connect_error", () => {
+      setConnected(false);
+      setJoined(false);
+    });
     socket.on("state", (state: StudySessionDto) =>
       handlersRef.current.onState?.(state),
     );
@@ -137,11 +174,12 @@ export function useStudySocket({
       socket.disconnect();
       socketRef.current = null;
       setConnected(false);
+      setJoined(false);
     };
   }, [enabled, sessionId, session?.accessToken]);
 
   return {
-    connected,
+    connected: connected && joined,
     emitHeartbeat,
     emitAckRead,
     emitChatSend,

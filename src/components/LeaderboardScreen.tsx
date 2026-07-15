@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useSession } from "next-auth/react";
 import { useCurrentLeague } from "@/hooks/useCurrentLeague";
@@ -19,6 +20,15 @@ import { SeasonHero } from "@/components/leaderboard/SeasonHero";
 import { StandingsTable } from "@/components/leaderboard/StandingsTable";
 import { YouDock } from "@/components/leaderboard/YouDock";
 
+const TAB_IDS: LeaderboardTab[] = ["board", "quests", "divisions", "history"];
+
+function parseTab(raw: string | null): LeaderboardTab {
+  if (raw && TAB_IDS.includes(raw as LeaderboardTab)) {
+    return raw as LeaderboardTab;
+  }
+  return "board";
+}
+
 function LeagueGate({
   message,
   onRetry,
@@ -28,17 +38,17 @@ function LeagueGate({
 }) {
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-4 bg-[#f3effc] px-6 font-rounded">
-      <p className="text-center font-display text-[20px] font-bold text-[#1b1730]">
+      <p className="text-center font-display text-[20px] font-bold text-[#0f1220]">
         Can&apos;t load league
       </p>
-      <p className="text-center text-[13px] font-semibold text-[#8a7cb8]">
+      <p className="text-center text-[13px] font-semibold text-arc-lavender-600">
         {message ?? "Something went wrong"}
       </p>
       {onRetry ? (
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-full bg-[#0f1220] px-5 py-2.5 text-[13px] font-black text-white"
+          className="flex h-11 cursor-pointer items-center justify-center rounded-[16px] bg-[#0f1220] px-5 text-[13px] font-extrabold text-white shadow-[0_3px_0_#2a2f45] focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:outline-none"
         >
           Retry
         </button>
@@ -48,15 +58,14 @@ function LeagueGate({
 }
 
 /**
- * Season stage — matches Battle/Wallet night-hero family.
- * Giant rank + overlapping race chips + soft standings table.
+ * Season stage — night hero + tabbed board.
+ * Tab deep-linked via ?tab=
  */
 export default function LeaderboardScreen({
   data: dataProp,
 }: {
   data?: LeaderboardData;
 }) {
-  const [activeTab, setActiveTab] = useState<LeaderboardTab>("board");
   const { status } = useSession();
   const { league, isLoading, isError, error, refetch } =
     useCurrentLeague(dataProp);
@@ -83,32 +92,37 @@ export default function LeaderboardScreen({
     return <LeagueGate message={msg} onRetry={() => void refetch()} />;
   }
 
-  return (
-    <LeaderboardBoard
-      data={data}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-    />
-  );
+  return <LeaderboardBoard data={data} />;
 }
 
-function LeaderboardBoard({
-  data,
-  activeTab,
-  onTabChange,
-}: {
-  data: LeaderboardData;
-  activeTab: LeaderboardTab;
-  onTabChange: (tab: LeaderboardTab) => void;
-}) {
+function LeaderboardBoard({ data }: { data: LeaderboardData }) {
   const you = data.entries.find((e) => e.isYou);
   const historyQuery = useLeagueHistory();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const activeTab = useMemo(
+    () => parseTab(searchParams.get("tab")),
+    [searchParams],
+  );
+
+  const onTabChange = useCallback(
+    (tab: LeaderboardTab) => {
+      const next = new URLSearchParams(searchParams.toString());
+      if (tab === "board") next.delete("tab");
+      else next.set("tab", tab);
+      const q = next.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
       <SeasonHero data={data} you={you} />
 
-      <div className="relative z-10 -mt-6 rounded-t-arc-xl bg-[#f3effc]">
+      <div className="relative z-10 -mt-4 rounded-t-[28px] bg-[#f3effc] pt-1 shadow-[0_-12px_40px_rgba(0,0,0,0.18)]">
         <LeaderboardTabs activeTab={activeTab} onTabChange={onTabChange} />
 
         <div
@@ -132,7 +146,7 @@ function LeaderboardBoard({
                 <StandingsTable data={data} />
                 {data.me ? (
                   <div>
-                    <h3 className="mb-2 px-0.5 font-display text-[16px] font-bold text-[#1b1730]">
+                    <h3 className="mb-2 px-0.5 font-display text-[16px] font-bold text-[#0f1220]">
                       Score sources
                     </h3>
                     <ScoreBreakdownPanel
