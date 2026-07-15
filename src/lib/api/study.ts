@@ -15,6 +15,7 @@ export type StudySessionStatusDto =
   | "voided";
 
 export type StudyStartModeDto = "now" | "within_1_hour" | "scheduled";
+export type StudySessionModeDto = "focus" | "read_together";
 
 export type StudyParticipantDto = {
   userId: string;
@@ -24,6 +25,8 @@ export type StudyParticipantDto = {
   invitationStatus: string;
   taskId: string | null;
   taskLabel: string | null;
+  ackedStep: number;
+  typingAt: string | null;
   ready: boolean;
   joinedAt: string | null;
   leftAt: string | null;
@@ -40,7 +43,12 @@ export type StudyParticipantDto = {
 export type StudySessionDto = {
   id: string;
   status: StudySessionStatusDto;
+  mode: StudySessionModeDto;
   subject: string;
+  lessonId: string | null;
+  lessonTitle: string | null;
+  contentStep: number;
+  stepCount: number;
   durationMinutes: number;
   startMode: StudyStartModeDto;
   message: string | null;
@@ -62,8 +70,57 @@ export type StudySessionDto = {
   createdAt: string;
 };
 
+export type StudyContentDto = {
+  sessionId: string;
+  lessonId: string;
+  lessonTitle: string;
+  contentStep: number;
+  stepCount: number;
+  body: {
+    objective?: string;
+    sections?: Array<
+      | string
+      | {
+          id: string;
+          title: string;
+          blocks: Array<{
+            type: "text" | "callout" | "code";
+            body?: string;
+            title?: string;
+            code?: string;
+            label?: string;
+          }>;
+        }
+    >;
+    keyTakeaways?: string[];
+  };
+};
+
+export type StudyStepDto = {
+  contentStep: number;
+  stepCount: number;
+  acks: { userId: string; ackedStep: number }[];
+  advanced: boolean;
+  readingComplete: boolean;
+};
+
+export type StudyAckResultDto = {
+  state: StudySessionDto;
+  step: StudyStepDto | null;
+};
+
+export type StudyMessageDto = {
+  id: string;
+  sessionId: string;
+  senderId: string;
+  senderName: string;
+  body: string;
+  createdAt: string;
+};
+
 export type CreateStudySessionInput = {
   inviteeId: string;
+  lessonId: string;
   subject: string;
   durationMinutes: number;
   startMode: StudyStartModeDto;
@@ -76,6 +133,12 @@ export const studyApi = {
     return apiFetch<StudySessionDto>("/study-together", {
       method: "POST",
       body: input,
+      accessToken,
+    });
+  },
+
+  rooms(accessToken?: string | null) {
+    return apiFetch<{ items: StudySessionDto[] }>("/study-together/rooms", {
       accessToken,
     });
   },
@@ -150,6 +213,40 @@ export const studyApi = {
     return apiFetch<StudySessionDto>(`/study-together/${id}/heartbeat`, {
       method: "POST",
       body: body ?? { appVisible: true, focusActive: true },
+      accessToken,
+    });
+  },
+
+  content(id: string, accessToken?: string | null) {
+    return apiFetch<StudyContentDto>(`/study-together/${id}/content`, {
+      accessToken,
+    });
+  },
+
+  ackRead(
+    id: string,
+    body?: { soloAdvance?: boolean },
+    accessToken?: string | null,
+  ) {
+    return apiFetch<StudyAckResultDto>(`/study-together/${id}/ack-read`, {
+      method: "POST",
+      body: body ?? {},
+      accessToken,
+    });
+  },
+
+  messages(id: string, cursor?: string, accessToken?: string | null) {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    return apiFetch<{ items: StudyMessageDto[]; nextCursor: string | null }>(
+      `/study-together/${id}/messages${q}`,
+      { accessToken },
+    );
+  },
+
+  sendMessage(id: string, body: string, accessToken?: string | null) {
+    return apiFetch<StudyMessageDto>(`/study-together/${id}/messages`, {
+      method: "POST",
+      body: { body },
       accessToken,
     });
   },

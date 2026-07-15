@@ -22,16 +22,19 @@ function formatMmSs(totalSec: number) {
 
 /**
  * Floating live-study pill above tab bar.
- * Syncs from /study-together/invites + polls room state while active.
+ * Multi-room: count → hub. Single room → deep link.
  */
 export function StudyLivePill() {
   const pathname = usePathname();
   const { status: authStatus } = useSession();
-  const live = useStudyLiveStore((s) => s.live);
-  const applySession = useStudyLiveStore((s) => s.applySession);
+  const rooms = useStudyLiveStore((s) => s.rooms);
+  const applySessions = useStudyLiveStore((s) => s.applySessions);
   const clear = useStudyLiveStore((s) => s.clear);
   const [, setTick] = useState(0);
   const authed = authStatus === "authenticated";
+
+  const live = rooms[0] ?? null;
+  const multi = rooms.length > 1;
 
   useEffect(() => {
     if (!authed) {
@@ -41,35 +44,33 @@ export function StudyLivePill() {
     let cancelled = false;
     (async () => {
       try {
-        const { items } = await studyApi.invites();
+        const { items } = await studyApi.rooms();
         if (cancelled) return;
-        const liveHit =
-          items.find((s) => s.status === "active") ??
-          items.find((s) => isStudyLiveStatus(s.status));
-        if (liveHit) applySession(liveHit);
-        else clear();
+        const liveItems = items.filter((s) => isStudyLiveStatus(s.status));
+        applySessions(liveItems);
+        if (!liveItems.length) clear();
       } catch {
-        /* offline / unauth */
+        /* offline */
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [authed, applySession, clear]);
+  }, [authed, applySessions, clear]);
 
   useEffect(() => {
-    if (!live?.sessionId || !authed) return;
+    if (!live?.sessionId || !authed || multi) return;
     const poll = () => {
       void studyApi
         .state(live.sessionId)
-        .then(applySession)
+        .then((dto) => useStudyLiveStore.getState().applySession(dto))
         .catch(() => undefined);
     };
     poll();
     const ms = live.status === "active" ? 8_000 : 12_000;
     const t = setInterval(poll, ms);
     return () => clearInterval(t);
-  }, [live?.sessionId, live?.status, authed, applySession]);
+  }, [live?.sessionId, live?.status, authed, multi]);
 
   useEffect(() => {
     if (!live || live.remainingSeconds == null || live.status !== "active") {
@@ -77,16 +78,13 @@ export function StudyLivePill() {
     }
     const t = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(t);
-  }, [
-    live?.sessionId,
-    live?.remainingSeconds,
-    live?.status,
-    live?.capturedAtMs,
-  ]);
+  }, [live?.sessionId, live?.remainingSeconds, live?.status, live?.capturedAtMs]);
 
-  const onRoom =
-    pathname.startsWith("/study/room") || pathname.startsWith("/study/invite");
-  const show = Boolean(live && !onRoom);
+  const onStudy =
+    pathname.startsWith("/study/room") ||
+    pathname.startsWith("/study/invite") ||
+    pathname === "/study";
+  const show = rooms.length > 0 && !onStudy;
 
   const displayRemaining =
     live?.status === "active" && live.remainingSeconds != null
@@ -97,19 +95,23 @@ export function StudyLivePill() {
         )
       : null;
 
-  const timerLabel =
-    displayRemaining != null
+  const timerLabel = multi
+    ? `${rooms.length} rooms`
+    : displayRemaining != null
       ? formatMmSs(displayRemaining)
       : live
         ? `${live.durationMinutes}:00`
         : "";
 
-  const statusHint =
-    live?.status === "active"
-      ? "Focusing"
+  const statusHint = multi
+    ? "Study rooms"
+    : live?.status === "active"
+      ? "Reading"
       : live?.status === "waiting"
         ? "Ready up"
         : "Starting";
+
+  const href = multi ? "/study" : live ? `/study/room?id=${live.sessionId}` : "/study";
 
   return (
     <AnimatePresence>
@@ -123,7 +125,7 @@ export function StudyLivePill() {
             className="pointer-events-auto"
           >
             <Link
-              href={`/study/room?id=${live.sessionId}`}
+              href={href}
               className={cn(
                 "flex items-center gap-3 overflow-hidden rounded-[22px] border border-white/10 bg-[#0f1220] px-3 py-2.5 text-white",
                 "shadow-[0_14px_36px_rgba(27,20,51,0.35)] ring-1 ring-[#ffc928]/25",
@@ -133,7 +135,7 @@ export function StudyLivePill() {
                 aria-hidden
                 className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-arc-purple-500 font-display text-[15px] font-bold shadow-[0_4px_0_#4b2fd6]"
               >
-                {live.partnerInitial}
+                {multi ? rooms.length : live.partnerInitial}
                 <span className="absolute -right-0.5 -bottom-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#ffc928] text-[#1b1730]">
                   <BookOpen className="h-2.5 w-2.5" strokeWidth={3} />
                 </span>
@@ -145,11 +147,13 @@ export function StudyLivePill() {
                     {statusHint}
                   </span>
                   <span className="truncate text-[10px] font-bold text-white/40">
-                    · {live.subject}
+                    · {live.lessonTitle ?? live.subject}
                   </span>
                 </span>
                 <span className="mt-0.5 block truncate font-display text-[15px] leading-tight font-bold">
-                  With {live.partnerName.split(" ")[0]}
+                  {multi
+                    ? `${rooms.length} live sessions`
+                    : `With ${live.partnerName.split(" ")[0]}`}
                 </span>
               </span>
 
@@ -158,7 +162,7 @@ export function StudyLivePill() {
                   {timerLabel}
                 </span>
                 <span className="inline-flex items-center gap-0.5 text-[10px] font-extrabold text-white/45">
-                  Room
+                  {multi ? "Hub" : "Room"}
                   <ChevronRight className="h-3 w-3" strokeWidth={2.75} />
                 </span>
               </span>

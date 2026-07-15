@@ -15,12 +15,15 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { roadmapsApi } from "@/lib/api/roadmaps";
 import { socialApi, type SocialFriendDto } from "@/lib/api/social";
 import {
   studyApi,
   type StudySessionDto,
   type StudyStartModeDto,
 } from "@/lib/api/study";
+import type { RoadmapLessonDto } from "@/lib/api/types";
+import { pickableStudyLessons } from "@/lib/study/pick-lessons";
 import { useRankMe } from "@/hooks/useRanks";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +66,9 @@ export default function StudyInviteScreen() {
 
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
   const [invites, setInvites] = useState<StudySessionDto[]>([]);
+  const [lessons, setLessons] = useState<RoadmapLessonDto[]>([]);
   const [partnerId, setPartnerId] = useState(preselect ?? "");
+  const [lessonId, setLessonId] = useState("");
   const [subject, setSubject] = useState("SQL");
   const [startMode, setStartMode] = useState<StudyStartModeDto>("now");
   const [duration, setDuration] = useState<(typeof DURATIONS)[number]>(25);
@@ -76,13 +81,17 @@ export default function StudyInviteScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const [crew, open] = await Promise.all([
+        const [crew, open, roadmap] = await Promise.all([
           socialApi.friends(),
           studyApi.invites().catch(() => ({ items: [] as StudySessionDto[] })),
+          roadmapsApi.getCurrent().catch(() => ({ job: null, roadmap: null })),
         ]);
         if (cancelled) return;
         setFriends(crew.items);
         setInvites(open.items);
+        const pickable = pickableStudyLessons(roadmap.roadmap);
+        setLessons(pickable);
+        if (pickable[0]) setLessonId(pickable[0].id);
         const fromQuery = preselect
           ? crew.items.find((f) => f.userId === preselect)
           : null;
@@ -105,18 +114,20 @@ export default function StudyInviteScreen() {
   );
 
   const partnerOk = Boolean(partnerId && UUID_RE.test(partnerId));
+  const lessonOk = Boolean(lessonId && UUID_RE.test(lessonId));
 
   const incoming = invites.filter((s) => s.role === "invitee");
   const outgoing = invites.filter((s) => s.role === "creator");
 
   async function sendInvite() {
-    if (!partnerOk || busy || !partner) return;
+    if (!partnerOk || !lessonOk || busy || !partner) return;
     setBusy(true);
     setError(null);
     try {
       const session = await studyApi.create({
         inviteeId: partner.userId,
-        subject,
+        lessonId,
+        subject: "current_track",
         durationMinutes: duration,
         startMode,
         message: message.trim() || undefined,
@@ -293,7 +304,7 @@ export default function StudyInviteScreen() {
                     Invite in
                   </p>
                   <p className="truncate font-display text-[15px] font-bold text-[#1b1730]">
-                    {s.partner.name} · {s.subject}
+                    {s.partner.name} · {s.lessonTitle ?? s.subject}
                   </p>
                   <p className="text-[11px] font-bold text-[#8a7cb8]">
                     {s.durationMinutes}m · {s.status}
@@ -315,7 +326,7 @@ export default function StudyInviteScreen() {
                     Waiting on
                   </p>
                   <p className="truncate font-display text-[15px] font-bold text-[#1b1730]">
-                    {s.partner.name} · {s.subject}
+                    {s.partner.name} · {s.lessonTitle ?? s.subject}
                   </p>
                 </div>
                 <span className="shrink-0 text-[12px] font-extrabold text-[#8a7cb8]">
@@ -326,11 +337,59 @@ export default function StudyInviteScreen() {
           </div>
         )}
 
-        {/* Subject */}
+        {/* Lesson */}
         <div className="overflow-hidden rounded-[24px] border border-[#ebe4f6] bg-white shadow-[0_12px_28px_rgba(70,40,150,0.08)]">
           <div className="px-4 py-3">
             <p className="text-[10px] font-black tracking-[0.1em] text-[#8a7cb8] uppercase">
-              Subject
+              Lesson to read
+            </p>
+            {lessons.length === 0 ? (
+              <p className="mt-2 text-[12px] font-bold text-[#8a7cb8]">
+                No reading lessons available on your path yet.
+              </p>
+            ) : (
+              <div className="mt-2 max-h-44 space-y-1.5 overflow-y-auto">
+                {lessons.map((l) => {
+                  const active = lessonId === l.id;
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => setLessonId(l.id)}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-2 rounded-[16px] border px-3 py-2.5 text-left",
+                        active
+                          ? "border-arc-purple-500/40 bg-arc-purple-500/5"
+                          : "border-[#ebe4f6] bg-[#faf8ff]",
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-display text-[14px] font-semibold text-[#1b1730]">
+                          {l.title}
+                        </span>
+                        <span className="text-[11px] font-bold text-[#8a7cb8]">
+                          {l.estimatedMinutes}m · {l.status}
+                        </span>
+                      </span>
+                      {active ? (
+                        <Check
+                          className="h-4 w-4 shrink-0 text-arc-purple-500"
+                          strokeWidth={3}
+                        />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Subject label (soft) */}
+        <div className="overflow-hidden rounded-[24px] border border-[#ebe4f6] bg-white shadow-[0_12px_28px_rgba(70,40,150,0.08)]">
+          <div className="px-4 py-3">
+            <p className="text-[10px] font-black tracking-[0.1em] text-[#8a7cb8] uppercase">
+              Focus tag
             </p>
             <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
               {SUBJECTS.map((s) => (
@@ -484,7 +543,7 @@ export default function StudyInviteScreen() {
 
         <motion.button
           type="button"
-          disabled={!partnerOk || busy}
+          disabled={!partnerOk || !lessonOk || busy}
           onClick={() => void sendInvite()}
           whileTap={{ scale: 0.98, y: 2 }}
           className={cn(
