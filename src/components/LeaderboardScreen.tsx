@@ -58,30 +58,22 @@ export default function LeaderboardScreen({
 }) {
   const [activeTab, setActiveTab] = useState<LeaderboardTab>("board");
   const { status } = useSession();
-  const { league, isLoading, isError, error, refetch } = useCurrentLeague();
-
-  if (dataProp) {
-    return (
-      <LeaderboardBoard
-        data={dataProp}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-    );
-  }
+  const { league, isLoading, isError, error, refetch } =
+    useCurrentLeague(dataProp);
+  const data = league ?? dataProp;
 
   if (
-    status === "loading" ||
-    (status === "authenticated" && isLoading && !league)
+    (status === "loading" && !data) ||
+    (status === "authenticated" && isLoading && !data)
   ) {
     return <LeaderboardSkeleton />;
   }
 
-  if (status !== "authenticated") {
+  if (status !== "authenticated" && !data) {
     return <LeagueGate message="Sign in to join this week's league." />;
   }
 
-  if (isError || !league) {
+  if ((isError && !data) || !data) {
     const msg =
       error instanceof ApiError
         ? messageForCode(error.code, error.message)
@@ -93,7 +85,7 @@ export default function LeaderboardScreen({
 
   return (
     <LeaderboardBoard
-      data={league}
+      data={data}
       activeTab={activeTab}
       onTabChange={setActiveTab}
     />

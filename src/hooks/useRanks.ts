@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { ranksApi } from "@/lib/api/ranks";
+import { ranksApi, type RankMeResponse } from "@/lib/api/ranks";
 
 export const ranksMeQueryKey = (token?: string | null) =>
   ["ranks", "me", token ?? "anon"] as const;
@@ -10,7 +10,7 @@ export const ranksMeQueryKey = (token?: string | null) =>
 export const ranksLadderQueryKey = (token?: string | null) =>
   ["ranks", "ladder", token ?? "anon"] as const;
 
-export function useRankMe() {
+export function useRankMe(initialData?: RankMeResponse) {
   const { data: session, status } = useSession();
   const accessToken = session?.accessToken;
 
@@ -18,6 +18,7 @@ export function useRankMe() {
     queryKey: ranksMeQueryKey(accessToken),
     enabled: status === "authenticated" && Boolean(accessToken),
     queryFn: () => ranksApi.getMe(accessToken),
+    initialData,
     staleTime: 20_000,
     refetchOnWindowFocus: true,
   });

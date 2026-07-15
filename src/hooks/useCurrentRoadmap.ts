@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { roadmapsApi } from "@/lib/api/roadmaps";
+import type { RoadmapCurrentResponse } from "@/lib/api/types";
 
-export function useCurrentRoadmap() {
+export function useCurrentRoadmap(initialData?: RoadmapCurrentResponse) {
   const { data: session, status } = useSession();
   const accessToken = session?.accessToken;
   const queryClient = useQueryClient();
@@ -16,6 +17,8 @@ export function useCurrentRoadmap() {
     queryKey,
     enabled: status === "authenticated" && Boolean(accessToken),
     queryFn: () => roadmapsApi.getCurrent(accessToken),
+    initialData,
+    staleTime: 15_000,
     refetchInterval: (q) => {
       const job = q.state.data?.job;
       if (!job) return false;

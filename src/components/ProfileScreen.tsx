@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
+import type { RankMeResponse } from "@/lib/api/ranks";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
@@ -41,16 +42,26 @@ const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
  */
 export default function ProfileScreen({
   data: dataProp,
+  initialRank,
+  initialSocial,
+  initialBadges,
 }: {
   data?: ProfileData;
+  initialRank?: RankMeResponse;
+  initialSocial?: { followers: number; following: number };
+  initialBadges?: { earned: number; total: number };
 }) {
   const data = dataProp ?? emptyProfileData();
   const { data: session, status: sessionStatus } = useSession();
   const { flags } = useSystemFlags();
-  const { data: rankMe, isLoading: rankLoading } = useRankMe();
+  const { data: rankMe, isLoading: rankLoading } = useRankMe(initialRank);
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
+  const economyHydrated = useEconomyStore((s) => s.hydrated);
+  const visibleXp = economyHydrated ? xp : data.xp;
+  const visibleGems = economyHydrated ? gems : data.gems;
+  const visibleCoins = economyHydrated ? coins : data.coins;
   const weekStreak = session?.profile?.weeklyStreak ?? data.weekStreak;
   const day = useArcDay(data.day);
   const userName =
@@ -70,10 +81,18 @@ export default function ProfileScreen({
   const fromRole = data.fromRole;
   const becoming = data.becoming;
 
-  const [followerCount, setFollowerCount] = useState<number | null>(null);
-  const [followingCount, setFollowingCount] = useState<number | null>(null);
-  const [badgesEarned, setBadgesEarned] = useState<number | null>(null);
-  const [badgesTotal, setBadgesTotal] = useState<number>(data.badgesTotal);
+  const [followerCount, setFollowerCount] = useState<number | null>(
+    initialSocial?.followers ?? null,
+  );
+  const [followingCount, setFollowingCount] = useState<number | null>(
+    initialSocial?.following ?? null,
+  );
+  const [badgesEarned, setBadgesEarned] = useState<number | null>(
+    initialBadges?.earned ?? null,
+  );
+  const [badgesTotal, setBadgesTotal] = useState<number>(
+    initialBadges?.total ?? data.badgesTotal,
+  );
 
   useEffect(() => {
     const userId = session?.user?.id;
@@ -112,7 +131,7 @@ export default function ProfileScreen({
     (followerCount == null || badgesEarned == null);
 
   const profileLoading =
-    sessionStatus === "loading" ||
+    (!dataProp && sessionStatus === "loading") ||
     (!dataProp &&
       sessionStatus === "authenticated" &&
       ((rankLoading && !rankMe) || waitingOnSocial));
@@ -234,7 +253,7 @@ export default function ProfileScreen({
               XP
             </p>
             <p className="mt-1 font-display text-[17px] leading-none font-bold text-white tabular-nums">
-              {xp.toLocaleString()}
+              {visibleXp.toLocaleString()}
             </p>
           </div>
           <Link
@@ -257,7 +276,7 @@ export default function ProfileScreen({
             </p>
             <p className="mt-1 inline-flex min-w-0 items-center gap-0.5 font-display text-[15px] leading-none font-bold tabular-nums">
               <Coins className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
-              <span className="truncate">{coins.toLocaleString()}</span>
+              <span className="truncate">{visibleCoins.toLocaleString()}</span>
             </p>
           </Link>
         </div>
@@ -291,7 +310,7 @@ export default function ProfileScreen({
               </span>
               <div>
                 <p className="font-display text-[18px] leading-none font-bold text-[#1b1730]">
-                  {gems.toLocaleString()}
+                  {visibleGems.toLocaleString()}
                 </p>
                 <p className="mt-0.5 text-[10px] font-extrabold tracking-wide text-[#8a7cb8] uppercase">
                   Gems
@@ -322,7 +341,7 @@ export default function ProfileScreen({
           </Link>
 
           <ActionTwinRow
-            coins={coins}
+            coins={visibleCoins}
             studioEnabled={flags.avatar_studio_enabled}
           />
 

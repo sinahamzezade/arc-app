@@ -18,6 +18,8 @@ export type ProfileData = {
   weekStreak: number;
   badgesEarned: number;
   badgesTotal: number;
+  followers: number;
+  following: number;
   coins: number;
   gems: number;
   plan: {
@@ -44,6 +46,8 @@ export function emptyProfileData(
     weekStreak: 0,
     badgesEarned: 0,
     badgesTotal: 0,
+    followers: 0,
+    following: 0,
     coins: 0,
     gems: 0,
     plan: {

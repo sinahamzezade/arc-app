@@ -8,7 +8,7 @@ import type { WeekCurrentResponse } from "@/lib/api/types";
 export const weekQueryKey = (accessToken?: string | null) =>
   ["weeks", "current", accessToken ?? "anon"] as const;
 
-export function useCurrentWeek() {
+export function useCurrentWeek(initialData?: WeekCurrentResponse) {
   const { data: session, status } = useSession();
   const accessToken = session?.accessToken;
   const queryClient = useQueryClient();
@@ -17,6 +17,8 @@ export function useCurrentWeek() {
     queryKey: weekQueryKey(accessToken),
     enabled: status === "authenticated" && Boolean(accessToken),
     queryFn: () => weeksApi.getCurrent(accessToken),
+    initialData,
+    staleTime: 15_000,
     retry: (count, err) => {
       const code =
         err && typeof err === "object" && "code" in err

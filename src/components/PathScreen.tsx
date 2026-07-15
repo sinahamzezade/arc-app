@@ -25,6 +25,7 @@ import PathGateScreen from "@/components/path/PathGateScreen";
 import { PathScreenSkeleton } from "@/components/path/PathScreenSkeleton";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import type { RoadmapCurrentResponse } from "@/lib/api/types";
 import { mapRoadmapToPathData } from "@/lib/path/map-roadmap";
 import {
   type PathIconName,
@@ -234,8 +235,15 @@ function buildTrail(data: PathData) {
 /* Screen — owns roadmap fetch + gate states, then the road map        */
 /* ------------------------------------------------------------------ */
 
-export default function PathScreen({ data: dataProp }: { data?: PathData }) {
-  const { data, isPending, isError, error, retry } = useCurrentRoadmap();
+export default function PathScreen({
+  data: dataProp,
+  initialRoadmap,
+}: {
+  data?: PathData;
+  initialRoadmap?: RoadmapCurrentResponse;
+}) {
+  const { data, isPending, isError, error, retry } =
+    useCurrentRoadmap(initialRoadmap);
 
   if (dataProp) {
     return <RoadMap data={dataProp} />;

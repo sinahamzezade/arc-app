@@ -30,18 +30,33 @@ import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { paceMeta } from "@/lib/course-timing/format";
 import { useEconomyStore } from "@/store/useEconomyStore";
+import type {
+  RoadmapCurrentResponse,
+  WeekCurrentResponse,
+} from "@/lib/api/types";
 
 /**
  * Home — night dispatch hero + light sheet.
  * Mission + week seal from `/roadmaps/current` + `/weeks/current`.
  * No live roadmap → never show Next Stop (admin reset / pre-path).
  */
-export default function HomeScreen({ data: dataProp }: { data?: HomeData }) {
+export default function HomeScreen({
+  data: dataProp,
+  initialRoadmap,
+  initialWeek,
+  questionnaireComplete = false,
+}: {
+  data?: HomeData;
+  initialRoadmap?: RoadmapCurrentResponse;
+  initialWeek?: WeekCurrentResponse;
+  questionnaireComplete?: boolean;
+}) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const { data: session, status: sessionStatus } = useSession();
-  const { data: roadmapRes, isLoading: roadmapLoading } = useCurrentRoadmap();
-  const { week, isLoading: weekLoading } = useCurrentWeek();
+  const { data: roadmapRes, isLoading: roadmapLoading } =
+    useCurrentRoadmap(initialRoadmap);
+  const { week, isLoading: weekLoading } = useCurrentWeek(initialWeek);
   const { timing } = useCourseTiming();
   const { data: unreadCount } = useUnreadNotificationCount();
   const { data: friendRequestCount } = useIncomingFriendRequestCount();
@@ -51,7 +66,9 @@ export default function HomeScreen({ data: dataProp }: { data?: HomeData }) {
   const coins = useEconomyStore((s) => s.coins);
   const economyHydrated = useEconomyStore((s) => s.hydrated);
 
-  const qDone = isQuestionnaireComplete(session?.profile ?? null);
+  const qDone =
+    questionnaireComplete ||
+    isQuestionnaireComplete(session?.profile ?? null);
   const liveRoadmap = roadmapRes?.roadmap ?? null;
 
   useEffect(() => {
@@ -61,7 +78,9 @@ export default function HomeScreen({ data: dataProp }: { data?: HomeData }) {
   }, [sessionStatus, qDone, router]);
 
   const sheetLoading =
-    sessionStatus === "loading" ||
+    (sessionStatus === "loading" &&
+      !initialRoadmap &&
+      !initialWeek) ||
     (sessionStatus === "authenticated" &&
       (roadmapLoading || weekLoading) &&
       !roadmapRes &&

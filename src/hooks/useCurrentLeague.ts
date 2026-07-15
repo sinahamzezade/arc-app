@@ -7,11 +7,12 @@ import {
   mapLeagueToLeaderboardData,
   mapLeagueUserToPeer,
 } from "@/lib/leaderboard/map-league";
+import type { LeaderboardData } from "@/lib/leaderboard/types";
 
 export const leagueQueryKey = (accessToken?: string | null) =>
   ["leagues", "current", accessToken ?? "anon"] as const;
 
-export function useCurrentLeague() {
+export function useCurrentLeague(initialData?: LeaderboardData) {
   const { data: session, status } = useSession();
   const accessToken = session?.accessToken;
   const meUserId = session?.user?.id || null;
@@ -19,6 +20,7 @@ export function useCurrentLeague() {
   const query = useQuery({
     queryKey: [...leagueQueryKey(accessToken), meUserId ?? ""],
     enabled: status === "authenticated" && Boolean(accessToken),
+    initialData,
     queryFn: async () => {
       const [current, board] = await Promise.all([
         leaguesApi.getCurrent(accessToken),

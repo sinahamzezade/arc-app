@@ -5,6 +5,8 @@ import { useSession } from "next-auth/react";
 import {
   battlesApi,
   type BattleDto,
+  type BattleHistoryItemDto,
+  type BattleStatsDto,
   type BattleStatusDto,
 } from "@/lib/api/battles";
 
@@ -51,7 +53,16 @@ export function battleStatusLabel(status: BattleStatusDto): string {
   }
 }
 
-export function useBattleHub() {
+export type BattleHubInitialData = {
+  stats?: BattleStatsDto;
+  history?: {
+    items: BattleHistoryItemDto[];
+    nextCursor: string | null;
+  };
+  invites?: { items: BattleDto[] };
+};
+
+export function useBattleHub(initialData?: BattleHubInitialData) {
   const { data: session, status } = useSession();
   const accessToken = session?.accessToken;
   const enabled = status === "authenticated" && Boolean(accessToken);
@@ -61,6 +72,7 @@ export function useBattleHub() {
     queryKey: ["battles", "stats", accessToken ?? "anon"],
     queryFn: () => battlesApi.statsMe(accessToken),
     enabled,
+    initialData: initialData?.stats,
     staleTime: 30_000,
   });
 
@@ -68,6 +80,7 @@ export function useBattleHub() {
     queryKey: ["battles", "history", accessToken ?? "anon"],
     queryFn: () => battlesApi.history(undefined, accessToken),
     enabled,
+    initialData: initialData?.history,
     staleTime: 30_000,
   });
 
@@ -75,6 +88,7 @@ export function useBattleHub() {
     queryKey: ["battles", "invites", accessToken ?? "anon"],
     queryFn: () => battlesApi.invites(accessToken),
     enabled,
+    initialData: initialData?.invites,
     refetchInterval: 5_000,
   });
 

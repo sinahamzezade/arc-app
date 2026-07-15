@@ -22,6 +22,7 @@ import { battlesApi, type BattleDto } from "@/lib/api/battles";
 import {
   battleHref,
   battleStatusLabel,
+  type BattleHubInitialData,
   useBattleHub,
 } from "@/hooks/useBattles";
 import { BattleHubSkeleton } from "@/components/battle/BattleHubSkeleton";
@@ -63,7 +64,11 @@ function inviteEndedCopy(status: string | null): {
 /**
  * Arena hub — night stage, live/pending matches, tape, rival orbit.
  */
-export default function BattleHubScreen() {
+export default function BattleHubScreen({
+  initialData,
+}: {
+  initialData?: BattleHubInitialData;
+}) {
   const { status: sessionStatus } = useSession();
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
@@ -84,7 +89,7 @@ export default function BattleHubScreen() {
     blocking,
     loadMore,
     invalidate,
-  } = useBattleHub();
+  } = useBattleHub(initialData);
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
   const [cancelling, setCancelling] = useState(false);
   const [userQuery, setUserQuery] = useState("");
@@ -181,7 +186,7 @@ export default function BattleHubScreen() {
   }, [userQuery, searchingUsers]);
 
   if (
-    sessionStatus === "loading" ||
+    (sessionStatus === "loading" && !initialData) ||
     (sessionStatus === "authenticated" && hubLoading && !hubReady)
   ) {
     return <BattleHubSkeleton />;
