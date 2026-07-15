@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import { getWsBase } from "@/lib/api/ws";
+import { getWsBase, getWsPath } from "@/lib/api/ws";
 import type {
   StudyMessageDto,
   StudySessionDto,
@@ -154,10 +154,16 @@ export function useStudySocket({
     const wsBase = getWsBase();
     const socket = io(`${wsBase}/study`, {
       auth: { token },
-      transports: ["websocket", "polling"],
+      path: getWsPath(),
+      // Polling first: survives proxies/load balancers that block the WS
+      // upgrade (Railway, nginx w/o Upgrade headers). Socket.IO transparently
+      // upgrades to WebSocket afterwards when the environment allows it.
+      transports: ["polling", "websocket"],
+      withCredentials: true,
       reconnection: true,
       reconnectionAttempts: 12,
       reconnectionDelay: 800,
+      timeout: 20_000,
     });
     socketRef.current = socket;
 

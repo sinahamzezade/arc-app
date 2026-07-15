@@ -43,6 +43,12 @@ export function StudyChatPanel({
     inputRef.current?.focus();
   }, [messages.length, open]);
 
+  // Keep view pinned when typing strip appears (no layout jump).
+  useEffect(() => {
+    if (!open || !partnerTyping) return;
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [open, partnerTyping]);
+
   const unread = open ? 0 : Math.max(0, messages.length - seenCount);
   const lastMessage = messages[messages.length - 1] ?? null;
 
@@ -77,7 +83,7 @@ export function StudyChatPanel({
           <span className="block text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
             Chat with {partnerFirst}
           </span>
-          <span className="mt-0.5 block truncate text-[13px] font-bold text-[#0f1220]">
+          <span className="mt-0.5 block h-5 truncate text-[13px] leading-5 font-bold text-[#0f1220]">
             {partnerTyping
               ? `${partnerFirst} is typing…`
               : lastMessage
@@ -85,13 +91,17 @@ export function StudyChatPanel({
                 : "Say hi — keep it short"}
           </span>
         </span>
-        {partnerTyping ? (
-          <span className="flex shrink-0 items-center gap-0.5" aria-hidden>
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-purple-500 [animation-delay:0ms]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-purple-500 [animation-delay:120ms]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-purple-500 [animation-delay:240ms]" />
-          </span>
-        ) : null}
+        <span
+          className={cn(
+            "flex h-4 w-6 shrink-0 items-center justify-center gap-0.5",
+            !partnerTyping && "invisible",
+          )}
+          aria-hidden
+        >
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-purple-500 [animation-delay:0ms]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-purple-500 [animation-delay:120ms]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-purple-500 [animation-delay:240ms]" />
+        </span>
       </button>
 
       <AnimatePresence>
@@ -113,7 +123,7 @@ export function StudyChatPanel({
               exit={{ y: "100%" }}
               transition={softSpring}
               onClick={(e) => e.stopPropagation()}
-              className="relative flex max-h-[72dvh] flex-col overflow-hidden rounded-t-[28px] bg-[#f3effc] shadow-[0_-16px_48px_rgba(15,18,32,0.28)]"
+              className="relative flex h-[min(72dvh,640px)] max-h-[72dvh] flex-col overflow-hidden rounded-t-[28px] bg-[#f3effc] shadow-[0_-16px_48px_rgba(15,18,32,0.28)]"
             >
               <span
                 aria-hidden
@@ -128,7 +138,7 @@ export function StudyChatPanel({
                   >
                     Chat
                   </p>
-                  <p className="text-[11px] font-bold text-arc-lavender-600">
+                  <p className="h-4 text-[11px] leading-4 font-bold text-arc-lavender-600">
                     {partnerTyping
                       ? `${partnerFirst} typing…`
                       : `with ${partnerFirst}`}
@@ -177,27 +187,55 @@ export function StudyChatPanel({
                               : "rounded-bl-md border-2 border-[#ebe4f6] bg-white text-[#0f1220] shadow-[0_3px_0_#ebe4f6]",
                           )}
                         >
-                          {!isMe ? (
-                            <p className="mb-0.5 text-[9px] font-black tracking-[0.1em] text-arc-lavender-500 uppercase">
-                              {m.senderName.split(" ")[0]}
-                            </p>
-                          ) : null}
+                          <div className="mb-0.5 flex items-baseline justify-between gap-3">
+                            {!isMe ? (
+                              <p className="text-[9px] font-black tracking-[0.1em] text-arc-lavender-500 uppercase">
+                                {m.senderName.split(" ")[0]}
+                              </p>
+                            ) : (
+                              <span />
+                            )}
+                            <time
+                              dateTime={m.createdAt}
+                              className={cn(
+                                "shrink-0 text-[9px] font-extrabold tabular-nums",
+                                isMe
+                                  ? "text-white/70"
+                                  : "text-arc-lavender-500",
+                              )}
+                            >
+                              {formatMessageTime(m.createdAt)}
+                            </time>
+                          </div>
                           {m.body}
                         </div>
                       </div>
                     );
                   })
                 )}
+                <div ref={endRef} />
+              </div>
+
+              {/* Fixed-height typing strip — never grows/shrinks sheet */}
+              <div
+                className="flex h-9 shrink-0 items-center px-4"
+                aria-live="polite"
+                aria-atomic="true"
+              >
                 {partnerTyping ? (
-                  <div className="flex justify-start">
-                    <div className="flex items-center gap-1.5 rounded-[18px] rounded-bl-md border-2 border-[#ebe4f6] bg-white px-3.5 py-2.5 shadow-[0_3px_0_#ebe4f6]">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 rounded-full border-2 border-[#ebe4f6] bg-white px-2.5 py-1 shadow-[0_2px_0_#ebe4f6]">
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:0ms]" />
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:120ms]" />
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:240ms]" />
                     </div>
+                    <span className="text-[11px] font-bold text-arc-lavender-600">
+                      {partnerFirst} typing…
+                    </span>
                   </div>
-                ) : null}
-                <div ref={endRef} />
+                ) : (
+                  <span className="sr-only">Partner not typing</span>
+                )}
               </div>
 
               <form
@@ -236,4 +274,10 @@ export function StudyChatPanel({
       </AnimatePresence>
     </>
   );
+}
+
+function formatMessageTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }

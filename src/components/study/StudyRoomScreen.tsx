@@ -92,8 +92,8 @@ export default function StudyRoomScreen() {
     if (!sessionId) return;
     try {
       const { items } = await studyApi.messages(sessionId);
-      // API returns newest-first; chat UI wants oldest-first.
-      setMessages([...items].reverse());
+      // API already returns oldest → newest (service reverses DESC page).
+      setMessages(sortMessagesAsc(items));
     } catch {
       /* optional — 401 when session expired */
     }
@@ -122,9 +122,7 @@ export default function StudyRoomScreen() {
         void refresh();
       },
       onMessage: (msg) => {
-        setMessages((prev) =>
-          prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
-        );
+        setMessages((prev) => mergeMessage(prev, msg));
       },
       onPartnerTyping: () => {
         setPartnerTyping(true);
@@ -264,16 +262,12 @@ export default function StudyRoomScreen() {
     if (connected) {
       const msg = await emitChatSend(body);
       if (msg) {
-        setMessages((prev) =>
-          prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
-        );
+        setMessages((prev) => mergeMessage(prev, msg));
         return;
       }
     }
     const msg = await studyApi.sendMessage(sessionId, body);
-    setMessages((prev) =>
-      prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
-    );
+    setMessages((prev) => mergeMessage(prev, msg));
   }
 
   async function onLeave() {
@@ -915,4 +909,19 @@ function PrimaryBtn({
       {busy ? "Working…" : label}
     </motion.button>
   );
+}
+
+function sortMessagesAsc(items: StudyMessageDto[]): StudyMessageDto[] {
+  return [...items].sort(
+    (a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+}
+
+function mergeMessage(
+  prev: StudyMessageDto[],
+  msg: StudyMessageDto,
+): StudyMessageDto[] {
+  if (prev.some((m) => m.id === msg.id)) return prev;
+  return sortMessagesAsc([...prev, msg]);
 }
