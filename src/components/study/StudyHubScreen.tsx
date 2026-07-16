@@ -7,14 +7,17 @@ import {
   ArrowRight,
   BookOpen,
   Check,
-  Clock,
   Plus,
   RefreshCw,
   Users,
   X,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { studyApi, type StudySessionDto } from "@/lib/api/study";
+import {
+  studyApi,
+  type StudyPathDto,
+  type StudySessionDto,
+} from "@/lib/api/study";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { StudyHubSkeleton } from "@/components/study/StudyHubSkeleton";
@@ -36,41 +39,41 @@ function partnerColor(initial: string): string {
   return AVATAR_COLORS[code % AVATAR_COLORS.length]!;
 }
 
-function statusMeta(s: StudySessionDto): {
+function pathTone(p: StudyPathDto): {
   label: string;
-  tone: "live" | "ready" | "invite" | "soon" | "muted";
+  tone: "live" | "invite" | "soon" | "done" | "muted";
 } {
-  if (s.status === "active") return { label: "Reading now", tone: "live" };
-  if (s.status === "waiting") return { label: "Ready up", tone: "ready" };
-  if (s.status === "invited" && s.role === "invitee")
+  if (p.activeSessionId) return { label: "Live session", tone: "live" };
+  if (p.status === "invited" && p.role === "partner")
     return { label: "Invite for you", tone: "invite" };
-  if (s.status === "invited") return { label: "Awaiting accept", tone: "soon" };
-  if (s.status === "accepted") return { label: "Scheduled", tone: "soon" };
-  return { label: s.status.replaceAll("_", " "), tone: "muted" };
+  if (p.status === "invited") return { label: "Awaiting accept", tone: "soon" };
+  if (p.status === "completed") return { label: "Complete", tone: "done" };
+  if (p.status === "active") return { label: "In progress", tone: "muted" };
+  return { label: p.status.replaceAll("_", " "), tone: "muted" };
 }
 
-function toneClass(tone: ReturnType<typeof statusMeta>["tone"]) {
+function toneClass(tone: ReturnType<typeof pathTone>["tone"]) {
   switch (tone) {
     case "live":
       return "bg-arc-purple-500/15 text-arc-purple-500";
-    case "ready":
-      return "bg-[#62d84e]/15 text-[#2d9e45]";
     case "invite":
       return "bg-[#ffc928]/25 text-[#8a6a10]";
     case "soon":
       return "bg-[#2d8cff]/15 text-[#1a5fad]";
+    case "done":
+      return "bg-[#16c784]/15 text-[#178a52]";
     default:
       return "bg-[#f0ecf7] text-[#8a7cb8]";
   }
 }
 
 /**
- * Study Together hub — night stage, live rooms, incoming invites, create CTA.
+ * Study Together hub — co-roadmaps by category, live episodes, path invites.
  */
 export default function StudyHubScreen() {
   const reduceMotion = useReducedMotion();
+  const [paths, setPaths] = useState<StudyPathDto[]>([]);
   const [rooms, setRooms] = useState<StudySessionDto[]>([]);
-  const [invites, setInvites] = useState<StudySessionDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -78,17 +81,17 @@ export default function StudyHubScreen() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [roomRes, inviteRes] = await Promise.all([
-        studyApi.rooms(),
-        studyApi.invites().catch(() => ({ items: [] as StudySessionDto[] })),
+      const [pathRes, roomRes] = await Promise.all([
+        studyApi.paths(),
+        studyApi.rooms().catch(() => ({ items: [] as StudySessionDto[] })),
       ]);
+      setPaths(pathRes.items);
       setRooms(roomRes.items);
-      setInvites(inviteRes.items);
     } catch (err) {
       setError(
         err instanceof ApiError
           ? messageForCode(err.code, err.message)
-          : "Could not load rooms",
+          : "Could not load paths",
       );
     } finally {
       setLoading(false);
@@ -101,10 +104,8 @@ export default function StudyHubScreen() {
 
   const incoming = useMemo(
     () =>
-      invites.filter(
-        (s) => s.status === "invited" && s.role === "invitee",
-      ),
-    [invites],
+      paths.filter((p) => p.status === "invited" && p.role === "partner"),
+    [paths],
   );
 
   const live = useMemo(
@@ -112,17 +113,33 @@ export default function StudyHubScreen() {
     [rooms],
   );
 
-  const other = useMemo(
+  const activePaths = useMemo(
     () =>
-      rooms.filter((s) => s.status !== "active" && s.status !== "waiting"),
-    [rooms],
+      paths.filter(
+        (p) =>
+          !(p.status === "invited" && p.role === "partner") &&
+          p.status !== "declined" &&
+          p.status !== "cancelled",
+      ),
+    [paths],
   );
+
+  const byCategory = useMemo(() => {
+    const map = new Map<string, StudyPathDto[]>();
+    for (const p of activePaths) {
+      const key = p.category?.trim() || "General";
+      const list = map.get(key) ?? [];
+      list.push(p);
+      map.set(key, list);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [activePaths]);
 
   const acceptInvite = async (id: string) => {
     setBusyId(id);
     setError(null);
     try {
-      await studyApi.accept(id);
+      await studyApi.acceptPath(id);
       await load();
     } catch (err) {
       setError(
@@ -139,7 +156,7 @@ export default function StudyHubScreen() {
     setBusyId(id);
     setError(null);
     try {
-      await studyApi.decline(id);
+      await studyApi.declinePath(id);
       await load();
     } catch (err) {
       setError(
@@ -155,7 +172,7 @@ export default function StudyHubScreen() {
   if (loading) return <StudyHubSkeleton />;
 
   const empty =
-    live.length === 0 && other.length === 0 && incoming.length === 0;
+    live.length === 0 && activePaths.length === 0 && incoming.length === 0;
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-clip bg-[#f2eefb] font-rounded">
@@ -186,12 +203,12 @@ export default function StudyHubScreen() {
               Study Together
             </h1>
             <p className="mt-2 text-[13px] font-bold text-white/50">
-              Same lesson. Same room. Keep pace.
+              Co-roadmaps with friends. Sessions when you both show up.
             </p>
           </div>
           <button
             type="button"
-            aria-label="Refresh rooms"
+            aria-label="Refresh paths"
             onClick={() => void load()}
             className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15 transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]"
           >
@@ -208,10 +225,10 @@ export default function StudyHubScreen() {
           </span>
           <span className="min-w-0 flex-1 text-left">
             <span className="block font-display text-[16px] font-bold tracking-[-0.02em]">
-              Start a room
+              Start a path
             </span>
             <span className="block text-[11px] font-bold text-[#0f1220]/60">
-              Pick a friend · pick a lesson
+              Pick a friend · pick a unit
             </span>
           </span>
           <ArrowRight className="h-5 w-5 shrink-0" strokeWidth={2.5} />
@@ -241,10 +258,10 @@ export default function StudyHubScreen() {
               <Users className="h-7 w-7" strokeWidth={2.25} />
             </span>
             <p className="mt-4 font-display text-[20px] font-bold text-[#1b1730]">
-              No rooms yet
+              No paths yet
             </p>
             <p className="mt-1.5 text-[13px] font-bold text-[#8a7cb8]">
-              Invite a friend and read the same lesson together.
+              Invite a friend onto a unit and learn it together.
             </p>
             <Link
               href="/study/invite"
@@ -257,16 +274,16 @@ export default function StudyHubScreen() {
         ) : null}
 
         {incoming.length > 0 ? (
-          <section aria-label="Incoming invites">
+          <section aria-label="Incoming path invites">
             <SectionLabel>For you</SectionLabel>
             <ul className="mt-2 space-y-2.5">
-              {incoming.map((room) => (
+              {incoming.map((path) => (
                 <InviteCard
-                  key={room.id}
-                  room={room}
-                  busy={busyId === room.id}
-                  onAccept={() => void acceptInvite(room.id)}
-                  onDecline={() => void declineInvite(room.id)}
+                  key={path.id}
+                  path={path}
+                  busy={busyId === path.id}
+                  onAccept={() => void acceptInvite(path.id)}
+                  onDecline={() => void declineInvite(path.id)}
                 />
               ))}
             </ul>
@@ -274,11 +291,11 @@ export default function StudyHubScreen() {
         ) : null}
 
         {live.length > 0 ? (
-          <section aria-label="Live rooms">
+          <section aria-label="Live sessions">
             <SectionLabel>Live now</SectionLabel>
             <ul className="mt-2 space-y-2.5">
               {live.map((room, i) => (
-                <RoomCard
+                <LiveEpisodeCard
                   key={room.id}
                   room={room}
                   index={i}
@@ -289,21 +306,21 @@ export default function StudyHubScreen() {
           </section>
         ) : null}
 
-        {other.length > 0 ? (
-          <section aria-label="Other rooms">
-            <SectionLabel>Upcoming</SectionLabel>
+        {byCategory.map(([category, items]) => (
+          <section key={category} aria-label={`${category} paths`}>
+            <SectionLabel>{category}</SectionLabel>
             <ul className="mt-2 space-y-2.5">
-              {other.map((room, i) => (
-                <RoomCard
-                  key={room.id}
-                  room={room}
+              {items.map((path, i) => (
+                <PathCard
+                  key={path.id}
+                  path={path}
                   index={i}
                   reduceMotion={!!reduceMotion}
                 />
               ))}
             </ul>
           </section>
-        ) : null}
+        ))}
       </div>
     </div>
   );
@@ -317,20 +334,19 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-function RoomCard({
-  room,
+function PathCard({
+  path,
   index,
   reduceMotion,
 }: {
-  room: StudySessionDto;
+  path: StudyPathDto;
   index: number;
   reduceMotion: boolean;
 }) {
-  const meta = statusMeta(room);
-  const progress =
-    room.stepCount > 0
-      ? Math.round(((room.contentStep + 1) / room.stepCount) * 100)
-      : 0;
+  const meta = pathTone(path);
+  const href = path.activeSessionId
+    ? `/study/room?id=${path.activeSessionId}`
+    : `/study/path?id=${path.id}`;
 
   return (
     <li>
@@ -340,7 +356,7 @@ function RoomCard({
         transition={{ ...softSpring, delay: index * 0.04 }}
       >
         <Link
-          href={`/study/room?id=${room.id}`}
+          href={href}
           className={cn(
             "flex cursor-pointer items-stretch overflow-hidden rounded-[22px] border-2 bg-white shadow-[0_4px_0_#ebe4f6] transition-colors hover:border-[#0f1220]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500",
             meta.tone === "live"
@@ -351,9 +367,9 @@ function RoomCard({
           <div className="min-w-0 flex-1 p-4">
             <div className="flex items-start gap-3">
               <UserAvatar
-                initial={room.partner.initial}
-                color={partnerColor(room.partner.initial)}
-                avatarUrl={room.partner.avatarUrl}
+                initial={path.partner.initial}
+                color={partnerColor(path.partner.initial)}
+                avatarUrl={path.partner.avatarUrl}
                 className="h-12 w-12 shrink-0 rounded-[16px] font-display text-[16px]"
                 textClassName="text-[16px]"
                 alt=""
@@ -375,10 +391,10 @@ function RoomCard({
                   )}
                 </span>
                 <p className="mt-1.5 truncate font-display text-[16px] font-semibold text-[#1b1730]">
-                  {room.lessonTitle ?? room.subject}
+                  {path.title}
                 </p>
                 <p className="mt-0.5 text-[12px] font-bold text-[#8a7cb8]">
-                  with {room.partner.name.split(" ")[0]}
+                  with {path.partner.name.split(" ")[0]}
                 </p>
               </div>
             </div>
@@ -386,29 +402,79 @@ function RoomCard({
             <div className="mt-3 flex items-center gap-3 text-[11px] font-bold text-[#8a7cb8]">
               <span className="inline-flex items-center gap-1">
                 <BookOpen className="h-3.5 w-3.5" strokeWidth={2.5} />
-                Step {room.contentStep + 1}/{Math.max(room.stepCount, 1)}
+                Step {Math.min(path.contentStep + 1, Math.max(path.stepCount, 1))}
+                /{Math.max(path.stepCount, 1)}
               </span>
-              <span className="inline-flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
-                {room.durationMinutes}m
-              </span>
+              <span className="tabular-nums">{path.progressPercent}%</span>
             </div>
 
-            {meta.tone === "live" || meta.tone === "ready" ? (
+            <div
+              className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#ebe4f6]"
+              role="progressbar"
+              aria-valuenow={path.progressPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Path progress"
+            >
               <div
-                className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#ebe4f6]"
-                role="progressbar"
-                aria-valuenow={progress}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label="Lesson progress"
-              >
-                <div
-                  className="h-full rounded-full bg-arc-purple-500"
-                  style={{ width: `${Math.max(progress, 4)}%` }}
-                />
+                className="h-full rounded-full bg-arc-purple-500"
+                style={{ width: `${Math.max(path.progressPercent, 4)}%` }}
+              />
+            </div>
+          </div>
+          <span className="flex w-10 shrink-0 items-center justify-center border-l border-[#f0ecf7] bg-[#faf8ff] text-arc-purple-500">
+            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+          </span>
+        </Link>
+      </motion.div>
+    </li>
+  );
+}
+
+function LiveEpisodeCard({
+  room,
+  index,
+  reduceMotion,
+}: {
+  room: StudySessionDto;
+  index: number;
+  reduceMotion: boolean;
+}) {
+  return (
+    <li>
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...softSpring, delay: index * 0.04 }}
+      >
+        <Link
+          href={`/study/room?id=${room.id}`}
+          className="flex cursor-pointer items-stretch overflow-hidden rounded-[22px] border-2 border-arc-purple-500/40 bg-white shadow-[0_4px_0_#ebe4f6] transition-colors hover:border-[#0f1220]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+        >
+          <div className="min-w-0 flex-1 p-4">
+            <div className="flex items-start gap-3">
+              <UserAvatar
+                initial={room.partner.initial}
+                color={partnerColor(room.partner.initial)}
+                avatarUrl={room.partner.avatarUrl}
+                className="h-12 w-12 shrink-0 rounded-[16px] font-display text-[16px]"
+                textClassName="text-[16px]"
+                alt=""
+              />
+              <div className="min-w-0 flex-1">
+                <span className="inline-flex items-center gap-1 rounded-full bg-arc-purple-500/15 px-2 py-0.5 text-[9px] font-black tracking-wide text-arc-purple-500 uppercase">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-arc-purple-500" />
+                  {room.status === "waiting" ? "Ready up" : "Reading now"}
+                </span>
+                <p className="mt-1.5 truncate font-display text-[16px] font-semibold text-[#1b1730]">
+                  {room.lessonTitle ?? room.subject}
+                </p>
+                <p className="mt-0.5 text-[12px] font-bold text-[#8a7cb8]">
+                  with {room.partner.name.split(" ")[0]} · {room.durationMinutes}
+                  m
+                </p>
               </div>
-            ) : null}
+            </div>
           </div>
           <span className="flex w-10 shrink-0 items-center justify-center border-l border-[#f0ecf7] bg-[#faf8ff] text-arc-purple-500">
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
@@ -420,12 +486,12 @@ function RoomCard({
 }
 
 function InviteCard({
-  room,
+  path,
   busy,
   onAccept,
   onDecline,
 }: {
-  room: StudySessionDto;
+  path: StudyPathDto;
   busy: boolean;
   onAccept: () => void;
   onDecline: () => void;
@@ -434,26 +500,26 @@ function InviteCard({
     <li className="overflow-hidden rounded-[22px] border-2 border-[#ffc928]/50 bg-white shadow-[0_4px_0_#c79a2e]/35">
       <div className="flex items-start gap-3 p-4">
         <UserAvatar
-          initial={room.partner.initial}
-          color={partnerColor(room.partner.initial)}
-          avatarUrl={room.partner.avatarUrl}
+          initial={path.partner.initial}
+          color={partnerColor(path.partner.initial)}
+          avatarUrl={path.partner.avatarUrl}
           className="h-12 w-12 shrink-0 rounded-[16px] font-display text-[16px]"
           textClassName="text-[16px]"
           alt=""
         />
         <div className="min-w-0 flex-1">
           <span className="inline-flex rounded-full bg-[#ffc928]/25 px-2 py-0.5 text-[9px] font-black tracking-wide text-[#8a6a10] uppercase">
-            Invite for you
+            Path invite
           </span>
           <p className="mt-1.5 truncate font-display text-[16px] font-semibold text-[#1b1730]">
-            {room.lessonTitle ?? room.subject}
+            {path.title}
           </p>
           <p className="mt-0.5 text-[12px] font-bold text-[#8a7cb8]">
-            {room.partner.name.split(" ")[0]} · {room.durationMinutes}m
+            {path.partner.name.split(" ")[0]} · {path.category}
           </p>
-          {room.message ? (
+          {path.inviteMessage ? (
             <p className="mt-2 line-clamp-2 rounded-xl bg-[#fff8e8] px-2.5 py-1.5 text-[12px] font-bold text-[#8a6a10]">
-              “{room.message}”
+              “{path.inviteMessage}”
             </p>
           ) : null}
         </div>
@@ -479,10 +545,10 @@ function InviteCard({
         </button>
       </div>
       <Link
-        href={`/study/room?id=${room.id}`}
+        href={`/study/path?id=${path.id}`}
         className="flex cursor-pointer items-center justify-center gap-1 border-t border-[#f0ecf7] py-2.5 text-[11px] font-extrabold text-arc-purple-500 transition-colors hover:bg-[#faf8ff]"
       >
-        Open room
+        Open path
         <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
       </Link>
     </li>

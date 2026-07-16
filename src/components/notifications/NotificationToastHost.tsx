@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 const softSpring = { type: "spring" as const, stiffness: 420, damping: 32 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 const AUTO_DISMISS_MS = 5600;
-const POLL_MS = 15_000;
+const POLL_MS = 45_000;
 
 const iconMap = {
   trophy: Trophy,

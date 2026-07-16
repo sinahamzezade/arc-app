@@ -20,3 +20,33 @@ export function pickableStudyLessons(
   }
   return out;
 }
+
+export type StudyUnitPick = {
+  unitId: string;
+  lessonId: string;
+  title: string;
+  estimatedMinutes: number;
+  status: RoadmapLessonDto["status"];
+};
+
+/** Unique Units (by unitId) from pickable reading lessons. */
+export function pickableStudyUnits(
+  roadmap: RoadmapTreeDto | null | undefined,
+): StudyUnitPick[] {
+  const lessons = pickableStudyLessons(roadmap);
+  const seen = new Set<string>();
+  const out: StudyUnitPick[] = [];
+  for (const lesson of lessons) {
+    const unitId = lesson.unitId?.trim();
+    if (!unitId || seen.has(unitId)) continue;
+    seen.add(unitId);
+    out.push({
+      unitId,
+      lessonId: lesson.id,
+      title: lesson.title,
+      estimatedMinutes: lesson.estimatedMinutes,
+      status: lesson.status,
+    });
+  }
+  return out;
+}

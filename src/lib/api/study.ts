@@ -43,6 +43,7 @@ export type StudyParticipantDto = {
 
 export type StudySessionDto = {
   id: string;
+  pathId?: string | null;
   status: StudySessionStatusDto;
   mode: StudySessionModeDto;
   subject: string;
@@ -69,6 +70,49 @@ export type StudySessionDto = {
   partner: StudyParticipantDto;
   serverNow: string;
   createdAt: string;
+};
+
+export type StudyPathStatusDto =
+  | "invited"
+  | "active"
+  | "completed"
+  | "declined"
+  | "cancelled"
+  | "abandoned";
+
+export type StudyPathDto = {
+  id: string;
+  status: StudyPathStatusDto;
+  /** Content-pool stack slug (co-roadmap identity). */
+  stack: string;
+  /** @deprecated alias of stack */
+  unitId?: string;
+  creatorLessonId: string;
+  category: string;
+  title: string;
+  contentStep: number;
+  stepCount: number;
+  progressPercent: number;
+  inviteMessage: string | null;
+  inviteExpiresAt: string | null;
+  role: "creator" | "partner";
+  partner: {
+    userId: string;
+    name: string;
+    initial: string;
+    avatarUrl: string | null;
+  };
+  activeSessionId: string | null;
+  episodes: {
+    id: string;
+    status: string;
+    contentStep: number;
+    stepCount: number;
+    durationMinutes: number;
+    createdAt: string;
+  }[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type StudyContentDto = {
@@ -122,7 +166,6 @@ export type StudyMessageDto = {
   mediaUrl: string | null;
   mediaMime: string | null;
   durationMs: number | null;
-  /** True when partner has read this outgoing message. */
   seen: boolean;
   createdAt: string;
 };
@@ -143,6 +186,36 @@ export type CreateStudySessionInput = {
   scheduledStartAt?: string;
 };
 
+export type CreateStudyPathInput = {
+  partnerId: string;
+  /** Content-pool stack slug (preferred). */
+  stack?: string;
+  /** @deprecated alias of stack */
+  unitId?: string;
+  lessonId?: string;
+  message?: string;
+};
+
+export type StudyPickableUnitDto = {
+  /** Stack slug — co-roadmap bind key. */
+  stack: string;
+  /** @deprecated alias of stack */
+  unitId: string;
+  lessonId: string | null;
+  title: string;
+  estimatedMinutes: number;
+  readingCount?: number;
+  category?: string;
+  status: "locked" | "available" | "completed";
+  source: "path" | "pool";
+};
+
+export type CreateStudyEpisodeInput = {
+  durationMinutes: number;
+  startMode: StudyStartModeDto;
+  scheduledStartAt?: string;
+};
+
 export const studyApi = {
   create(input: CreateStudySessionInput, accessToken?: string | null) {
     return apiFetch<StudySessionDto>("/study-together", {
@@ -150,6 +223,72 @@ export const studyApi = {
       body: input,
       accessToken,
     });
+  },
+
+  createPath(input: CreateStudyPathInput, accessToken?: string | null) {
+    return apiFetch<StudyPathDto>("/study-together/paths", {
+      method: "POST",
+      body: input,
+      accessToken,
+    });
+  },
+
+  units(accessToken?: string | null) {
+    return apiFetch<{ items: StudyPickableUnitDto[] }>(
+      "/study-together/units",
+      { accessToken },
+    );
+  },
+
+  paths(accessToken?: string | null) {
+    return apiFetch<{ items: StudyPathDto[] }>("/study-together/paths", {
+      accessToken,
+    });
+  },
+
+  path(id: string, accessToken?: string | null) {
+    return apiFetch<StudyPathDto>(`/study-together/paths/${id}`, {
+      accessToken,
+    });
+  },
+
+  acceptPath(id: string, accessToken?: string | null) {
+    return apiFetch<StudyPathDto>(`/study-together/paths/${id}/accept`, {
+      method: "POST",
+      body: {},
+      accessToken,
+    });
+  },
+
+  declinePath(id: string, accessToken?: string | null) {
+    return apiFetch<StudyPathDto>(`/study-together/paths/${id}/decline`, {
+      method: "POST",
+      body: {},
+      accessToken,
+    });
+  },
+
+  cancelPath(id: string, accessToken?: string | null) {
+    return apiFetch<StudyPathDto>(`/study-together/paths/${id}/cancel`, {
+      method: "POST",
+      body: {},
+      accessToken,
+    });
+  },
+
+  createEpisode(
+    pathId: string,
+    input: CreateStudyEpisodeInput,
+    accessToken?: string | null,
+  ) {
+    return apiFetch<StudySessionDto>(
+      `/study-together/paths/${pathId}/episodes`,
+      {
+        method: "POST",
+        body: input,
+        accessToken,
+      },
+    );
   },
 
   rooms(accessToken?: string | null) {

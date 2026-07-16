@@ -232,6 +232,8 @@ export type RoadmapLessonDto = {
   xpReward: number;
   orderIndex: number;
   status: "locked" | "available" | "completed";
+  /** Content-pool unit slug when present. */
+  unitId?: string | null;
   resource: RoadmapResourceDto | null;
   /** Pool snapshot — present when roadmap instance stores source refs. */
   lessonTemplateId?: string | null;

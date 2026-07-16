@@ -83,6 +83,7 @@ export function StudyLivePill() {
   const onStudy =
     pathname.startsWith("/study/room") ||
     pathname.startsWith("/study/invite") ||
+    pathname.startsWith("/study/path") ||
     pathname === "/study";
   const show = rooms.length > 0 && !onStudy;
 

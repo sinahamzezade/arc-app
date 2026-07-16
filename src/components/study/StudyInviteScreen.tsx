@@ -11,7 +11,6 @@ import {
   BookOpen,
   Check,
   ChevronRight,
-  Clock,
   MessageSquare,
   Sparkles,
   Users,
@@ -19,15 +18,12 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { ApiError, messageForCode } from "@/lib/api/errors";
-import { roadmapsApi } from "@/lib/api/roadmaps";
 import { socialApi, type SocialFriendDto } from "@/lib/api/social";
 import {
   studyApi,
-  type StudySessionDto,
-  type StudyStartModeDto,
+  type StudyPathDto,
+  type StudyPickableUnitDto,
 } from "@/lib/api/study";
-import type { RoadmapLessonDto } from "@/lib/api/types";
-import { pickableStudyLessons } from "@/lib/study/pick-lessons";
 import { useRankMe } from "@/hooks/useRanks";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -39,38 +35,15 @@ type InviteStep = 0 | 1 | 2;
 
 const STEPS = [
   { key: "partner", label: "Partner" },
-  { key: "lesson", label: "Lesson" },
-  { key: "setup", label: "Setup" },
+  { key: "unit", label: "Unit" },
+  { key: "setup", label: "Invite" },
 ] as const;
-
-/** Matches backend StudySubject enum values. */
-const SUBJECTS: { value: string; label: string }[] = [
-  { value: "current_track", label: "My track" },
-  { value: "SQL", label: "SQL" },
-  { value: "Python", label: "Python" },
-  { value: "Excel", label: "Excel" },
-  { value: "Data Analysis", label: "Data" },
-  { value: "Any", label: "Any" },
-];
-
-const START_OPTIONS: {
-  mode: StudyStartModeDto;
-  label: string;
-  hint: string;
-}[] = [
-  { mode: "now", label: "Now", hint: "Expires in 10m" },
-  { mode: "within_1_hour", label: "Within 1h", hint: "Warm-up window" },
-  { mode: "scheduled", label: "Later", hint: "~2h from now" },
-];
-
-const DURATIONS = [15, 25, 45, 60] as const;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
- * Study Together invite builder — 3-step wizard.
- * Partner → Lesson → Timing/note. Wired to POST /study-together.
+ * Study Together invite — Partner → Unit → note → create co-roadmap path.
  */
 export default function StudyInviteScreen() {
   const router = useRouter();
@@ -85,13 +58,10 @@ export default function StudyInviteScreen() {
 
   const [step, setStep] = useState<InviteStep>(0);
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
-  const [invites, setInvites] = useState<StudySessionDto[]>([]);
-  const [lessons, setLessons] = useState<RoadmapLessonDto[]>([]);
+  const [pathInvites, setPathInvites] = useState<StudyPathDto[]>([]);
+  const [units, setUnits] = useState<StudyPickableUnitDto[]>([]);
   const [partnerId, setPartnerId] = useState(preselect ?? "");
-  const [lessonId, setLessonId] = useState("");
-  const [subject, setSubject] = useState("current_track");
-  const [startMode, setStartMode] = useState<StudyStartModeDto>("now");
-  const [duration, setDuration] = useState<(typeof DURATIONS)[number]>(25);
+  const [stack, setStack] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -101,17 +71,24 @@ export default function StudyInviteScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const [crew, open, roadmap] = await Promise.all([
+        const [crew, paths, unitRes] = await Promise.all([
           socialApi.friends(),
-          studyApi.invites().catch(() => ({ items: [] as StudySessionDto[] })),
-          roadmapsApi.getCurrent().catch(() => ({ job: null, roadmap: null })),
+          studyApi.paths().catch(() => ({ items: [] as StudyPathDto[] })),
+          studyApi.units().catch(() => ({ items: [] as StudyPickableUnitDto[] })),
         ]);
         if (cancelled) return;
         setFriends(crew.items);
-        setInvites(open.items);
-        const pickable = pickableStudyLessons(roadmap.roadmap);
-        setLessons(pickable);
-        if (pickable[0]) setLessonId(pickable[0].id);
+        setPathInvites(
+          paths.items.filter(
+            (p) =>
+              p.status === "invited" &&
+              (p.role === "partner" || p.role === "creator"),
+          ),
+        );
+        setUnits(unitRes.items);
+        const firstStack =
+          unitRes.items[0]?.stack || unitRes.items[0]?.unitId;
+        if (firstStack) setStack(firstStack);
         const fromQuery = preselect
           ? crew.items.find((f) => f.userId === preselect)
           : null;
@@ -137,9 +114,10 @@ export default function StudyInviteScreen() {
     [friends, partnerId],
   );
 
-  const lesson = useMemo(
-    () => lessons.find((l) => l.id === lessonId) ?? null,
-    [lessons, lessonId],
+  const unit = useMemo(
+    () =>
+      units.find((u) => (u.stack || u.unitId) === stack) ?? null,
+    [units, stack],
   );
 
   const sortedFriends = useMemo(() => {
@@ -150,39 +128,32 @@ export default function StudyInviteScreen() {
   }, [friends]);
 
   const partnerOk = Boolean(partnerId && UUID_RE.test(partnerId));
-  const lessonOk = Boolean(lessonId && UUID_RE.test(lessonId));
+  const unitOk = Boolean(stack);
 
-  const incoming = invites.filter((s) => s.role === "invitee");
-  const outgoing = invites.filter((s) => s.role === "creator");
+  const incoming = pathInvites.filter((p) => p.role === "partner");
+  const outgoing = pathInvites.filter((p) => p.role === "creator");
 
   const canAdvance =
-    step === 0 ? partnerOk : step === 1 ? lessonOk : partnerOk && lessonOk;
+    step === 0 ? partnerOk : step === 1 ? unitOk : partnerOk && unitOk;
 
   async function sendInvite() {
-    if (!partnerOk || !lessonOk || busy || !partner) return;
+    if (!partnerOk || !unitOk || busy || !partner || !unit) return;
     setBusy(true);
     setError(null);
     try {
-      const session = await studyApi.create({
-        inviteeId: partner.userId,
-        lessonId,
-        subject,
-        durationMinutes: duration,
-        startMode,
+      const path = await studyApi.createPath({
+        partnerId: partner.userId,
+        stack: unit.stack || unit.unitId,
         message: message.trim() || undefined,
-        scheduledStartAt:
-          startMode === "scheduled"
-            ? new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
-            : undefined,
       });
-      router.push(`/study/room?id=${session.id}`);
+      router.push(`/study/path?id=${path.id}`);
     } catch (err) {
       const msg =
         err instanceof ApiError
           ? messageForCode(err.code, err.message)
           : err instanceof Error
             ? err.message
-            : "Could not send study invite";
+            : "Could not send path invite";
       setError(msg);
     } finally {
       setBusy(false);
@@ -191,7 +162,7 @@ export default function StudyInviteScreen() {
 
   function goNext() {
     if (step === 0 && partnerOk) setStep(1);
-    else if (step === 1 && lessonOk) setStep(2);
+    else if (step === 1 && unitOk) setStep(2);
     else if (step === 2) void sendInvite();
   }
 
@@ -206,18 +177,17 @@ export default function StudyInviteScreen() {
         ? `Continue with ${partner.name.split(" ")[0]}`
         : "Pick a partner"
       : step === 1
-        ? lesson
-          ? "Continue to setup"
-          : "Pick a lesson"
+        ? unit
+          ? "Continue to invite"
+          : "Pick a unit"
         : busy
           ? "Sending…"
           : partner
-            ? `Invite ${partner.name.split(" ")[0]} · ${duration}m`
+            ? `Invite ${partner.name.split(" ")[0]}`
             : "Send invite";
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#f3effc] font-rounded">
-      {/* Night hero */}
       <header className="relative shrink-0 overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-10 text-white">
         <div
           aria-hidden
@@ -232,7 +202,7 @@ export default function StudyInviteScreen() {
           <BackButton tone="dark" onClick={goBack} />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
-              New room
+              New path
             </p>
             <h1 className="mt-0.5 font-display text-[22px] leading-none font-bold tracking-[-0.03em]">
               Study Together
@@ -247,7 +217,6 @@ export default function StudyInviteScreen() {
           </Link>
         </div>
 
-        {/* Face-off */}
         <div className="relative mt-6 flex items-center justify-between gap-2">
           <Buddy
             initial="Y"
@@ -279,7 +248,6 @@ export default function StudyInviteScreen() {
           />
         </div>
 
-        {/* Step rail */}
         <nav
           aria-label="Invite steps"
           className="relative mt-6 flex items-center gap-1.5"
@@ -325,27 +293,24 @@ export default function StudyInviteScreen() {
         </nav>
       </header>
 
-      {/* Sheet */}
       <div className="relative z-10 -mt-6 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[28px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+80px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
-        {/* Pending invites — always visible, compact */}
         {(incoming.length > 0 || outgoing.length > 0) && step === 0 ? (
           <div className="mb-4 space-y-2">
-            {incoming.map((s) => (
+            {incoming.map((p) => (
               <Link
-                key={s.id}
-                href={`/study/room?id=${s.id}`}
+                key={p.id}
+                href={`/study/path?id=${p.id}`}
                 className="flex cursor-pointer items-center justify-between gap-3 rounded-[18px] border-2 border-arc-purple-500/25 bg-white px-3.5 py-3 shadow-[0_4px_0_#ebe4f6] transition-colors hover:border-arc-purple-500/50 focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
               >
                 <div className="min-w-0">
                   <p className="text-[10px] font-black tracking-[0.12em] text-arc-purple-500 uppercase">
-                    Invite waiting
+                    Path invite
                   </p>
                   <p className="truncate font-display text-[15px] font-bold text-[#0f1220]">
-                    {s.partner.name.split(" ")[0]} ·{" "}
-                    {s.lessonTitle ?? s.subject}
+                    {p.partner.name.split(" ")[0]} · {p.title}
                   </p>
                   <p className="text-[11px] font-bold text-arc-lavender-600">
-                    {s.durationMinutes}m · tap to open
+                    {p.category} · tap to open
                   </p>
                 </div>
                 <span className="shrink-0 rounded-xl bg-arc-purple-500 px-3 py-2 text-[12px] font-extrabold text-white shadow-[0_3px_0_#4b2fd6]">
@@ -353,10 +318,10 @@ export default function StudyInviteScreen() {
                 </span>
               </Link>
             ))}
-            {outgoing.map((s) => (
+            {outgoing.map((p) => (
               <Link
-                key={s.id}
-                href={`/study/room?id=${s.id}`}
+                key={p.id}
+                href={`/study/path?id=${p.id}`}
                 className="flex cursor-pointer items-center justify-between gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white/90 px-3.5 py-3 transition-colors hover:border-[#0f1220]/15 focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
               >
                 <div className="min-w-0">
@@ -364,12 +329,11 @@ export default function StudyInviteScreen() {
                     Waiting on
                   </p>
                   <p className="truncate font-display text-[15px] font-bold text-[#0f1220]">
-                    {s.partner.name.split(" ")[0]} ·{" "}
-                    {s.lessonTitle ?? s.subject}
+                    {p.partner.name.split(" ")[0]} · {p.title}
                   </p>
                 </div>
                 <span className="shrink-0 text-[12px] font-extrabold text-arc-lavender-600">
-                  Room →
+                  Path →
                 </span>
               </Link>
             ))}
@@ -395,25 +359,19 @@ export default function StudyInviteScreen() {
             ) : null}
 
             {step === 1 ? (
-              <LessonStep
-                lessons={lessons}
-                lessonId={lessonId}
-                onSelect={setLessonId}
+              <UnitStep
+                units={units}
+                stack={stack}
+                onSelect={setStack}
                 partnerName={partner?.name.split(" ")[0]}
               />
             ) : null}
 
             {step === 2 ? (
               <SetupStep
-                subject={subject}
-                onSubject={setSubject}
-                startMode={startMode}
-                onStartMode={setStartMode}
-                duration={duration}
-                onDuration={setDuration}
                 message={message}
                 onMessage={setMessage}
-                lessonTitle={lesson?.title}
+                unitTitle={unit?.title}
                 partnerName={partner?.name.split(" ")[0]}
               />
             ) : null}
@@ -421,7 +379,6 @@ export default function StudyInviteScreen() {
         </AnimatePresence>
       </div>
 
-      {/* Sticky dock */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
         <AnimatePresence>
           {error ? (
@@ -525,7 +482,7 @@ function PartnerStep({
           Pick your study partner
         </h2>
         <p className="mt-1 text-[13px] font-bold text-arc-lavender-600">
-          Same lesson. Shared timer. No video call.
+          One unit. Shared progress. Sessions when you both show up.
         </p>
       </div>
 
@@ -620,14 +577,14 @@ function PartnerStep({
   );
 }
 
-function LessonStep({
-  lessons,
-  lessonId,
+function UnitStep({
+  units,
+  stack,
   onSelect,
   partnerName,
 }: {
-  lessons: RoadmapLessonDto[];
-  lessonId: string;
+  units: StudyPickableUnitDto[];
+  stack: string;
   onSelect: (id: string) => void;
   partnerName?: string;
 }) {
@@ -638,38 +595,39 @@ function LessonStep({
           Step 2 · What
         </p>
         <h2 className="mt-1 font-display text-[22px] leading-tight font-bold tracking-[-0.03em] text-[#0f1220]">
-          Choose a reading lesson
+          Choose a unit
         </h2>
         <p className="mt-1 text-[13px] font-bold text-arc-lavender-600">
           {partnerName
-            ? `You and ${partnerName} will read this together.`
-            : "Both of you stay on the same beat."}
+            ? `You and ${partnerName} will share this stack’s reading path.`
+            : "One stack. Shared progress across every session."}
         </p>
       </div>
 
-      {lessons.length === 0 ? (
+      {units.length === 0 ? (
         <div className="rounded-[20px] border-2 border-dashed border-[#d5ccec] bg-white px-4 py-6 text-center">
           <BookOpen
             className="mx-auto h-8 w-8 text-arc-purple-500"
             strokeWidth={2}
           />
           <p className="mt-3 font-display text-[16px] font-bold text-[#0f1220]">
-            No reading lessons yet
+            No units yet
           </p>
           <p className="mt-1 text-[13px] font-bold text-arc-lavender-600">
-            Unlock a reading beat on your path first.
+            No stacks with reading for your track yet.
           </p>
         </div>
       ) : (
         <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pb-2">
-          {lessons.map((l) => {
-            const active = lessonId === l.id;
+          {units.map((u) => {
+            const id = u.stack || u.unitId;
+            const active = stack === id;
             return (
-              <li key={l.id}>
+              <li key={id}>
                 <button
                   type="button"
                   aria-pressed={active}
-                  onClick={() => onSelect(l.id)}
+                  onClick={() => onSelect(id)}
                   className={cn(
                     "flex w-full cursor-pointer items-center gap-3 rounded-[18px] border-2 px-3.5 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none",
                     active
@@ -689,10 +647,10 @@ function LessonStep({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-display text-[15px] font-bold text-[#0f1220]">
-                      {l.title}
+                      {u.title}
                     </span>
                     <span className="mt-0.5 block text-[11px] font-bold text-arc-lavender-600">
-                      {l.estimatedMinutes}m · {l.status}
+                      {u.readingCount ?? "—"} readings · {u.estimatedMinutes}m
                     </span>
                   </span>
                   {active ? (
@@ -712,141 +670,37 @@ function LessonStep({
 }
 
 function SetupStep({
-  subject,
-  onSubject,
-  startMode,
-  onStartMode,
-  duration,
-  onDuration,
   message,
   onMessage,
-  lessonTitle,
+  unitTitle,
   partnerName,
 }: {
-  subject: string;
-  onSubject: (v: string) => void;
-  startMode: StudyStartModeDto;
-  onStartMode: (v: StudyStartModeDto) => void;
-  duration: (typeof DURATIONS)[number];
-  onDuration: (v: (typeof DURATIONS)[number]) => void;
   message: string;
   onMessage: (v: string) => void;
-  lessonTitle?: string;
+  unitTitle?: string;
   partnerName?: string;
 }) {
   return (
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-2">
       <div>
         <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
-          Step 3 · When
+          Step 3 · Invite
         </p>
         <h2 className="mt-1 font-display text-[22px] leading-tight font-bold tracking-[-0.03em] text-[#0f1220]">
-          Set the session
+          Send the path invite
         </h2>
-        {(partnerName || lessonTitle) && (
+        {(partnerName || unitTitle) && (
           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] font-bold text-arc-lavender-600">
             <Sparkles
               className="h-3.5 w-3.5 text-[#ffc928]"
               strokeWidth={2.5}
             />
             {partnerName ? `${partnerName}` : "Partner"}
-            {lessonTitle ? ` · ${lessonTitle}` : null}
+            {unitTitle ? ` · ${unitTitle}` : null}
           </p>
         )}
       </div>
 
-      {/* Start window */}
-      <div>
-        <p className="mb-2 text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
-          Start
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {START_OPTIONS.map((opt) => {
-            const active = startMode === opt.mode;
-            return (
-              <button
-                key={opt.mode}
-                type="button"
-                onClick={() => onStartMode(opt.mode)}
-                className={cn(
-                  "cursor-pointer rounded-[18px] border-2 px-2.5 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none",
-                  active
-                    ? "border-arc-purple-500 bg-arc-purple-500 text-white shadow-[0_4px_0_#4b2fd6]"
-                    : "border-[#ebe4f6] bg-white text-[#0f1220] shadow-[0_3px_0_#ebe4f6]",
-                )}
-              >
-                <p className="font-display text-[14px] font-bold">
-                  {opt.label}
-                </p>
-                <p
-                  className={cn(
-                    "mt-1 text-[10px] leading-snug font-bold",
-                    active ? "text-white/75" : "text-arc-lavender-600",
-                  )}
-                >
-                  {opt.hint}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Duration */}
-      <div className="overflow-hidden rounded-[18px] border-2 border-[#ebe4f6] bg-white shadow-[0_4px_0_#ebe4f6]">
-        <div className="flex items-center justify-between gap-2 border-b border-[#f0ecf7] px-3.5 py-2.5">
-          <span className="inline-flex items-center gap-1.5 text-[12px] font-extrabold text-arc-lavender-600">
-            <Clock className="h-4 w-4 text-arc-purple-500" strokeWidth={2.5} />
-            Duration
-          </span>
-          <span className="font-display text-[14px] font-bold text-[#0f1220]">
-            {duration}m
-          </span>
-        </div>
-        <div className="grid grid-cols-4">
-          {DURATIONS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => onDuration(d)}
-              className={cn(
-                "cursor-pointer py-3.5 font-display text-[14px] font-bold transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-arc-purple-500 focus-visible:outline-none",
-                duration === d
-                  ? "bg-[#ffc928] text-[#0f1220]"
-                  : "text-arc-lavender-600 hover:bg-[#faf8ff]",
-              )}
-            >
-              {d}m
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Focus tag — now wired */}
-      <div className="rounded-[18px] border-2 border-[#ebe4f6] bg-white px-3.5 py-3 shadow-[0_4px_0_#ebe4f6]">
-        <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
-          Focus tag
-        </p>
-        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {SUBJECTS.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              onClick={() => onSubject(s.value)}
-              className={cn(
-                "shrink-0 cursor-pointer rounded-xl px-3 py-2 font-display text-[13px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none",
-                subject === s.value
-                  ? "bg-[#0f1220] text-white"
-                  : "bg-[#f6f2ff] text-arc-lavender-600 hover:bg-[#ebe4f6]",
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Note */}
       <div className="rounded-[18px] border-2 border-[#ebe4f6] bg-white px-3.5 py-3 shadow-[0_4px_0_#ebe4f6]">
         <label
           htmlFor="study-invite-note"
@@ -863,9 +717,9 @@ function SetupStep({
           id="study-invite-note"
           value={message}
           onChange={(e) => onMessage(e.target.value.slice(0, 160))}
-          rows={2}
+          rows={3}
           maxLength={160}
-          placeholder="Let's grind this lesson together…"
+          placeholder="Let's learn this unit together…"
           className="w-full resize-none rounded-xl bg-[#f6f2ff] px-3 py-2.5 text-[14px] font-semibold text-[#0f1220] outline-none placeholder:text-arc-lavender-400 focus-visible:ring-2 focus-visible:ring-arc-purple-500"
         />
         <p className="mt-1 text-right text-[10px] font-bold text-arc-lavender-400">
@@ -873,9 +727,9 @@ function SetupStep({
         </p>
       </div>
 
-      <p className="flex items-center gap-1.5 text-[12px] font-bold text-arc-lavender-600">
-        <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
-        Shared timer · synced reading · no video call
+      <p className="text-[12px] font-bold text-arc-lavender-600">
+        After they accept, start timed sessions from the path. Progress carries
+        across every session.
       </p>
     </div>
   );

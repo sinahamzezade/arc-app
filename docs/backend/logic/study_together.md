@@ -1,228 +1,171 @@
 # Arc Backend — Study Together
 
-**Version:** 2.0 integrated  
+**Version:** 3.0 co-roadmap  
 **Canonical integration:** Normal lesson completion stays in doc 05; verified shared time updates Course Timing/Weekly Plan and shared bonuses use the Gamification ledger.
 
 See [00 — System Integration Contract](./00-system-integration.md).
 
-**Stack:** NestJS + TypeORM + PostgreSQL; Redis/WebSocket recommended  
-**Consumers:** Study Together invite, Focus Room, friend profile, Home/notifications  
+**Stack:** NestJS + TypeORM + PostgreSQL; Socket.IO WebSocket  
+**Consumers:** Study Together hub, path invite, episode Focus Room, friend profile, Home/notifications  
 **Depends on:** `social_media.md`, `course_timing.md`, `05-Learn_Lesson_Play_API.md`, `gamification.md`, `06-notifications.md`
 
 ---
 
 ## 1. Purpose
 
-A user invites a friend to study for a selected duration. Both users may work on their own relevant lesson while sharing a synchronized focus timer and accountability room.
+A user invites a friend onto a **Unit co-roadmap** (content-pool unit slug). They share reading progress across that unit. Timed **episode rooms** are sessions inside the path: synchronized timer, “I read” gate, and chat. The path persists across episodes.
 
-MVP does not require voice or video.
+MVP does not require voice or video. Always **1:1** (creator + partner).
+
+```text
+Invite → study_paths (unitId)
+       → episode rooms (study_sessions.path_id)
+       → shared content_step on the path
+```
 
 ---
 
 ## 2. Eligibility
 
+Path invite / episode create:
+
 - users are friends or allowed by privacy setting
 - no block exists
 - inviter not rate-limited
 - both accounts active
-- scheduled time valid
-- duration allowed
-- neither user in a conflicting live focus session
-- target lesson belongs to the participant’s own roadmap
+- unit is a reading unit present on the creator’s ready roadmap (or `lessonId` resolves to such a unit)
+- soft caps: `STUDY_MAX_ACTIVE_PATHS` (20) non-terminal paths per user; `STUDY_MAX_CONCURRENT_ROOMS` live episodes
+- at most one non-terminal path per `(pair, unitId)` (either user ordering)
+
+Episode start additionally:
+
+- path `status = active`
+- duration allowed (15 / 25 / 45 / 60)
+- start mode valid
+- neither user over concurrent live-room cap
 
 ---
 
-## 3. Session Options
+## 3. Co-roadmap options
 
-Start choices:
+**Bind:** content-pool `unitId` (slug). Optional create input `lessonId` resolves unit via creator lesson.
 
-- now
-- within 1 hour
-- scheduled later
+**Category:** denormalized from `Unit.domain` or `Unit.stack` at create — hub grouping.
 
-Duration:
+**Invite message:** optional, max 160 characters.
 
-- 15
-- 25
-- 45
-- 60 minutes
+**Episodes (rooms):**
 
-Subject:
-
-- SQL
-- Python
-- Excel
-- Data Analysis
-- current track
-- any
-
-Optional message: max 160 characters.
+Start choices: `now` | `within_1_hour` | `scheduled`  
+Duration: 15 / 25 / 45 / 60 minutes
 
 ---
 
-## 4. State Machine
+## 4. State machines
+
+### Path (`study_paths`)
 
 ```text
-draft
-→ invited
-→ accepted
-→ scheduled/waiting
-→ active
-→ completed
+invited → active → completed
+alternatives: declined | cancelled | abandoned
 ```
 
-Alternatives:
+### Episode (`study_sessions`)
 
-- declined
-- expired
-- cancelled
-- abandoned
-- partially_completed
-- voided
+```text
+draft → invited → accepted → waiting → active → completed
+alternatives: declined | expired | cancelled | abandoned | partially_completed | voided
+```
+
+Legacy sessions without `path_id` keep working until natural end. New creates set `path_id`.
 
 ---
 
-## 5. Data Model
+## 5. Data model
 
-### `study_sessions`
+### `study_paths`
 
-- creator
-- subject
-- duration
-- start mode
-- scheduled start/end
-- actual start/end
-- status
-- room token/version
-- completion state
-- reward transaction group
-- created at
+- `id`, `creator_id`, `partner_id` (1:1)
+- `unit_id` (varchar, pool slug)
+- `creator_lesson_id` (UUID — creator’s materialized reading lesson for play content)
+- `category`, `title` (denormalized)
+- `status`: invited | active | completed | declined | cancelled | abandoned
+- `content_step`, `step_count` — **shared progress source of truth**
+- `progress_percent` — `((content_step+1)/step_count)*100` while active; `100` when completed
+- `invite_message`, `invite_expires_at`, timestamps
+
+No separate path_participants table for MVP.
+
+### `study_sessions` (episodes)
+
+- existing room fields
+- `path_id` → `study_paths` (required for new creates; nullable for legacy)
+- `content_step` / `step_count` — **episode snapshot**, synced from path on start and write-through on `ackRead`
 
 ### `study_session_participants`
 
-- session/user
-- role
-- invitation status
-- selected lesson/task ID
-- joined/left timestamps
-- verified active seconds
-- heartbeat count
-- meaningful action completed
-- completion confirmation
-- reward eligibility
+Unchanged: role, invitation status, heartbeats, readiness, qualification flags. Participants attach to **episodes**, not paths.
 
-### `study_session_events`
+### `study_session_events` / heartbeats
 
-Ordered:
-
-- invite sent
-- accepted
-- joined
-- ready
-- timer started
-- pause requested
-- heartbeat
-- task changed
-- meaningful action
-- left
-- completed
-
-### `study_session_heartbeats`
-
-May be Redis-only for active room, with aggregated persistence:
-
-- participant
-- server timestamp
-- app visible
-- current task
-- focus state
-
-Do not trust client-reported total time.
+Unchanged for episodes. Do not trust client-reported total time.
 
 ---
 
-## 6. Invite Flow
+## 6. Invite + episode flow
 
-1. inviter selects friend, subject, start, duration, message
-2. SocialPermissionService validates
-3. schedule conflict check
-4. create session/invitation
-5. send `study_invite`
-6. invite expiry:
-   - start now: 10 minutes
-   - within 1 hour: 60 minutes
-   - scheduled: 30 minutes after scheduled start
+### Path invite
 
-Accept:
+1. Creator picks partner + unit (or lesson → unit)
+2. `SocialPermissionService` validates
+3. Soft path-cap + pair+unit uniqueness
+4. Create `study_paths` (`status = invited`), notify partner
+5. Partner accept → `active`; decline → `declined`; creator cancel → `cancelled`
 
-- participant row becomes accepted
-- both receive room availability
-- reminders are scheduled
-- if “start now” and both ready, timer can begin
+### Episode start
 
----
+1. Either participant on an **active** path calls `POST …/paths/:id/episodes`
+2. Session copies path `content_step` / `step_count` (resume, not reset to 0)
+3. Sets `path_id`; room invite / ready / timer flow as before
+4. Live list via `GET /study-together/rooms`
 
-## 7. Focus Room
+### Progress write-through
 
-The room shows:
-
-- both users and presence
-- synchronized remaining time
-- each user’s selected task
-- each user’s high-level progress, if shared
-- Arlo focus message
-- pause/leave controls
-
-WebSocket namespace `/study`.
-
-Events:
-
-- `study:join`
-- `study:ready`
-- `study:heartbeat`
-- `study:task_selected`
-- `study:pause_request`
-- `study:leave`
-
-Server:
-
-- `study:state`
-- `study:timer_started`
-- `study:presence`
-- `study:progress`
-- `study:completed`
+- Both-ack / solo-advance logic stays on the episode
+- After advance, `ackRead` updates path `content_step` / `progress_percent`
+- Last beat completed → path `status = completed`, `progress_percent = 100`
+- Hub progress bars read **path** fields
 
 ---
 
-## 8. Timer Logic
+## 7. Focus room (episode)
+
+Unchanged surface: presence, synchronized remaining time, shared reading content, “I read” gate, chat (text / voice / image).
+
+WebSocket namespace `/study` (no new namespace). On `ack_read` advance: persist path, then emit `step` / `state_dirty` as today.
+
+---
+
+## 8. Timer + heartbeat
 
 - server stores authoritative start time and duration
-- remaining time is derived from server time
-- client timer is display only
-- heartbeat every 15 seconds while visible
-- background time is not automatically verified
+- remaining time derived from server time
+- heartbeat every ~15s while visible
+- background time not automatically verified
 - short disconnect grace: 60 seconds
-- participant may reconnect
-- pause is allowed only if both agree; max one pause, five minutes
+- pause only if both agree; max one pause, five minutes (when implemented)
 
 ---
 
-## 9. Task Selection
+## 9. Content
 
-Each participant may:
+Episode play content comes from the path’s `creator_lesson_id` (creator’s unit materialization). Invitee does not need the same unit on their personal roadmap for MVP.
 
-- continue current scheduled lesson
-- choose another available lesson in the subject
-- choose a review task
-- choose a practice challenge
-
-The two users do not need the same lesson.
-
-Normal lesson APIs remain authoritative. Study Together does not create a duplicate completion path.
+Normal lesson APIs remain the only source of **personal** lesson completion XP. Study Together does not invent a second completion path for roadmap progress.
 
 ---
 
-## 10. Completion and Qualification
+## 10. Completion and qualification (episode)
 
 A participant qualifies when:
 
@@ -231,65 +174,68 @@ A participant qualifies when:
 - completes one meaningful learning action or at least five verified study minutes
 - does not abandon before threshold
 
-Session outcomes:
+Session outcomes: `completed_by_both` | `completed_by_creator_only` | `completed_by_invitee_only` | `abandoned` | `voided`
 
-- `completed_by_both`
-- `completed_by_creator_only`
-- `completed_by_invitee_only`
-- `abandoned`
-- `voided`
-
-Normal lesson XP is granted by lesson completion, not this module.
+Path completion is separate: finishing the last reading beat on the shared path.
 
 ---
 
-## 11. Shared Bonus
+## 11. Shared bonus
 
-When both qualify:
+When both qualify on an episode:
 
 - 15 Coins each
 - 2 Gems each
 - no extra XP
-- maximum three rewarded sessions/week
+- max three rewarded sessions/week
 - pair reward cap: two rewarded sessions/day
-
-If one qualifies:
-
-- that user keeps normal lesson rewards
-- no shared bonus
-- no punishment to the other user
 
 Rewards call `GamificationService` with idempotent session/user key.
 
 ---
 
-## 12. Schedule Integration
+## 12. Schedule integration
 
-For scheduled sessions:
+For scheduled episodes:
 
-- Course Timing may reserve the session as a study slot
-- accepted room can replace an individual slot only with explicit user choice
-- after completion, both users’ own weekly progress updates from verified lesson/time
-- if cancelled, original study slot remains or is replanned
-- stale reminders are removed on time change
+- Course Timing may reserve a study slot
+- after completion, weekly progress updates from verified lesson/time
+- cancelled → original slot remains or is replanned
 
 ---
 
 ## 13. API
 
+### Paths (hub primary)
+
+| Method | Path | Role |
+|---|---|---|
+| `POST` | `/study-together/paths` | Create path invite (`partnerId`, `unitId` and/or `lessonId`, optional message) |
+| `GET` | `/study-together/paths` | List my paths (active + invited) + partner, category, progress, optional `activeSessionId` |
+| `GET` | `/study-together/paths/:id` | Path detail + recent episodes |
+| `POST` | `/study-together/paths/:id/accept` | Partner accepts |
+| `POST` | `/study-together/paths/:id/decline` | Partner declines |
+| `POST` | `/study-together/paths/:id/cancel` | Creator cancels |
+| `POST` | `/study-together/paths/:id/episodes` | Start episode room (duration + startMode) |
+
+### Episodes / rooms
+
 | Method | Path |
 |---|---|
-| `POST` | `/study-together` |
+| `GET` | `/study-together/rooms` |
 | `GET` | `/study-together/invites` |
-| `POST` | `/study-together/:id/accept` |
-| `POST` | `/study-together/:id/decline` |
-| `POST` | `/study-together/:id/cancel` |
+| `GET` | `/study-together/history?cursor=` |
+| `POST` | `/study-together` | Legacy one-shot create (prefer paths) |
+| `POST` | `/study-together/:id/accept` \| `decline` \| `cancel` |
 | `POST` | `/study-together/:id/task` |
 | `POST` | `/study-together/:id/ready` |
+| `POST` | `/study-together/:id/heartbeat` |
+| `GET` | `/study-together/:id/content` |
+| `POST` | `/study-together/:id/ack-read` | Advances episode **and** path |
+| `GET`/`POST` | `/study-together/:id/messages` (+ media, read) |
 | `GET` | `/study-together/:id/state` |
 | `POST` | `/study-together/:id/leave` |
 | `POST` | `/study-together/:id/complete` |
-| `GET` | `/study-together/history?cursor=` |
 
 ---
 
@@ -297,46 +243,33 @@ For scheduled sessions:
 
 Types:
 
-- `study_invite`
+- `study_invite` / path invite
 - `study_invite_accepted`
 - `study_session_starting`
 - `study_partner_ready`
 - `study_session_completed`
 - `study_session_missed`
 
-Triggers:
+Examples:
 
-| Event | Notification |
-|---|---|
-| Invite created | immediately |
-| Accepted | notify inviter |
-| Scheduled session | 30m and 5m before, preference permitting |
-| Both ready | room-ready notification |
-| Completion | shared summary |
-| Missed | no-guilt reschedule prompt |
-
-Example:
-
-- “Priya invited you to study SQL for 25 minutes.”
+- “Priya invited you onto SQL Joins.”
 - “Your Study Partner is ready.”
 - “Both of you focused for 25 minutes — shared bonus unlocked.”
 
 ---
 
-## 15. Privacy and Safety
+## 15. Privacy and safety
 
-- no free-text chat required for MVP
-- optional message sanitized
-- presence shared only within active room
-- task title sharing follows privacy setting
-- block immediately terminates future interaction and hides history from the blocked user where appropriate
+- invite message sanitized
+- presence shared only within active episode
+- block terminates future interaction
 - report session available
-- minors use friends-only invites
+- minors: friends-only invites
 - users may disable Study Together
 
 ---
 
-## 16. Anti-Abuse
+## 16. Anti-abuse
 
 - verified server timer and heartbeat
 - background idle time excluded
@@ -345,11 +278,11 @@ Example:
 - no reward for two accounts on same device when risk rules trigger
 - no XP solely for presence
 - completion and reward are idempotent
-- suspicious sessions may grant normal lesson reward but hold shared bonus
+- path + episode caps limit spam invites / concurrent rooms
 
 ---
 
-## 17. Error Codes
+## 17. Error codes
 
 - `STUDY_INVITE_NOT_ALLOWED`
 - `STUDY_INVITE_EXPIRED`
@@ -360,34 +293,33 @@ Example:
 - `STUDY_TASK_NOT_AVAILABLE`
 - `STUDY_COMPLETION_NOT_QUALIFIED`
 - `STUDY_REWARD_CAP_REACHED`
+- path soft-cap / unit eligibility surfaced via existing `STUDY_*` / validation errors
 
 ---
 
 ## 18. Analytics
 
-- `study_invite_sent`
-- `study_invite_accepted`
+- `study_path_invite_sent`
+- `study_path_accepted`
+- `study_episode_started`
+- `study_invite_sent` / `study_invite_accepted` (episode-level, legacy)
 - `study_session_started`
-- `study_participant_joined`
 - `study_session_completed`
-- `study_session_partial`
-- `study_session_abandoned`
 - `study_shared_reward_granted`
-- `study_rescheduled`
+- `study_path_completed`
 
 ---
 
-## 19. Acceptance Criteria
+## 19. Acceptance criteria
 
-- users can invite an allowed friend for a chosen duration/start time
-- notifications deep-link to invite/room
-- timer is server-authoritative
-- both users can work on separate own-roadmap tasks
-- normal lesson APIs remain the only source of lesson completion
-- shared bonuses require both users to qualify
-- no voice/video dependency exists for MVP
-- disconnect/reconnect and expiry are defined
-- reward abuse is capped and auditable
+- invite a friend onto a Unit; path shows on hub grouped by category with progress
+- accept/decline/cancel at path level
+- start episode from active path; new episode resumes path `content_step`
+- `ackRead` advances shared path progress; last beat completes the path
+- second episode resumes mid-path step
+- timer is server-authoritative; shared bonuses require both to qualify
+- no voice/video dependency for MVP
+- live pill deep-links to single live episode; multi → hub
 
 ---
 
@@ -396,14 +328,12 @@ Example:
 | Doc area | Code |
 |----------|------|
 | Module | `arc-backend/src/study-together/` |
-| Entities | `study_sessions`, `study_session_participants`, `study_session_events` |
-| Permissions | `SocialPermissionService.canStudyInvite` on create |
-| REST | create, invites, accept/decline/cancel, task, ready, state, leave, complete, history + `POST …/heartbeat` (REST stand-in for WS) |
-| Timer | Server `actualStartAt` / `plannedEndAt`; `remainingSeconds` derived; heartbeats accumulate `verifiedActiveSeconds` |
-| Qual | ≥80% active + (meaningful action OR ≥5 verified min); both qualify → shared bonus |
-| Ledger | `RewardReasonType.StudyTogether` — 15 coins + 2 gems each; weekly cap 3 / pair daily cap 2; no XP / no league |
-| Notifs | invite, accepted, starting, partner ready, completed, **missed** |
-| Errors | `STUDY_*` in `auth-error.codes.ts` |
-| FE | `lib/api/study.ts`, live `StudyInviteScreen` / `StudyRoomScreen` |
+| Entities | `study_paths`, `study_sessions` (+ `path_id`), participants, events |
+| Migration | `arc-backend/scripts/migrations/20260716-study-paths.sql` |
+| Caps | `STUDY_MAX_ACTIVE_PATHS`, `STUDY_MAX_CONCURRENT_ROOMS` |
+| REST | path CRUD/accept + episodes; room routes unchanged; `ack-read` → path |
+| WS | `/study` gateway; ack advances path then emits step |
+| Ledger | `RewardReasonType.StudyTogether` — 15 coins + 2 gems; weekly 3 / pair daily 2 |
+| FE | `lib/api/study.ts`, `pickableStudyUnits`, `StudyHubScreen`, `StudyInviteScreen`, `StudyPathScreen`, `StudyRoomScreen` |
 
-**Still thin:** native WS `/study` gateway, Course Timing slot reserve, pause-both, scheduled 30m/5m reminders, analytics bus, same-device risk hold.
+**Out of scope (this pass):** multi-friend paths; invitee must own unit; Redis multi-replica sticky; backfill all historical sessions into paths.
