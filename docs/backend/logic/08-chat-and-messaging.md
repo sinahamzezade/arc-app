@@ -1,12 +1,12 @@
-# 07 — Chat & Messaging
+# 08 — Chat & Messaging
 
-**Version:** 1.0
+**Version:** 1.1
 **Stack:** NestJS + TypeORM + PostgreSQL + WebSocket (socket.io) + Redis (presence/pubsub)
 **Consumers:** Arc Next.js PWA (`arc-app`)
-**Depends on:** [00](./00-system-integration.md), auth/users module, [gamification](./gamification.md) (presence hooks)
+**Depends on:** [00](./00-system-integration.md), auth/users module, social presence, [gamification](./gamification.md) (presence hooks)
 **Feeds:** notifications, homepage header (unread badge)
 
-Real-time chat inside Arc — direct messages and group conversations, in the spirit of Telegram (fast, always-synced, unread badges, read receipts, typing indicators). This doc covers the MVP surface: text messaging, conversation management, presence, and the safety layer that must ship with it.
+Real-time chat inside Arc — direct messages and group conversations. Product UI follows a clean inbox + thread pattern (Mengobrol-style layout) painted in **Arc tokens** (navy text, lavender surfaces, gold `#FFC928` / `arc-gold` accents, purple focus). This doc covers the MVP surface: text messaging, groups, presence, replies, and the safety layer.
 
 **Core principle:** the message list is user-generated data. The server is the single authority for identity, membership, delivery state, and moderation. The client is never trusted for who sent a message, who is in a conversation, or whether a message was read.
 
@@ -204,22 +204,28 @@ Append-only from the user's side; status is moderator-updated.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/chat/summary` | Header badge: unread total |
-| `GET` | `/chat/conversations` | Paginated list; last message + unread count per conversation |
-| `POST` | `/chat/conversations` | Create direct or group conversation |
+| `GET` | `/chat/conversations` | Paginated list; last message + unread + peer online |
+| `POST` | `/chat/conversations` | Create **direct** (`peerUserId`) or **group** (`title` + `memberIds`) |
+| `GET` | `/chat/conversations/:id` | Single conversation (list item shape) |
+| `GET` | `/chat/conversations/:id/presence` | Online status for other members (privacy-gated) |
 | `GET` | `/chat/conversations/:id/messages` | Paginated history (cursor-based, before/after) |
-| `POST` | `/chat/conversations/:id/messages` | Send (REST fallback when socket down; same idempotency) |
+| `POST` | `/chat/conversations/:id/messages` | Send (REST fallback; supports `replyToId`) |
+| `POST` | `/chat/conversations/:id/attachments` | Multipart image/file upload |
+| `GET` | `/chat/attachments/:id` | Auth'd attachment binary |
 | `PATCH` | `/chat/messages/:id` | Edit own message |
 | `DELETE` | `/chat/messages/:id` | Soft-delete own message |
 | `POST` | `/chat/conversations/:id/read` | Mark read up to a message |
 | `POST` | `/chat/conversations/:id/members` | Add member (group admin only) |
 | `DELETE` | `/chat/conversations/:id/members/:userId` | Remove/leave |
-| `POST` | `/chat/blocks` | Block a user |
+| `POST` | `/chat/blocks` | Block a user (wraps social blocks) |
 | `DELETE` | `/chat/blocks/:userId` | Unblock |
 | `POST` | `/chat/reports` | Report a message or user |
 
 History pagination is cursor-based on `(created_at, id)` — never offset — so it stays stable as new messages arrive.
 
-**Who can start a conversation (§9):** direct-message creation is gated by the relationship policy. Group creation may be restricted to specific contexts (e.g. a study cohort or battle group) rather than open to all users.
+**Group create:** `POST /chat/conversations` with `{ type: "group", title, memberIds[] }`. Creator becomes `admin`. Every invitee must pass `canMessage` with the creator. Groups show sender name in list previews (`Bima : …`).
+
+**Who can start a conversation (§9):** DMs gated by relationship policy (friends / shared study|battle). Groups: creator may invite any users they are allowed to message.
 
 ---
 
@@ -257,10 +263,29 @@ Client                     Server                        Recipients
 
 ## 7. Presence & typing
 
-- **Presence** is a Redis key `presence:{userId}` with a short TTL, refreshed by a heartbeat. `online` while a socket is connected, `offline` after TTL lapse. `lastSeen` is the last heartbeat timestamp.
-- **Typing** is a Redis key `typing:{conversationId}:{userId}` with a 5-second TTL. `typing.start` sets it, `typing.stop` clears it, and it self-expires so a dropped connection never leaves a stuck "typing…" indicator.
-- Neither is persisted. On cold load, presence is fetched via a lightweight REST endpoint or included in the conversation list payload.
-- **Privacy:** presence/last-seen visibility respects a per-user setting (`everyone` \| `contacts` \| `nobody`), defaulting to the more private option for accounts flagged as minors (§9).
+- **Presence** syncs with social heartbeat (`presence:user:{id}`, TTL ~120s) plus chat socket connect/heartbeat. Chat gateway calls social presence on connect so inbox + friends share one online signal.
+- Conversation list includes `peerOnline` for DMs. Thread header shows **Online** / **Offline** (or `N online` for groups) via `GET /chat/conversations/:id/presence`.
+- Active-friends strip on `/chat` uses `GET /social/friends?online=true` (horizontal avatars with green online dots).
+- **Typing** is Redis `typing:{conversationId}:{userId}` TTL 5s. `typing.start` / `typing.stop`; self-expires on drop.
+- **Privacy:** `presence_visibility` (`everyone` \| `contacts` \| `nobody`); minors default `nobody`. `canSeePresence` gates all online displays.
+
+## 7b. Client UI contract (Arc × Mengobrol)
+
+**Inbox (`/chat`)** — light surface (`#fff` / lavender tint), not the night-hero pattern:
+- Title **Messages** + search affordance
+- Horizontal **Active** row (online friends; tap → open/create DM)
+- **Chats** section header
+- Rows: circular avatar (+ green online dot), name, preview (group: `Sender : body`), time, yellow unread pill, gray/gold double-check when last message is mine (sent/seen)
+- Bottom capsule **New Chat** (opens DM/group composer); Home/Profile shortcuts optional
+
+**Thread (`/chat/:id`)**:
+- Light header: back, avatar, name, Online/Offline subtitle; call icons may render disabled (voice/video out of scope)
+- Date chips; received = light gray bubbles; sent = **gold** bubbles (`arc-gold` / `#FFC928`) with dark text
+- Reply quote block inside bubble (accent bar + name + snippet); long-press/swipe → set `replyToId`
+- Status under last own message: Sending → Delivered → Seen
+- Typing dots bubble; composer: `+` attach, pill input, send (mic reserved / stub)
+
+Colors: navy text `#0f1220` / `#1a1530`, muted `#8a82a8`, gold accent unread + sent bubbles + seen checks, purple focus rings.
 
 ---
 
@@ -358,6 +383,9 @@ Analytics events carry ids and metadata only — never message bodies. Event emi
 - [ ] Delivery states progress `sent → delivered → read`; read receipts update `last_read_message_id`
 - [ ] Typing and presence live only in Redis with TTLs; a dropped connection never leaves stuck state
 - [ ] Direct-message duplicates between the same two users are prevented
+- [ ] Users can create a **group** with title + member multi-select; creator is admin
+- [ ] Inbox/thread show **online** status (privacy-gated) with green avatar dots / Online label
+- [ ] Replies (`replyToId`) render quote UI in bubbles; list shows group sender prefix
 - [ ] Blocking hides messages/presence both ways and is enforced on every send
 - [ ] Reporting creates a review row; `safety` reports are prioritized
 - [ ] Minor accounts default to the strictest messaging + presence policy; stranger DM disabled
@@ -366,6 +394,7 @@ Analytics events carry ids and metadata only — never message bodies. Event emi
 - [ ] Analytics events and logs never contain message bodies
 - [ ] REST send works as a fallback when the socket is down, with the same idempotency
 - [ ] Multi-instance delivery works via the Redis adapter (message on instance A reaches a socket on B)
+- [ ] Chat UI matches §7b (Mengobrol layout + Arc colors)
 
 ---
 

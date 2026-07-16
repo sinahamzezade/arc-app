@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Bell, UserPlus } from "lucide-react";
+import { Bell, MessageSquare, UserPlus } from "lucide-react";
 import {
   ClayChipsSkeleton,
   CoinsClayChip,
@@ -16,6 +16,7 @@ type HomeHeaderProps = {
   gems: number;
   notificationCount: number;
   friendRequestCount?: number;
+  chatUnreadCount?: number;
   loading?: boolean;
 };
 
@@ -28,6 +29,7 @@ export function HomeHeader({
   gems,
   notificationCount,
   friendRequestCount = 0,
+  chatUnreadCount = 0,
   loading = false,
 }: HomeHeaderProps) {
   return (
@@ -49,6 +51,18 @@ export function HomeHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        <IconBtn
+          href="/chat"
+          label={
+            chatUnreadCount > 0
+              ? `Chat, ${chatUnreadCount} unread`
+              : "Chat"
+          }
+          count={chatUnreadCount}
+          capAtNine
+        >
+          <MessageSquare className="h-4 w-4" strokeWidth={2.25} />
+        </IconBtn>
         <IconBtn
           href="/friends?tab=requests"
           label={
@@ -81,12 +95,23 @@ function IconBtn({
   label,
   count,
   children,
+  capAtNine = false,
 }: {
   href: string;
   label: string;
   count: number;
   children: ReactNode;
+  capAtNine?: boolean;
 }) {
+  const display =
+    count <= 0
+      ? null
+      : capAtNine && count > 9
+        ? "9+"
+        : count > 99
+          ? "99+"
+          : String(count);
+
   return (
     <Link
       href={href}
@@ -94,9 +119,9 @@ function IconBtn({
       className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]"
     >
       {children}
-      {count > 0 ? (
+      {display ? (
         <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full border-2 border-[#0f1220] bg-arc-orange-400 px-[3px] text-[9px] font-extrabold text-white">
-          {count > 99 ? "99+" : count}
+          {display}
         </span>
       ) : null}
     </Link>

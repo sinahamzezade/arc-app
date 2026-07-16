@@ -243,6 +243,26 @@ export function messageForCode(code: string, fallback: string): string {
       return "Study bonus cap reached for now";
     case "STUDY_INVALID_STATE":
       return "Study room isn't ready for that";
+    case "CHAT_NOT_A_MEMBER":
+      return "You're not in this conversation";
+    case "CHAT_BLOCKED":
+      return "You can't message this user";
+    case "CHAT_DM_NOT_ALLOWED":
+      return "Messaging isn't allowed with this user";
+    case "CHAT_RATE_LIMITED":
+      return "Slow down — too many messages";
+    case "CHAT_MESSAGE_TOO_LARGE":
+      return "That message or file is too large";
+    case "CHAT_ATTACHMENT_REJECTED":
+      return "That file isn't allowed";
+    case "CHAT_CONVERSATION_NOT_FOUND":
+      return "Conversation not found";
+    case "CHAT_NOT_MESSAGE_OWNER":
+      return "You can only edit your own messages";
+    case "CHAT_ADMIN_REQUIRED":
+      return "Only group admins can do that";
+    case "CHAT_MESSAGE_NOT_FOUND":
+      return "Message not found";
     default:
       return fallback || "Something went wrong";
   }

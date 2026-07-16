@@ -25,6 +25,7 @@ import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { useCurrentWeek } from "@/hooks/useCurrentWeek";
 import { useIncomingFriendRequestCount } from "@/hooks/useIncomingFriendRequestCount";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
+import { useUnreadChatCount } from "@/hooks/useUnreadChatCount";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { paceMeta } from "@/lib/course-timing/format";
 import { useEconomyStore } from "@/store/useEconomyStore";
@@ -57,6 +58,7 @@ export default function HomeScreen({
   const { timing } = useCourseTiming();
   const { data: unreadCount } = useUnreadNotificationCount();
   const { data: friendRequestCount } = useIncomingFriendRequestCount();
+  const { data: chatUnreadCount } = useUnreadChatCount();
   const { flags } = useSystemFlags();
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
@@ -156,6 +158,7 @@ export default function HomeScreen({
             gems={data.stats.gems}
             notificationCount={data.notificationCount}
             friendRequestCount={friendRequestCount ?? 0}
+            chatUnreadCount={chatUnreadCount ?? 0}
             loading={sessionStatus === "authenticated" && !economyHydrated}
           />
           <HomePortraitStage
