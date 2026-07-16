@@ -300,10 +300,11 @@ export default function ChatConversationScreen() {
     markedReadRef.current = null;
   }, [conversationId]);
 
-  /** Mark latest read once real history is available. */
+  /** Mark latest read once real (non-optimistic) history is available. */
   useEffect(() => {
     if (!token || !conversationId || showSkeleton || isPlaceholderData) return;
-    const last = messages[messages.length - 1];
+    // Skip pending optimistic rows — their id is clientMsgId, not a server message.
+    const last = [...messages].reverse().find((m) => !m.pending);
     if (!last || markedReadRef.current === last.id) return;
     markedReadRef.current = last.id;
     if (connected) emitRead(conversationId, last.id);

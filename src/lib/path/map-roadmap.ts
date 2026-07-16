@@ -1,8 +1,7 @@
-import type { RoadmapLessonDto, RoadmapTreeDto } from "@/lib/api/types";
+import type { RoadmapTreeDto } from "@/lib/api/types";
 import type {
   PathIconName,
   PathData,
-  PathNode,
   PathNodeStatus,
 } from "@/lib/path/types";
 
@@ -15,12 +14,6 @@ const ICONS: PathIconName[] = [
   "palette",
   "columns",
 ];
-
-function lessonStatus(lesson: RoadmapLessonDto): PathNodeStatus {
-  if (lesson.status === "available") return "current";
-  if (lesson.status === "completed") return "done";
-  return "locked";
-}
 
 /** Map Roadmap Generator tree → Path screen trail model. */
 export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathData {
@@ -35,6 +28,7 @@ export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathData {
     href: string;
     minutes: number;
   } | null = null;
+  let currentAssigned = false;
 
   const phases = [...roadmap.phases].sort(
     (a, b) => a.orderIndex - b.orderIndex,
@@ -66,8 +60,13 @@ export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathData {
         lessonOrdinal += 1;
         if (lesson.status === "completed") lessonsDone += 1;
 
-        const status = lessonStatus(lesson);
-        if (!firstAvailable && lesson.status === "available") {
+        let status: PathNodeStatus = "locked";
+        if (lesson.status === "completed") {
+          status = "done";
+        } else if (lesson.status === "available" && !currentAssigned) {
+          // One "You are here" only — extras are career-path bleed / race.
+          status = "current";
+          currentAssigned = true;
           firstAvailable = {
             lessonNumber: lessonOrdinal,
             title: lesson.missionName || lesson.title,
