@@ -16,11 +16,9 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSession } from "next-auth/react";
-import { CallScreen } from "@/components/chat/CallScreen";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { chatApi, type ConversationListItemDto } from "@/lib/api/chat";
 import { ApiError, messageForCode } from "@/lib/api/errors";
-import { useCallSession } from "@/hooks/useCallSession";
 import { useChatInbox } from "@/hooks/useChatInbox";
 import { cn } from "@/lib/utils";
 
@@ -79,8 +77,6 @@ export default function ChatListScreen() {
     showSkeleton,
     error: inboxError,
     invalidateInbox,
-    connected,
-    socketRef,
   } = useChatInbox();
 
   const [localError, setLocalError] = useState<string | null>(null);
@@ -93,12 +89,6 @@ export default function ChatListScreen() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [groupTitle, setGroupTitle] = useState("");
   const [creating, setCreating] = useState(false);
-
-  const call = useCallSession({
-    socketRef,
-    connected,
-    myUserId: session?.user?.id ?? null,
-  });
 
   const filtered = items.filter((c) => {
     if (!query.trim()) return true;
@@ -573,15 +563,6 @@ export default function ChatListScreen() {
           </motion.div>
         </div>
       ) : null}
-
-      <CallScreen
-        call={call}
-        peerName={
-          items.find((c) => c.id === call.incoming?.conversationId)?.title ??
-          items.find((c) => c.id === call.conversationId)?.title ??
-          "Contact"
-        }
-      />
     </div>
   );
 }

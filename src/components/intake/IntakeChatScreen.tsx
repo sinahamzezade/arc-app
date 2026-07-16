@@ -41,7 +41,6 @@ export default function IntakeChatScreen() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
-  const [pickedDays, setPickedDays] = useState<string[]>([]);
   const [pickedTimes, setPickedTimes] = useState<string[]>([]);
   const [otherText, setOtherText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -57,7 +56,6 @@ export default function IntakeChatScreen() {
 
   useEffect(() => {
     setPicked([]);
-    setPickedDays([]);
     setPickedTimes([]);
     setOtherText("");
   }, [suggestions?.fieldId, suggestions?.selection]);
@@ -212,11 +210,10 @@ export default function IntakeChatScreen() {
 
   const confirmSchedule = () => {
     if (!suggestions || sending) return;
-    if (!pickedDays.length || !pickedTimes.length) return;
+    if (!pickedTimes.length) return;
     void sendSelection({
       ...selectionBase(suggestions),
       values: pickedTimes,
-      days: pickedDays,
       times: pickedTimes,
     });
   };
@@ -484,17 +481,11 @@ export default function IntakeChatScreen() {
             <SuggestionChips
               suggestions={suggestions}
               picked={picked}
-              pickedDays={pickedDays}
               pickedTimes={pickedTimes}
               otherText={otherText}
               disabled={sending}
               onSingle={onSinglePick}
               onToggleMulti={toggleMulti}
-              onToggleDay={(d) =>
-                setPickedDays((prev) =>
-                  prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d],
-                )
-              }
               onToggleTime={(t) =>
                 setPickedTimes((prev) =>
                   prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
@@ -626,13 +617,11 @@ function chipClass(active: boolean) {
 function SuggestionChips({
   suggestions,
   picked,
-  pickedDays,
   pickedTimes,
   otherText,
   disabled,
   onSingle,
   onToggleMulti,
-  onToggleDay,
   onToggleTime,
   onOtherText,
   onConfirmMulti,
@@ -641,13 +630,11 @@ function SuggestionChips({
 }: {
   suggestions: IntakeSuggestions;
   picked: string[];
-  pickedDays: string[];
   pickedTimes: string[];
   otherText: string;
   disabled: boolean;
   onSingle: (value: string) => void;
   onToggleMulti: (value: string) => void;
-  onToggleDay: (day: string) => void;
   onToggleTime: (time: string) => void;
   onOtherText: (text: string) => void;
   onConfirmMulti: () => void;
@@ -673,25 +660,12 @@ function SuggestionChips({
           : suggestions.selection === "multi"
             ? "Select all that apply"
             : suggestions.selection === "schedule"
-              ? "Pick schedule"
+              ? "Pick times"
               : "Tap one to answer"}
       </p>
 
       {suggestions.selection === "schedule" ? (
         <>
-          <div className="flex flex-wrap gap-2">
-            {(suggestions.days ?? []).map((day) => (
-              <button
-                key={day}
-                type="button"
-                disabled={disabled}
-                onClick={() => onToggleDay(day)}
-                className={chipClass(pickedDays.includes(day))}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
           <div className="flex flex-wrap gap-2">
             {(suggestions.times ?? []).map((t) => (
               <button
@@ -707,11 +681,11 @@ function SuggestionChips({
           </div>
           <button
             type="button"
-            disabled={disabled || !pickedDays.length || !pickedTimes.length}
+            disabled={disabled || !pickedTimes.length}
             onClick={onConfirmSchedule}
             className="rounded-2xl bg-arc-purple-500 px-4 py-2.5 text-[13px] font-bold text-white shadow-[0_3px_0_#4b2fd6] disabled:opacity-40"
           >
-            Confirm schedule
+            Confirm times
           </button>
         </>
       ) : (

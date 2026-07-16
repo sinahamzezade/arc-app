@@ -203,6 +203,36 @@ const ICON_BY_TYPE: Partial<
     color: "#2d8cff",
   },
   coach_message: { kind: "arlo" },
+  chat_message: {
+    kind: "lucide",
+    name: "user-plus",
+    bg: "#e4eeff",
+    color: "#2d8cff",
+  },
+  incoming_call: {
+    kind: "lucide",
+    name: "user-plus",
+    bg: "#e4f6e8",
+    color: "#16c784",
+  },
+  friend_request: {
+    kind: "lucide",
+    name: "user-plus",
+    bg: "#e4f6e8",
+    color: "#16c784",
+  },
+  friend_request_accepted: {
+    kind: "lucide",
+    name: "user-plus",
+    bg: "#e4f6e8",
+    color: "#16c784",
+  },
+  new_follower: {
+    kind: "lucide",
+    name: "user-plus",
+    bg: "#e4eeff",
+    color: "#2d8cff",
+  },
   system: {
     kind: "lucide",
     name: "calendar",
@@ -268,6 +298,7 @@ export function mapNotificationDto(dto: NotificationDto): NotificationItem {
     actionUrl: normalizeActionUrl(dto.actionUrl),
     type: dto.type,
     createdAt: dto.createdAt,
+    payload: dto.payload,
   };
 }
 

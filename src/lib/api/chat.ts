@@ -8,6 +8,7 @@ export type ChatReplyPreview = {
   senderId: string;
   senderName: string;
   body: string | null;
+  e2e?: boolean;
 };
 
 export type ChatMessageDto = {
@@ -19,6 +20,7 @@ export type ChatMessageDto = {
   clientMsgId: string;
   type: ChatMessageType;
   body: string | null;
+  e2e?: boolean;
   attachmentId: string | null;
   attachmentUrl: string | null;
   attachmentMime: string | null;
@@ -234,5 +236,94 @@ export const chatApi = {
       body,
       accessToken,
     });
+  },
+
+  putMyPublicKey(publicKey: string, accessToken?: string | null) {
+    return apiFetch<{ userId: string; publicKey: string; updatedAt: string }>(
+      "/chat/keys/me",
+      {
+        method: "PUT",
+        body: { publicKey },
+        accessToken,
+      },
+    );
+  },
+
+  getPublicKeys(userIds: string[], accessToken?: string | null) {
+    const q = encodeURIComponent(userIds.join(","));
+    return apiFetch<{ keys: Array<{ userId: string; publicKey: string }> }>(
+      `/chat/keys?userIds=${q}`,
+      { accessToken },
+    );
+  },
+
+  getKeyWraps(conversationId: string, accessToken?: string | null) {
+    return apiFetch<{
+      conversationId: string;
+      memberIds: string[];
+      epoch: number | null;
+      wrappedKey: string | null;
+      hasWraps?: boolean;
+    }>(`/chat/conversations/${conversationId}/key-wraps`, { accessToken });
+  },
+
+  putKeyWraps(
+    conversationId: string,
+    body: {
+      epoch: number;
+      wraps: Array<{ userId: string; wrappedKey: string }>;
+    },
+    accessToken?: string | null,
+  ) {
+    return apiFetch<{
+      conversationId: string;
+      epoch: number;
+      count: number;
+    }>(`/chat/conversations/${conversationId}/key-wraps`, {
+      method: "PUT",
+      body,
+      accessToken,
+    });
+  },
+
+  resetKeyWraps(conversationId: string, accessToken?: string | null) {
+    return apiFetch<{ conversationId: string; reset: boolean }>(
+      `/chat/conversations/${conversationId}/key-wraps`,
+      {
+        method: "DELETE",
+        accessToken,
+      },
+    );
+  },
+
+  addMembers(
+    conversationId: string,
+    userIds: string[],
+    accessToken?: string | null,
+  ) {
+    return apiFetch<{ ok: boolean }>(
+      `/chat/conversations/${conversationId}/members`,
+      {
+        method: "POST",
+        body: { userIds },
+        accessToken,
+      },
+    );
+  },
+
+  /** Add group members then seal conversation key for newcomers. */
+  async addMembersSecure(
+    conversationId: string,
+    userIds: string[],
+    accessToken?: string | null,
+  ) {
+    const res = await chatApi.addMembers(
+      conversationId,
+      userIds,
+      accessToken,
+    );
+    const { rewrapConversationKeys } = await import("@/lib/chat/e2e");
+    await rewrapConversationKeys(conversationId, accessToken);
+    return res;
   },
 };

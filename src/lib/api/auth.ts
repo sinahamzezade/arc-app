@@ -1,6 +1,6 @@
 import { apiFetch, apiFetchFormData, refreshAccessToken } from "./client";
 import { ApiError } from "./errors";
-import type { AuthSessionResponse, MeResponse } from "./types";
+import type { AuthSessionResponse, MePulseResponse, MeResponse } from "./types";
 
 export const authApi = {
   register(body: {
@@ -97,6 +97,10 @@ export const authApi = {
 export const meApi = {
   get() {
     return apiFetch<MeResponse>("/me");
+  },
+
+  pulse(accessToken?: string | null) {
+    return apiFetch<MePulseResponse>("/me/pulse", { accessToken });
   },
 
   updateProfile(body: {

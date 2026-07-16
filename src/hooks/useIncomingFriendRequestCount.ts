@@ -2,19 +2,18 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { socialApi } from "@/lib/api/social";
 
+/**
+ * Incoming friend-request badge count. Seeded by AppPulseHost.
+ * Friends screen still loads the full incoming list itself.
+ */
 export function useIncomingFriendRequestCount() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const accessToken = session?.accessToken;
 
   return useQuery({
     queryKey: ["social", "friend-requests", "incoming", accessToken ?? "anon"],
-    enabled: status === "authenticated" && Boolean(accessToken),
-    queryFn: async () => {
-      const res = await socialApi.incomingRequests(accessToken);
-      return res.items.length;
-    },
-    refetchInterval: 20_000,
+    enabled: false,
+    queryFn: async () => 0,
   });
 }

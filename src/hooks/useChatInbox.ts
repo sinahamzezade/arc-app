@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/chat";
 import { socialApi, type SocialFriendDto } from "@/lib/api/social";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { decryptChatMessage, decryptChatMessages } from "@/lib/chat/e2e";
 import { useChatSocket } from "@/hooks/useChatSocket";
 
 export const CHAT_CONVERSATIONS_QUERY_KEY = ["chat", "conversations"] as const;
@@ -56,7 +57,21 @@ export function useChatInbox() {
     enabled: authed,
     queryFn: async () => {
       const res = await chatApi.conversations(undefined, accessToken);
-      return res.items;
+      const items = res.items;
+      return Promise.all(
+        items.map(async (c) => {
+          if (!c.lastMessage) return c;
+          try {
+            const [last] = await decryptChatMessages(
+              [c.lastMessage],
+              accessToken,
+            );
+            return { ...c, lastMessage: last ?? c.lastMessage };
+          } catch {
+            return c;
+          }
+        }),
+      );
     },
     staleTime: 30_000,
     gcTime: 10 * 60_000,
@@ -109,11 +124,25 @@ export function useChatInbox() {
     conversationId: null,
     enabled: authed,
     onMessage: (msg) => {
-      queryClient.setQueryData<ConversationListItemDto[]>(
-        conversationsKey(accessToken),
-        (prev) =>
-          prev ? patchConversationWithMessage(prev, msg, myUserId) : prev,
-      );
+      void decryptChatMessage(msg, accessToken)
+        .then((plain) => {
+          queryClient.setQueryData<ConversationListItemDto[]>(
+            conversationsKey(accessToken),
+            (prev) =>
+              prev
+                ? patchConversationWithMessage(prev, plain, myUserId)
+                : prev,
+          );
+        })
+        .catch(() => {
+          queryClient.setQueryData<ConversationListItemDto[]>(
+            conversationsKey(accessToken),
+            (prev) =>
+              prev
+                ? patchConversationWithMessage(prev, msg, myUserId)
+                : prev,
+          );
+        });
     },
     onUnreadChanged: () => {
       void queryClient.invalidateQueries({

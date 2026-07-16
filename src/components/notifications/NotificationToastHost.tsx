@@ -23,12 +23,17 @@ import { mapNotificationDto } from "@/lib/notifications/map-notification";
 import type { NotificationItem } from "@/lib/notifications/types";
 import { assets } from "@/lib/assets";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
+import {
+  answerIncomingCallFromToast,
+  subscribeNotificationNew,
+} from "@/lib/chat/realtime-bus";
+import type { CallMode } from "@/lib/api/calls";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 420, damping: 32 };
 const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 const AUTO_DISMISS_MS = 5600;
-const POLL_MS = 45_000;
+const CALL_TOAST_MS = 90_000;
 
 const iconMap = {
   trophy: Trophy,
@@ -67,7 +72,7 @@ export function NotificationToastHost() {
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const accessToken = session?.accessToken;
   const { data: unreadCount } = useUnreadNotificationCount();
   const prevCount = useRef<number | null>(null);
@@ -93,20 +98,33 @@ export function NotificationToastHost() {
       seenIds.current.add(item.id);
       clearTimer();
       setToast(item);
-      dismissTimer.current = setTimeout(() => setToast(null), AUTO_DISMISS_MS);
+      const holdMs =
+        item.type === "incoming_call" ? CALL_TOAST_MS : AUTO_DISMISS_MS;
+      dismissTimer.current = setTimeout(() => setToast(null), holdMs);
     },
     [clearTimer],
   );
 
+  // Prefer live WS payload — instant toast, no list round-trip.
   useEffect(() => {
-    if (status !== "authenticated" || !accessToken) return;
-    const id = setInterval(() => {
-      void queryClient.invalidateQueries({
-        queryKey: ["notifications", "unread-count"],
-      });
-    }, POLL_MS);
-    return () => clearInterval(id);
-  }, [status, accessToken, queryClient]);
+    return subscribeNotificationNew((payload) => {
+      const action = payload.notification.actionUrl ?? "";
+      if (pathname.startsWith("/notifications")) {
+        prevCount.current = payload.unreadCount;
+        return;
+      }
+      // Already in that chat thread — skip toast (message stream is enough).
+      if (
+        action.startsWith("/chat/") &&
+        (pathname === action || pathname.startsWith(`${action}/`))
+      ) {
+        prevCount.current = payload.unreadCount;
+        return;
+      }
+      prevCount.current = payload.unreadCount;
+      showToast(mapNotificationDto(payload.notification));
+    });
+  }, [pathname, showToast]);
 
   useEffect(() => {
     if (unreadCount == null) return;
@@ -147,8 +165,44 @@ export function NotificationToastHost() {
 
   const onOpen = () => {
     if (!toast) return;
-    const href = toast.actionUrl || "/notifications";
     const id = toast.id;
+
+    if (toast.type === "incoming_call") {
+      const payload = toast.payload ?? {};
+      const callId = typeof payload.callId === "string" ? payload.callId : null;
+      const conversationId =
+        typeof payload.conversationId === "string"
+          ? payload.conversationId
+          : null;
+      const fromUserId =
+        typeof payload.fromUserId === "string" ? payload.fromUserId : "";
+      const fromName =
+        typeof payload.fromName === "string"
+          ? payload.fromName
+          : toast.title || "Contact";
+      const mode = payload.mode === "video" ? "video" : "audio";
+      if (callId && conversationId) {
+        // Answer = accept now (seed alone left dead invites after WS blip).
+        answerIncomingCallFromToast({
+          callId,
+          conversationId,
+          fromUserId,
+          fromName,
+          mode: mode as CallMode,
+        });
+      }
+      dismiss();
+      if (accessToken) {
+        void notificationsApi.markRead(id, accessToken).finally(() => {
+          void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        });
+      }
+      // Stay put — CallHost overlay owns media. Do not navigate
+      // (that remounted call session and looked like a decline).
+      return;
+    }
+
+    const href = toast.actionUrl || "/notifications";
     dismiss();
     if (accessToken) {
       void notificationsApi.markRead(id, accessToken).finally(() => {
@@ -224,7 +278,7 @@ export function NotificationToastHost() {
                     transition={snappySpring}
                     className="mt-2.5 inline-flex items-center rounded-xl bg-[#ffc928] px-3 py-1.5 text-[11px] font-extrabold text-[#0f1220] shadow-[0_3px_0_#c79a2e]"
                   >
-                    Open
+                    {toast.type === "incoming_call" ? "Answer" : "Open"}
                   </motion.span>
                 </button>
 

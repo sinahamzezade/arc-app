@@ -202,6 +202,15 @@ export type MeResponse = {
   profile: Profile;
 };
 
+/** Badge + presence snapshot from GET /me/pulse (app background poll). */
+export type MePulseResponse = {
+  notificationsUnread: number;
+  chatUnreadTotal: number;
+  conversationsWithUnread: number;
+  friendRequestsIncoming: number;
+  presence: { online: boolean; ttlSec: number };
+};
+
 export type ApiErrorBody = {
   statusCode: number;
   code: string;

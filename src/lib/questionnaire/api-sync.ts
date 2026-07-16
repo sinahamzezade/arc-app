@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   emptyQuestionnaireAnswers,
@@ -40,48 +40,41 @@ export function useHydrateQuestionnaire() {
   const hydrated = useQuestionnaireStore((s) => s.hydrated);
   const schema = useQuestionnaireStore((s) => s.schema);
   const reset = useQuestionnaireStore((s) => s.reset);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const qStatus = session?.profile?.questionnaireStatus;
   const prevQStatusRef = useRef<string | null | undefined>(undefined);
-  /** Prevents re-fetch storms when schema/hydrated flip mid-flight. */
-  const inFlightTokenRef = useRef<string | null>(null);
+  const fetchGenRef = useRef(0);
+  // Token refresh must NOT restart hydrate — it was aborting in-flight
+  // schema+answers and leaving Form CTA on "Loading form…" forever.
+  const accessTokenRef = useRef<string | null | undefined>(session?.accessToken);
+  accessTokenRef.current = session?.accessToken;
 
   useEffect(() => {
     const prev = prevQStatusRef.current;
     prevQStatusRef.current = qStatus;
     if (prev === "completed" && qStatus !== "completed") {
-      inFlightTokenRef.current = null;
+      fetchGenRef.current += 1;
       reset();
+      setAttempt((n) => n + 1);
     }
   }, [qStatus, reset]);
 
   useEffect(() => {
-    if (status === "loading") {
-      setLoading(true);
-      return;
-    }
+    if (status === "loading") return;
 
-    if (status !== "authenticated" || !session?.accessToken) {
-      setLoading(false);
+    if (status !== "authenticated" || !accessTokenRef.current) {
       setError("Sign in to continue");
       return;
     }
 
-    if (hydrated && schema) {
-      setLoading(false);
+    if (schema) {
       setError(null);
       return;
     }
 
-    const token = session.accessToken;
-    if (inFlightTokenRef.current === token) {
-      return;
-    }
-    inFlightTokenRef.current = token;
-
-    let cancelled = false;
-    setLoading(true);
+    const gen = ++fetchGenRef.current;
+    const token = accessTokenRef.current;
     setError(null);
 
     void (async () => {
@@ -90,8 +83,7 @@ export function useHydrateQuestionnaire() {
           questionnaireApi.getSchema(token),
           questionnaireApi.get(token),
         ]);
-        if (cancelled) return;
-        // Atomic write — avoids setSchema→re-render→re-fetch before hydrated.
+        if (gen !== fetchGenRef.current) return;
         useQuestionnaireStore.setState({
           schema: schemaRes,
           answers: answersRes.answers
@@ -101,24 +93,54 @@ export function useHydrateQuestionnaire() {
         });
         setError(null);
       } catch (err) {
-        if (cancelled) return;
-        inFlightTokenRef.current = null;
+        if (gen !== fetchGenRef.current) return;
+        const latest = accessTokenRef.current;
+        if (latest && latest !== token) {
+          try {
+            const [schemaRes, answersRes] = await Promise.all([
+              questionnaireApi.getSchema(latest),
+              questionnaireApi.get(latest),
+            ]);
+            if (gen !== fetchGenRef.current) return;
+            useQuestionnaireStore.setState({
+              schema: schemaRes,
+              answers: answersRes.answers
+                ? mergeAnswers(answersRes.answers, schemaRes.steps)
+                : emptyQuestionnaireAnswers(schemaRes.steps),
+              hydrated: true,
+            });
+            setError(null);
+            return;
+          } catch (retryErr) {
+            err = retryErr;
+          }
+        }
         if (err instanceof ApiError) {
           setError(messageForCode(err.code, err.message));
         } else {
           setError("Could not load questionnaire");
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     })();
+    // Intentionally omit accessToken — refresh was restarting this effect
+    // and abandoning in-flight schema loads before they could commit.
+  }, [status, schema, attempt]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [status, session?.accessToken, hydrated, schema, qStatus]);
+  const retry = useCallback(() => {
+    fetchGenRef.current += 1;
+    setError(null);
+    useQuestionnaireStore.setState({ schema: null, hydrated: false });
+    setAttempt((n) => n + 1);
+  }, []);
 
-  return { loading, error, hydrated, schema, status };
+  const loading =
+    status === "loading" ||
+    (status === "authenticated" &&
+      Boolean(session?.accessToken) &&
+      !schema &&
+      !error);
+
+  return { loading, error, hydrated, schema, status, retry };
 }
 
 /** Persist full answer snapshot as draft. */

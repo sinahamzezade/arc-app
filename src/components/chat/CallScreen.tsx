@@ -31,7 +31,7 @@ function statusLabel(call: CallSessionApi) {
     case "ringing_out":
       return "Ringing…";
     case "ringing_in":
-      return call.mode === "video" ? "Video call" : "Voice call";
+      return call.mode === "video" ? "Incoming video" : "Incoming voice";
     case "connecting":
       return "Connecting…";
     case "active":
@@ -55,8 +55,9 @@ function initialOf(name: string) {
 }
 
 /**
- * Arc call overlay — night stage, gold/purple atmosphere, distinct
- * incoming vs outgoing compositions.
+ * Arc call overlay — OLED night stage, gold/purple atmosphere.
+ * Incoming: centered identity + open accept/decline rail.
+ * Active: video-first with glass chrome.
  */
 export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
   const reduceMotion = useReducedMotion();
@@ -103,31 +104,55 @@ export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
     isActiveStage;
 
   return (
-    <div className="fixed inset-0 z-[80] mx-auto flex max-w-md flex-col overflow-hidden bg-[#0a0c16] font-rounded text-white">
-      {/* Atmosphere */}
+    <div className="fixed inset-0 z-[80] mx-auto flex max-w-md flex-col overflow-hidden bg-[#05060d] font-rounded text-white">
+      {/* Atmosphere — OLED + brand orbs */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-arc-purple-500/35 blur-[90px]" />
-        <div className="absolute right-[-20%] bottom-[18%] h-64 w-64 rounded-full bg-[#ffc928]/12 blur-[80px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(179,92,255,0.18),transparent_55%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgba(10,12,22,0.92)_78%)]" />
+        <div className="absolute inset-0 bg-[#05060d]" />
+        <div className="absolute top-[-18%] left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-arc-purple-500/30 blur-[100px]" />
+        <div className="absolute right-[-30%] bottom-[8%] h-72 w-72 rounded-full bg-[#ffc928]/14 blur-[90px]" />
+        <div className="absolute bottom-[-10%] left-[-20%] h-64 w-64 rounded-full bg-[#6b4eff]/20 blur-[80px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_28%,rgba(179,92,255,0.22),transparent_58%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(5,6,13,0.95)_0%,transparent_55%)]" />
+        {/* Fine grain for depth */}
+        <div
+          className="absolute inset-0 opacity-[0.04] mix-blend-overlay"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+          }}
+        />
       </div>
 
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
       {/* Top chrome */}
-      <header className="relative z-20 flex items-start justify-between px-5 pt-[calc(env(safe-area-inset-top)+14px)]">
-        <div>
-          <p className="text-[10px] font-extrabold tracking-[0.18em] text-white/35 uppercase">
-            Arc
-          </p>
-          <p className="mt-0.5 text-[11px] font-bold tracking-wide text-[#ffc928]/90 uppercase">
-            {isIncoming ? "Incoming" : call.mode === "video" ? "Video" : "Voice"}
-          </p>
-        </div>
-        {!isIncoming && !isEnded ? (
-          <span className="rounded-full bg-white/8 px-3 py-1.5 text-[11px] font-bold text-white/70 ring-1 ring-white/10">
+      <header className="relative z-20 flex flex-col items-center px-5 pt-[calc(env(safe-area-inset-top)+16px)]">
+        <p className="font-display text-[13px] font-bold tracking-[0.28em] text-white/40 uppercase">
+          Arc
+        </p>
+        {isIncoming ? (
+          <motion.div
+            className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#ffc928]/15 px-3.5 py-1.5 ring-1 ring-[#ffc928]/35"
+            animate={
+              reduceMotion
+                ? undefined
+                : { opacity: [0.75, 1, 0.75] }
+            }
+            transition={
+              reduceMotion
+                ? undefined
+                : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }
+            }
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-[#ffc928]" />
+            <span className="text-[11px] font-extrabold tracking-[0.14em] text-[#ffc928] uppercase">
+              Incoming
+            </span>
+          </motion.div>
+        ) : !isEnded ? (
+          <div className="mt-3 rounded-full bg-white/8 px-3.5 py-1.5 text-[11px] font-bold tracking-wide text-white/70 ring-1 ring-white/12 backdrop-blur-md">
             {statusLabel(call)}
-          </span>
+          </div>
         ) : null}
       </header>
 
@@ -142,12 +167,26 @@ export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
           />
         ) : null}
 
+        {remoteLive ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#05060d]/55 via-transparent to-[#05060d]/75"
+          />
+        ) : null}
+
         {isIncoming ? (
           <IncomingStage
             peerName={peerName}
             mode={call.mode}
             reduceMotion={!!reduceMotion}
             error={call.error}
+          />
+        ) : isEnded ? (
+          <EndedStage
+            peerName={peerName}
+            status={statusLabel(call)}
+            error={call.error}
+            reduceMotion={!!reduceMotion}
           />
         ) : (
           <OutgoingStage
@@ -161,9 +200,9 @@ export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
 
         {showLocalPip ? (
           <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="absolute right-4 bottom-[7.5rem] z-20 overflow-hidden rounded-[18px] shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-2 ring-[#ffc928]/50"
+            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute right-4 bottom-[8.5rem] z-20 overflow-hidden rounded-[20px] shadow-[0_16px_48px_rgba(0,0,0,0.55)] ring-2 ring-[#ffc928]/55"
           >
             <video
               ref={localVideoRef}
@@ -172,7 +211,7 @@ export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
               muted
               className="h-[9.5rem] w-[7rem] object-cover"
             />
-            <span className="absolute bottom-1.5 left-1.5 rounded-md bg-[#0a0c16]/75 px-1.5 py-0.5 text-[9px] font-extrabold tracking-wide text-white/90 uppercase">
+            <span className="absolute bottom-1.5 left-1.5 rounded-md bg-[#05060d]/80 px-1.5 py-0.5 text-[9px] font-extrabold tracking-wide text-white/90 uppercase">
               You
             </span>
           </motion.div>
@@ -180,44 +219,36 @@ export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
       </div>
 
       {/* Controls */}
-      <footer className="relative z-20 px-5 pb-[calc(env(safe-area-inset-bottom)+22px)]">
+      <footer className="relative z-20 px-6 pb-[calc(env(safe-area-inset-bottom)+24px)]">
         {isIncoming ? (
-          <div className="rounded-[28px] bg-white/8 p-4 ring-1 ring-white/12 backdrop-blur-xl">
-            <div className="flex items-center justify-between gap-4">
-              <ActionPill
-                label="Decline"
-                tone="danger"
-                onClick={() => void call.declineIncoming()}
-                icon={<PhoneOff className="h-6 w-6" strokeWidth={2.25} />}
-              />
-              <ActionPill
-                label="Accept"
-                tone="accept"
-                onClick={() => void call.acceptIncoming()}
-                icon={<Phone className="h-6 w-6" strokeWidth={2.25} />}
-                pulse={!reduceMotion}
-              />
-            </div>
+          <div className="flex items-end justify-center gap-14">
+            <ActionOrb
+              label="Decline"
+              tone="danger"
+              onClick={() => void call.declineIncoming()}
+              icon={<PhoneOff className="h-7 w-7" strokeWidth={2.25} />}
+            />
+            <ActionOrb
+              label="Accept"
+              tone="accept"
+              onClick={() => void call.acceptIncoming()}
+              icon={<Phone className="h-7 w-7" strokeWidth={2.25} />}
+              pulse={!reduceMotion}
+            />
           </div>
         ) : isEnded ? (
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-sm font-bold text-white/55">{statusLabel(call)}</p>
-            {call.error ? (
-              <p className="max-w-xs text-center text-sm font-bold text-[#ff8a96]">
-                {call.error}
-              </p>
-            ) : null}
+          <div className="flex flex-col items-center gap-4">
             <button
               type="button"
               onClick={call.dismissEnded}
-              className="cursor-pointer rounded-2xl bg-[#ffc928] px-8 py-3.5 text-sm font-extrabold text-[#0f1220] shadow-[0_4px_0_#c79a2e] transition-colors duration-200 hover:bg-[#ffd24d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="cursor-pointer rounded-2xl bg-[#ffc928] px-10 py-3.5 text-sm font-extrabold text-[#0f1220] shadow-[0_4px_0_#c79a2e] transition-colors duration-200 hover:bg-[#ffd24d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               Done
             </button>
           </div>
         ) : (
-          <div className="rounded-[28px] bg-white/8 px-4 py-3.5 ring-1 ring-white/12 backdrop-blur-xl">
-            <div className="flex items-center justify-center gap-3">
+          <div className="mx-auto max-w-sm rounded-[32px] bg-white/10 px-5 py-4 ring-1 ring-white/14 backdrop-blur-2xl">
+            <div className="flex items-center justify-center gap-4">
               <DockBtn
                 label={call.muted ? "Unmute" : "Mute"}
                 active={call.muted}
@@ -259,7 +290,7 @@ export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
                 type="button"
                 aria-label="Hang up"
                 onClick={call.hangup}
-                className="flex h-[3.75rem] w-[3.75rem] cursor-pointer items-center justify-center rounded-2xl bg-[#ff4d5a] text-white shadow-[0_5px_0_#c2303c] transition-colors duration-200 hover:bg-[#ff6570] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white active:translate-y-px active:shadow-none"
+                className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-full bg-[#ff4d5a] text-white shadow-[0_0_0_6px_rgba(255,77,90,0.22)] transition-colors duration-200 hover:bg-[#ff6570] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
               >
                 <PhoneOff className="h-6 w-6" strokeWidth={2.25} />
               </button>
@@ -283,42 +314,111 @@ function IncomingStage({
   error: string | null;
 }) {
   return (
-    <div className="relative flex flex-1 flex-col justify-end px-6 pb-6 pt-10">
+    <div className="relative flex flex-1 flex-col items-center justify-center px-6 pb-4">
       <motion.div
-        className="mb-auto flex flex-col items-start"
-        initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+        className="flex w-full flex-col items-center text-center"
+        initial={reduceMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 360, damping: 28 }}
+        transition={{ type: "spring", stiffness: 320, damping: 30 }}
       >
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ffc928] px-3 py-1 text-[11px] font-extrabold tracking-wide text-[#0f1220] uppercase">
+        {/* Mode chip */}
+        <span className="mb-8 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-[11px] font-extrabold tracking-[0.12em] text-white/85 ring-1 ring-white/14 uppercase backdrop-blur-md">
           {mode === "video" ? (
-            <Video className="h-3.5 w-3.5" strokeWidth={2.5} />
+            <Video className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
           ) : (
-            <Phone className="h-3.5 w-3.5" strokeWidth={2.5} />
+            <Phone className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
           )}
-          Incoming {mode}
+          {mode === "video" ? "Video call" : "Voice call"}
         </span>
 
-        <div className="relative mt-8">
+        {/* Avatar with ripple rings */}
+        <div className="relative mb-10 flex h-44 w-44 items-center justify-center">
           {!reduceMotion ? (
             <>
-              <span className="absolute -inset-4 animate-ping rounded-[28px] bg-arc-purple-500/25 [animation-duration:2.2s]" />
-              <span className="absolute -inset-8 rounded-[36px] border border-[#ffc928]/25" />
+              <motion.span
+                className="absolute inset-0 rounded-full border border-[#ffc928]/30"
+                animate={{ scale: [1, 1.35], opacity: [0.55, 0] }}
+                transition={{
+                  duration: 2.4,
+                  repeat: Infinity,
+                  ease: "easeOut",
+                }}
+              />
+              <motion.span
+                className="absolute inset-[-10px] rounded-full border border-arc-purple-400/35"
+                animate={{ scale: [1, 1.28], opacity: [0.45, 0] }}
+                transition={{
+                  duration: 2.4,
+                  repeat: Infinity,
+                  ease: "easeOut",
+                  delay: 0.45,
+                }}
+              />
+              <motion.span
+                className="absolute inset-[-22px] rounded-full border border-white/12"
+                animate={{ scale: [1, 1.22], opacity: [0.35, 0] }}
+                transition={{
+                  duration: 2.4,
+                  repeat: Infinity,
+                  ease: "easeOut",
+                  delay: 0.9,
+                }}
+              />
             </>
-          ) : null}
-          <div className="relative flex h-[7.5rem] w-[7.5rem] items-center justify-center rounded-[28px] bg-gradient-to-br from-[#b35cff] to-[#6b4eff] text-[3.25rem] font-extrabold shadow-[0_8px_0_#5a2a9e]">
+          ) : (
+            <span className="absolute inset-[-14px] rounded-full border border-[#ffc928]/25" />
+          )}
+
+          <div className="relative flex h-[8.5rem] w-[8.5rem] items-center justify-center rounded-full bg-gradient-to-br from-[#c47dff] via-[#8b5cf6] to-[#4c2fd6] font-display text-[3.5rem] font-bold shadow-[0_20px_60px_rgba(107,78,255,0.45)] ring-[3px] ring-[#ffc928]/70">
             {initialOf(peerName)}
           </div>
         </div>
 
-        <h1 className="mt-6 font-display text-[40px] leading-[0.95] font-bold tracking-[-0.04em]">
+        <h1 className="max-w-[18rem] font-display text-[42px] leading-[0.92] font-bold tracking-[-0.045em] text-balance">
           {peerName}
         </h1>
-        <p className="mt-2 max-w-[16rem] text-[14px] font-semibold text-white/50">
+        <p className="mt-3 max-w-[15rem] text-[15px] font-semibold text-white/50">
           Wants to {mode === "video" ? "see" : "talk with"} you on Arc
         </p>
         {error ? (
-          <p className="mt-3 text-sm font-bold text-[#ff8a96]">{error}</p>
+          <p className="mt-4 text-sm font-bold text-[#ff8a96]">{error}</p>
+        ) : null}
+      </motion.div>
+    </div>
+  );
+}
+
+function EndedStage({
+  peerName,
+  status,
+  error,
+  reduceMotion,
+}: {
+  peerName: string;
+  status: string;
+  error: string | null;
+  reduceMotion: boolean;
+}) {
+  return (
+    <div className="relative flex flex-1 flex-col items-center justify-center px-6">
+      <motion.div
+        className="flex flex-col items-center text-center"
+        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="mb-8 flex h-[7.5rem] w-[7.5rem] items-center justify-center rounded-full bg-gradient-to-br from-[#2a2048] to-[#12101f] font-display text-[2.75rem] font-bold ring-[3px] ring-white/20">
+          {initialOf(peerName)}
+        </div>
+        <h1 className="font-display text-[36px] leading-none font-bold tracking-[-0.04em]">
+          {peerName}
+        </h1>
+        <p className="mt-3 text-[13px] font-bold tracking-[0.1em] text-white/45 uppercase">
+          {status}
+        </p>
+        {error ? (
+          <p className="mt-3 max-w-xs text-sm font-bold text-[#ff8a96]">
+            {error}
+          </p>
         ) : null}
       </motion.div>
     </div>
@@ -340,10 +440,14 @@ function OutgoingStage({
 }) {
   if (remoteLive) {
     return (
-      <div className="relative z-10 mt-auto px-6 pb-4">
-        <div className="rounded-2xl bg-[#0a0c16]/55 px-4 py-3 backdrop-blur-md ring-1 ring-white/10">
-          <p className="font-display text-lg font-bold">{peerName}</p>
-          <p className="text-[12px] font-bold text-[#ffc928]">{status}</p>
+      <div className="relative z-10 mt-auto flex justify-center px-6 pb-5">
+        <div className="rounded-2xl bg-[#05060d]/60 px-5 py-3 text-center backdrop-blur-xl ring-1 ring-white/12">
+          <p className="font-display text-lg font-bold tracking-[-0.02em]">
+            {peerName}
+          </p>
+          <p className="mt-0.5 text-[12px] font-bold tracking-wide text-[#ffc928]">
+            {status}
+          </p>
         </div>
       </div>
     );
@@ -353,28 +457,35 @@ function OutgoingStage({
     <div className="relative flex flex-1 flex-col items-center justify-center px-6">
       <motion.div
         className="flex flex-col items-center text-center"
-        initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 380, damping: 28 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 360, damping: 28 }}
       >
-        <div className="relative mb-8 flex h-36 w-36 items-center justify-center">
+        <div className="relative mb-10 flex h-40 w-40 items-center justify-center">
           {!reduceMotion && call.uiState === "ringing_out" ? (
             <>
-              <span className="absolute inset-0 animate-ping rounded-full border-2 border-[#ffc928]/40 [animation-duration:1.8s]" />
-              <span className="absolute inset-[-14px] rounded-full border border-arc-purple-400/30" />
-              <span className="absolute inset-[-28px] rounded-full border border-white/10" />
+              <motion.span
+                className="absolute inset-0 rounded-full border-2 border-[#ffc928]/35"
+                animate={{ scale: [1, 1.3], opacity: [0.5, 0] }}
+                transition={{
+                  duration: 1.8,
+                  repeat: Infinity,
+                  ease: "easeOut",
+                }}
+              />
+              <span className="absolute inset-[-16px] rounded-full border border-arc-purple-400/30" />
             </>
           ) : null}
-          <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-[#2a2048] to-[#15122a] text-[2.75rem] font-extrabold ring-2 ring-[#ffc928]/60">
+          <div className="relative flex h-[7.5rem] w-[7.5rem] items-center justify-center rounded-full bg-gradient-to-br from-[#2a2048] to-[#12101f] font-display text-[2.75rem] font-bold ring-[3px] ring-[#ffc928]/55">
             {initialOf(peerName)}
           </div>
         </div>
 
-        <h1 className="font-display text-[34px] leading-none font-bold tracking-[-0.04em]">
+        <h1 className="font-display text-[36px] leading-none font-bold tracking-[-0.04em]">
           {peerName}
         </h1>
         <p
-          className="mt-3 text-[13px] font-bold tracking-[0.08em] text-white/45 uppercase"
+          className="mt-3 text-[13px] font-bold tracking-[0.1em] text-white/45 uppercase"
           aria-live="polite"
         >
           {status}
@@ -387,7 +498,7 @@ function OutgoingStage({
   );
 }
 
-function ActionPill({
+function ActionOrb({
   label,
   tone,
   onClick,
@@ -404,23 +515,31 @@ function ActionPill({
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-1 cursor-pointer flex-col items-center gap-2 focus-visible:outline-none"
+      className="group flex cursor-pointer flex-col items-center gap-3 focus-visible:outline-none"
     >
       <span
         className={cn(
-          "relative flex h-[4.25rem] w-[4.25rem] items-center justify-center rounded-[22px] text-white transition-colors duration-200",
+          "relative flex h-[4.75rem] w-[4.75rem] items-center justify-center rounded-full text-white transition-colors duration-200",
           tone === "danger" &&
-            "bg-[#ff4d5a] shadow-[0_5px_0_#c2303c] hover:bg-[#ff6570] active:translate-y-px active:shadow-none",
+            "bg-[#ff4d5a] shadow-[0_0_0_8px_rgba(255,77,90,0.18)] hover:bg-[#ff6570]",
           tone === "accept" &&
-            "bg-[#2dd4a8] shadow-[0_5px_0_#1a9e7a] hover:bg-[#3ee0b6] active:translate-y-px active:shadow-none",
+            "bg-[#2dd4a8] shadow-[0_0_0_8px_rgba(45,212,168,0.22)] hover:bg-[#3ee0b6]",
         )}
       >
         {pulse ? (
-          <span className="absolute inset-0 animate-ping rounded-[22px] bg-[#2dd4a8]/40 [animation-duration:1.6s]" />
+          <motion.span
+            className="absolute inset-0 rounded-full bg-[#2dd4a8]/45"
+            animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
+            transition={{
+              duration: 1.6,
+              repeat: Infinity,
+              ease: "easeOut",
+            }}
+          />
         ) : null}
         <span className="relative">{icon}</span>
       </span>
-      <span className="text-[12px] font-extrabold tracking-wide text-white/80">
+      <span className="text-[13px] font-extrabold tracking-wide text-white/85">
         {label}
       </span>
     </button>
@@ -447,10 +566,10 @@ function DockBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex h-14 w-14 cursor-pointer items-center justify-center rounded-2xl transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]",
+        "flex h-14 w-14 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]",
         active
           ? "bg-white text-[#0f1220]"
-          : "bg-white/10 text-white hover:bg-white/18",
+          : "bg-white/12 text-white hover:bg-white/20",
         disabled && "cursor-not-allowed opacity-40",
       )}
     >

@@ -1,10 +1,14 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { io, type Socket } from "socket.io-client";
-import { getWsBase, getWsPath } from "@/lib/api/ws";
+import type { Socket } from "socket.io-client";
 import type { ChatMessageDto, ChatMessageType } from "@/lib/api/chat";
+import {
+  getChatRealtimeConnected,
+  getChatSocket,
+  subscribeChatRealtimeConnected,
+  subscribeChatSocket,
+} from "@/lib/chat/realtime-bus";
 
 type UnreadHandler = (unreadTotal: number) => void;
 type MessageHandler = (msg: ChatMessageDto) => void;
@@ -33,49 +37,45 @@ type GlobalOpts = {
   enabled?: boolean;
 };
 
-/** Lightweight global socket for header unread badge. */
+/**
+ * Lightweight unread badge hook — uses shared ChatRealtimeHost socket.
+ * (Do not open a second /chat connection; that masked disconnect bugs.)
+ */
 export function useChatSocketGlobal({ enabled = true }: GlobalOpts = {}) {
-  const { data: session } = useSession();
-  const token = session?.accessToken;
-  const [connected, setConnected] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
+  const [connected, setConnected] = useState(getChatRealtimeConnected);
+  const socketRef = useRef<Socket | null>(getChatSocket());
   const unreadHandlers = useRef(new Set<UnreadHandler>());
 
   useEffect(() => {
-    if (!enabled || !token) {
-      socketRef.current?.disconnect();
+    if (!enabled) {
       socketRef.current = null;
       setConnected(false);
       return;
     }
-
-    const socket = io(`${getWsBase()}/chat`, {
-      auth: { token },
-      path: getWsPath(),
-      transports: ["polling", "websocket"],
-      autoConnect: true,
+    const unsubSock = subscribeChatSocket((socket) => {
+      socketRef.current = socket;
     });
-    socketRef.current = socket;
+    const unsubConn = subscribeChatRealtimeConnected(setConnected);
+    return () => {
+      unsubSock();
+      unsubConn();
+    };
+  }, [enabled]);
 
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
-    socket.on("unread.changed", (payload: { unreadTotal?: number }) => {
+  useEffect(() => {
+    if (!enabled) return;
+    const socket = getChatSocket();
+    if (!socket) return;
+    const onUnread = (payload: { unreadTotal?: number }) => {
       if (typeof payload?.unreadTotal === "number") {
         for (const h of unreadHandlers.current) h(payload.unreadTotal);
       }
-    });
-
-    const heartbeat = window.setInterval(() => {
-      if (socket.connected) socket.emit("presence.heartbeat");
-    }, 45_000);
-
-    return () => {
-      window.clearInterval(heartbeat);
-      socket.disconnect();
-      socketRef.current = null;
-      setConnected(false);
     };
-  }, [enabled, token]);
+    socket.on("unread.changed", onUnread);
+    return () => {
+      socket.off("unread.changed", onUnread);
+    };
+  }, [enabled, connected]);
 
   const onUnreadChanged = useCallback((handler: UnreadHandler) => {
     unreadHandlers.current.add(handler);
@@ -98,6 +98,9 @@ type ConversationOpts = {
   onUnreadChanged?: UnreadHandler;
 };
 
+/**
+ * Thread socket helpers on the shared app-wide /chat connection.
+ */
 export function useChatSocket({
   conversationId,
   enabled = true,
@@ -108,10 +111,8 @@ export function useChatSocket({
   onDelivered,
   onUnreadChanged,
 }: ConversationOpts) {
-  const { data: session } = useSession();
-  const token = session?.accessToken;
-  const [connected, setConnected] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
+  const [connected, setConnected] = useState(getChatRealtimeConnected);
+  const socketRef = useRef<Socket | null>(getChatSocket());
   const handlers = useRef({
     onMessage,
     onRead,
@@ -128,66 +129,126 @@ export function useChatSocket({
     onDelivered,
     onUnreadChanged,
   };
+  const joinedConvRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!enabled || !token) {
-      socketRef.current?.disconnect();
+    if (!enabled) {
       socketRef.current = null;
       setConnected(false);
       return;
     }
-
-    const socket = io(`${getWsBase()}/chat`, {
-      auth: { token },
-      path: getWsPath(),
-      transports: ["polling", "websocket"],
-      autoConnect: true,
+    const unsubSock = subscribeChatSocket((socket) => {
+      socketRef.current = socket;
     });
-    socketRef.current = socket;
+    const unsubConn = subscribeChatRealtimeConnected(setConnected);
+    return () => {
+      unsubSock();
+      unsubConn();
+    };
+  }, [enabled]);
 
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
+  useEffect(() => {
+    if (!enabled) return;
 
-    socket.on("message.new", (msg: ChatMessageDto) => {
-      if (
-        conversationId &&
-        msg.conversationId !== conversationId
-      ) {
-        return;
+    let activeSocket: Socket | null = null;
+
+    const detach = (socket: Socket) => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("message.new", onMessageNew);
+      socket.off("message.read", onMessageRead);
+      socket.off("typing", onTypingEv);
+      socket.off("presence", onPresenceEv);
+      socket.off("message.delivered", onDeliveredEv);
+      socket.off("unread.changed", onUnread);
+    };
+
+    const leaveJoined = (socket: Socket) => {
+      const prev = joinedConvRef.current;
+      if (prev && socket.connected) {
+        socket.emit("conversation.leave", { conversationId: prev });
       }
+      joinedConvRef.current = null;
+    };
+
+    const join = (socket: Socket) => {
+      if (!conversationId || !socket.connected) return;
+      if (joinedConvRef.current === conversationId) return;
+      if (joinedConvRef.current && joinedConvRef.current !== conversationId) {
+        socket.emit("conversation.leave", {
+          conversationId: joinedConvRef.current,
+        });
+      }
+      socket.emit("conversation.join", { conversationId });
+      joinedConvRef.current = conversationId;
+    };
+
+    const onConnect = () => {
+      setConnected(true);
+      if (activeSocket) join(activeSocket);
+    };
+    const onDisconnect = () => {
+      setConnected(false);
+      joinedConvRef.current = null;
+    };
+
+    const onMessageNew = (msg: ChatMessageDto) => {
+      if (conversationId && msg.conversationId !== conversationId) return;
       handlers.current.onMessage?.(msg);
-    });
-    socket.on("message.read", (payload: Parameters<ReadHandler>[0]) => {
+    };
+    const onMessageRead = (payload: Parameters<ReadHandler>[0]) => {
       if (conversationId && payload.conversationId !== conversationId) return;
       handlers.current.onRead?.(payload);
-    });
-    socket.on("typing", (payload: Parameters<TypingHandler>[0]) => {
+    };
+    const onTypingEv = (payload: Parameters<TypingHandler>[0]) => {
       if (conversationId && payload.conversationId !== conversationId) return;
       handlers.current.onTyping?.(payload);
-    });
-    socket.on("presence", (payload: Parameters<PresenceHandler>[0]) => {
+    };
+    const onPresenceEv = (payload: Parameters<PresenceHandler>[0]) => {
       handlers.current.onPresence?.(payload);
-    });
-    socket.on("message.delivered", (payload: Parameters<DeliveredHandler>[0]) => {
+    };
+    const onDeliveredEv = (payload: Parameters<DeliveredHandler>[0]) => {
       handlers.current.onDelivered?.(payload);
-    });
-    socket.on("unread.changed", (payload: { unreadTotal?: number }) => {
+    };
+    const onUnread = (payload: { unreadTotal?: number }) => {
       if (typeof payload?.unreadTotal === "number") {
         handlers.current.onUnreadChanged?.(payload.unreadTotal);
       }
-    });
+    };
 
-    const heartbeat = window.setInterval(() => {
-      if (socket.connected) socket.emit("presence.heartbeat");
-    }, 45_000);
+    const attach = (socket: Socket | null) => {
+      if (activeSocket) {
+        leaveJoined(activeSocket);
+        detach(activeSocket);
+        activeSocket = null;
+      }
+      if (!socket) return;
+      activeSocket = socket;
+      socketRef.current = socket;
+      socket.on("connect", onConnect);
+      socket.on("disconnect", onDisconnect);
+      socket.on("message.new", onMessageNew);
+      socket.on("message.read", onMessageRead);
+      socket.on("typing", onTypingEv);
+      socket.on("presence", onPresenceEv);
+      socket.on("message.delivered", onDeliveredEv);
+      socket.on("unread.changed", onUnread);
+      if (socket.connected) {
+        setConnected(true);
+        join(socket);
+      }
+    };
+
+    const unsubSock = subscribeChatSocket(attach);
 
     return () => {
-      window.clearInterval(heartbeat);
-      socket.disconnect();
-      socketRef.current = null;
-      setConnected(false);
+      unsubSock();
+      if (activeSocket) {
+        leaveJoined(activeSocket);
+        detach(activeSocket);
+      }
     };
-  }, [enabled, token, conversationId]);
+  }, [enabled, conversationId]);
 
   const emitSend = useCallback(
     (payload: {
@@ -222,21 +283,21 @@ export function useChatSocket({
   );
 
   const emitRead = useCallback(
-    (conversationId: string, lastReadMessageId: string) => {
+    (convId: string, lastReadMessageId: string) => {
       socketRef.current?.emit("message.read", {
-        conversationId,
+        conversationId: convId,
         lastReadMessageId,
       });
     },
     [],
   );
 
-  const emitTypingStart = useCallback((conversationId: string) => {
-    socketRef.current?.emit("typing.start", { conversationId });
+  const emitTypingStart = useCallback((convId: string) => {
+    socketRef.current?.emit("typing.start", { conversationId: convId });
   }, []);
 
-  const emitTypingStop = useCallback((conversationId: string) => {
-    socketRef.current?.emit("typing.stop", { conversationId });
+  const emitTypingStop = useCallback((convId: string) => {
+    socketRef.current?.emit("typing.stop", { conversationId: convId });
   }, []);
 
   return {

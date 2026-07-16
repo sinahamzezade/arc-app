@@ -2,19 +2,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { notificationsApi } from "@/lib/api/notifications";
 
+/**
+ * Unread notification badge. Data seeded by AppPulseHost (`GET /me/pulse`).
+ */
 export function useUnreadNotificationCount() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const accessToken = session?.accessToken;
 
   return useQuery({
     queryKey: ["notifications", "unread-count", accessToken ?? "anon"],
-    enabled: status === "authenticated" && Boolean(accessToken),
-    queryFn: async () => {
-      const res = await notificationsApi.unreadCount(accessToken);
-      return res.unreadCount;
-    },
-    refetchInterval: 45_000,
+    enabled: false,
+    queryFn: async () => 0,
   });
 }

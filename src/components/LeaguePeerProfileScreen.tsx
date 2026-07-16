@@ -9,7 +9,6 @@ import {
   BookOpen,
   Flame,
   Swords,
-  UserMinus,
   UserPlus,
   Users,
   Zap,
@@ -97,7 +96,6 @@ export default function LeaguePeerProfileScreen({
 
   const isFollowing = Boolean(social?.relationship.isFollowing);
   const canFollow = Boolean(social?.canFollow);
-  const canUnfollow = Boolean(social?.canUnfollow ?? isFollowing);
   const canBattle = Boolean(social?.canBattle);
   const canStudy = Boolean(social?.canStudy);
   const isFriend = Boolean(social?.relationship.isFriend);
@@ -114,30 +112,8 @@ export default function LeaguePeerProfileScreen({
         )
       : 0;
 
-  async function toggleFollow() {
-    if (!liveId || followBusy) return;
-    if (!isFollowing && !canFollow) return;
-    if (isFollowing && !canUnfollow) return;
-
-    setFollowBusy(true);
-    setActionError(null);
-    try {
-      if (isFollowing) await socialApi.unfollow(liveId);
-      else await socialApi.follow(liveId);
-      await loadSocial();
-    } catch (err) {
-      setActionError(
-        err instanceof ApiError
-          ? messageForCode(err.code, err.message)
-          : "Follow failed",
-      );
-    } finally {
-      setFollowBusy(false);
-    }
-  }
-
   async function connect() {
-    if (!liveId || friendBusy || friendPending || isFriend) return;
+    if (!liveId || friendBusy || followBusy || friendPending || isFriend) return;
     setFriendBusy(true);
     setActionError(null);
     try {
@@ -151,10 +127,28 @@ export default function LeaguePeerProfileScreen({
         }
       }
       await loadSocial();
-    } catch (err) {
+    } catch (friendErr) {
+      // Friend blocked / unavailable — fall back to follow-only.
+      if (!isFollowing && canFollow) {
+        setFollowBusy(true);
+        try {
+          await socialApi.follow(liveId);
+          await loadSocial();
+          return;
+        } catch (followErr) {
+          setActionError(
+            followErr instanceof ApiError
+              ? messageForCode(followErr.code, followErr.message)
+              : "Follow failed",
+          );
+          return;
+        } finally {
+          setFollowBusy(false);
+        }
+      }
       setActionError(
-        err instanceof ApiError
-          ? messageForCode(err.code, err.message)
+        friendErr instanceof ApiError
+          ? messageForCode(friendErr.code, friendErr.message)
           : "Friend request failed",
       );
     } finally {
@@ -383,12 +377,14 @@ export default function LeaguePeerProfileScreen({
                 aria-label={
                   friendPending
                     ? `Friend request sent to ${displayName}`
-                    : `Connect with ${displayName}`
+                    : `Add ${displayName} as friend`
                 }
-                disabled={friendBusy || socialLoading || friendPending}
+                disabled={
+                  friendBusy || followBusy || socialLoading || friendPending
+                }
                 onClick={() => void connect()}
                 whileTap={
-                  !friendBusy && !friendPending
+                  !friendBusy && !followBusy && !friendPending
                     ? { scale: 0.97, y: 2 }
                     : undefined
                 }
@@ -401,7 +397,7 @@ export default function LeaguePeerProfileScreen({
                 )}
               >
                 <UserPlus className="h-4 w-4" strokeWidth={2.5} />
-                {friendBusy || socialLoading
+                {friendBusy || followBusy || socialLoading
                   ? "…"
                   : friendPending
                     ? "Request sent"
@@ -409,64 +405,19 @@ export default function LeaguePeerProfileScreen({
               </motion.button>
             ) : null}
 
-            <div className="grid grid-cols-2 gap-2">
-              {canStudy ? (
-                <Link
-                  href={`/study/invite?friend=${liveId}`}
-                  className="flex h-12 cursor-pointer items-center justify-center gap-1.5 rounded-[16px] border-2 border-[#ebe4f6] bg-white text-[13px] font-extrabold text-[#0f1220] shadow-[0_3px_0_#ebe4f6] transition-colors hover:border-[#0f1220]/20 focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
-                >
-                  <BookOpen className="h-4 w-4 text-arc-purple-500" strokeWidth={2.5} />
-                  Study
-                </Link>
-              ) : (
-                <span className="flex h-12 items-center justify-center rounded-[16px] border-2 border-dashed border-[#ebe4f6] text-[12px] font-extrabold text-arc-lavender-500">
-                  Study locked
-                </span>
-              )}
-
-              <motion.button
-                type="button"
-                aria-label={
-                  isFollowing
-                    ? `Unfollow ${displayName}`
-                    : `Follow ${displayName}`
-                }
-                disabled={
-                  followBusy ||
-                  socialLoading ||
-                  (!isFollowing && !canFollow) ||
-                  (isFollowing && !canUnfollow)
-                }
-                onClick={() => void toggleFollow()}
-                whileTap={
-                  !followBusy && (isFollowing ? canUnfollow : canFollow)
-                    ? { scale: 0.97, y: 2 }
-                    : undefined
-                }
-                transition={snappySpring}
-                className={cn(
-                  "flex h-12 cursor-pointer items-center justify-center gap-1.5 rounded-[16px] text-[13px] font-extrabold focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none disabled:opacity-50",
-                  isFollowing
-                    ? "border-2 border-[#ebe4f6] bg-white text-[#0f1220] shadow-[0_3px_0_#ebe4f6]"
-                    : canFollow
-                      ? "bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e]"
-                      : "border-2 border-dashed border-[#ebe4f6] bg-white text-arc-lavender-500",
-                )}
+            {canStudy ? (
+              <Link
+                href={`/study/invite?friend=${liveId}`}
+                className="flex h-12 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[16px] border-2 border-[#ebe4f6] bg-white text-[13px] font-extrabold text-[#0f1220] shadow-[0_3px_0_#ebe4f6] transition-colors hover:border-[#0f1220]/20 focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
               >
-                {isFollowing ? (
-                  <UserMinus className="h-4 w-4" strokeWidth={2.5} />
-                ) : (
-                  <UserPlus className="h-4 w-4" strokeWidth={2.5} />
-                )}
-                {followBusy || socialLoading
-                  ? "…"
-                  : isFollowing
-                    ? "Unfollow"
-                    : canFollow
-                      ? "Follow"
-                      : "Follow off"}
-              </motion.button>
-            </div>
+                <BookOpen className="h-4 w-4 text-arc-purple-500" strokeWidth={2.5} />
+                Study together
+              </Link>
+            ) : (
+              <span className="flex h-12 w-full items-center justify-center rounded-[16px] border-2 border-dashed border-[#ebe4f6] text-[12px] font-extrabold text-arc-lavender-500">
+                Study locked
+              </span>
+            )}
           </div>
         )}
 

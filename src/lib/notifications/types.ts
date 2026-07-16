@@ -36,6 +36,7 @@ export type NotificationItem = {
   actionUrl?: string | null;
   type?: string;
   createdAt?: string;
+  payload?: Record<string, unknown> | null;
 };
 
 export type NotificationSection = {

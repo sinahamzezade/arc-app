@@ -9,6 +9,9 @@ const HEARTBEAT_MS = 60_000;
 /**
  * Keeps Redis/memory presence alive while the app is open.
  * Doc: heartbeat every ~60s · server TTL 120s.
+ *
+ * @deprecated Replaced by AppPulseHost (`GET /me/pulse` refreshes presence).
+ * Kept for manual/debug use; not mounted in providers.
  */
 export function PresenceHeartbeat() {
   const { status } = useSession();

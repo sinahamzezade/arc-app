@@ -111,14 +111,12 @@ export function formatAnswerValue(
 
   if (step?.uiKind === "schedule" || isScheduleShape(answers[key])) {
     const schedule = asSchedule(answers, key);
-    const days = schedule.days.join(", ");
-    const times = schedule.times
+    return schedule.times
       .map(
         (t) =>
           step?.scheduleTimes?.find((s) => s.value === t)?.label ?? t,
       )
       .join(", ");
-    return [days, times].filter(Boolean).join(" · ");
   }
 
   if (step?.selection === "multi" || Array.isArray(answers[key])) {
@@ -192,7 +190,7 @@ export function isStepComplete(
 
   if (step?.uiKind === "schedule" || isScheduleShape(answers[key])) {
     const schedule = asSchedule(answers, key);
-    return schedule.days.length > 0 && schedule.times.length > 0;
+    return schedule.times.length > 0;
   }
 
   if (!step && isTrackShape(answers[key])) {

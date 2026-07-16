@@ -778,17 +778,8 @@ function ScheduleStep({
   setAnswers: (patch: Partial<QuestionnaireAnswers>) => void;
 }) {
   const schedule = asSchedule(answers, step.id);
-  const { days, times } = schedule;
+  const { times } = schedule;
   const timezone = schedule.timezone ?? detectTimezone();
-
-  const toggleDay = (day: string) => {
-    const next = days.includes(day)
-      ? days.filter((d) => d !== day)
-      : [...days, day];
-    setAnswers({
-      [step.id]: { ...schedule, days: next, ...(timezone ? { timezone } : {}) },
-    });
-  };
 
   const toggleTime = (time: string) => {
     const next = times.includes(time)
@@ -796,7 +787,8 @@ function ScheduleStep({
       : [...times, time];
     setAnswers({
       [step.id]: {
-        ...schedule,
+        // Days retired from intake — keep empty for schema compat.
+        days: [],
         times: next,
         ...(timezone ? { timezone } : {}),
       },
@@ -804,48 +796,20 @@ function ScheduleStep({
   };
 
   return (
-    <div className="space-y-6">
-      <section>
-        <h2 className="mb-2.5 text-[10px] font-black tracking-[0.12em] text-[#7a6fa3] uppercase">
-          Days
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {step.scheduleDays.map((day) => {
-            const selected = days.includes(day);
-            return (
-              <button
-                key={day}
-                type="button"
-                onClick={() => toggleDay(day)}
-                className={cn(
-                  "rounded-[12px] px-3.5 py-2 text-[13px] font-bold transition-colors",
-                  selected
-                    ? "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
-                    : "border-2 border-[#ebe4f6] bg-white text-[#7a6fa3] shadow-[0_2px_0_#ebe4f6]",
-                )}
-              >
-                {day}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-2.5 text-[10px] font-black tracking-[0.12em] text-[#7a6fa3] uppercase">
-          Time of day
-        </h2>
-        <div className="space-y-2.5">
-          {step.scheduleTimes.map((time) => (
-            <QuestionnaireOptionCard
-              key={time.value}
-              option={time}
-              selected={times.includes(time.value)}
-              onToggle={() => toggleTime(time.value)}
-            />
-          ))}
-        </div>
-      </section>
+    <div className="space-y-3">
+      <h2 className="text-[10px] font-black tracking-[0.12em] text-[#7a6fa3] uppercase">
+        Time of day
+      </h2>
+      <div className="space-y-2.5">
+        {step.scheduleTimes.map((time) => (
+          <QuestionnaireOptionCard
+            key={time.value}
+            option={time}
+            selected={times.includes(time.value)}
+            onToggle={() => toggleTime(time.value)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

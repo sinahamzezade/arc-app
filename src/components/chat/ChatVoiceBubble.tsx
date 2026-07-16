@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { chatApi } from "@/lib/api/chat";
+import { decryptIncomingBlob } from "@/lib/chat/e2e";
 import { formatVoiceDuration } from "@/hooks/useVoiceRecorder";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +24,9 @@ function barsFromSeed(seed: string, count = 28): number[] {
 
 type ChatVoiceBubbleProps = {
   messageId: string;
+  conversationId: string;
   attachmentId: string | null;
+  attachmentMime?: string | null;
   /** Local blob URL while optimistic / pending. */
   localUrl?: string | null;
   durationMs?: number | null;
@@ -36,7 +39,9 @@ type ChatVoiceBubbleProps = {
  */
 export function ChatVoiceBubble({
   messageId,
+  conversationId,
   attachmentId,
+  attachmentMime,
   localUrl,
   durationMs,
   mine,
@@ -61,9 +66,18 @@ export function ChatVoiceBubble({
     let cancelled = false;
     void chatApi
       .fetchAttachmentBlob(attachmentId, accessToken)
-      .then((blob) => {
+      .then(async (blob) => {
         if (cancelled) return;
-        const u = URL.createObjectURL(blob);
+        const buf = new Uint8Array(await blob.arrayBuffer());
+        const plain = await decryptIncomingBlob(
+          conversationId,
+          buf,
+          accessToken,
+        );
+        const out = new Blob([new Uint8Array(plain)], {
+          type: attachmentMime || blob.type || "audio/webm",
+        });
+        const u = URL.createObjectURL(out);
         revokeRef.current = u;
         setUrl(u);
       })
@@ -75,7 +89,7 @@ export function ChatVoiceBubble({
         revokeRef.current = null;
       }
     };
-  }, [attachmentId, accessToken, localUrl]);
+  }, [attachmentId, accessToken, localUrl, conversationId, attachmentMime]);
 
   useEffect(() => {
     return () => {

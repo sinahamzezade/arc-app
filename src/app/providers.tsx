@@ -1,8 +1,10 @@
 "use client";
 
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { AppPulseHost } from "@/components/AppPulseHost";
+import { CallHost } from "@/components/CallHost";
+import { ChatRealtimeHost } from "@/components/ChatRealtimeHost";
 import { NotificationToastHost } from "@/components/notifications/NotificationToastHost";
-import { PresenceHeartbeat } from "@/components/social/PresenceHeartbeat";
 import { StudyLivePill } from "@/components/study/StudyLivePill";
 import { QueryProvider } from "./query-provider";
 
@@ -10,10 +12,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryProvider>
       <AuthProvider>
-        {children}
-        <PresenceHeartbeat />
-        <NotificationToastHost />
-        <StudyLivePill />
+        <CallHost>
+          {children}
+          <ChatRealtimeHost />
+          <AppPulseHost />
+          <NotificationToastHost />
+          <StudyLivePill />
+        </CallHost>
       </AuthProvider>
     </QueryProvider>
   );

@@ -13,6 +13,7 @@ import {
   type ConversationListItemDto,
 } from "@/lib/api/chat";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { decryptChatMessages } from "@/lib/chat/e2e";
 import { CHAT_CONVERSATIONS_QUERY_KEY } from "@/hooks/useChatInbox";
 
 export const CHAT_THREAD_QUERY_KEY = ["chat", "thread"] as const;
@@ -115,9 +116,21 @@ export function useChatThread(conversationId: string | undefined) {
           : c.peerOnline
             ? "Online"
             : "Offline";
+      const decrypted = await decryptChatMessages(
+        mapHistoryItems(hist.items),
+        accessToken,
+      );
+      let conv = c;
+      if (c.lastMessage) {
+        const [last] = await decryptChatMessages(
+          [c.lastMessage],
+          accessToken,
+        );
+        conv = { ...c, lastMessage: last ?? c.lastMessage };
+      }
       return {
-        conv: c,
-        messages: mapHistoryItems(hist.items),
+        conv,
+        messages: decrypted,
         nextBefore: hist.nextBefore,
         presenceLabel,
         peerLastReadMessageId: c.peerLastReadMessageId ?? null,
@@ -179,8 +192,11 @@ export function useChatThread(conversationId: string | undefined) {
       { before: cur.nextBefore, limit: 50 },
       accessToken,
     );
+    const older = await decryptChatMessages(
+      mapHistoryItems(hist.items),
+      accessToken,
+    );
     patch((prev) => {
-      const older = mapHistoryItems(hist.items);
       const ids = new Set(prev.messages.map((m) => m.id));
       const merged = [
         ...older.filter((m) => !ids.has(m.id)),

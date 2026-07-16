@@ -17,6 +17,7 @@ export type IncomingCallPayload = {
   callId: string;
   conversationId: string;
   fromUserId: string;
+  fromName?: string;
   mode: CallMode;
 };
 
@@ -361,60 +362,69 @@ export function useCallSession({
     ],
   );
 
-  const acceptIncoming = useCallback(async () => {
-    const socket = socketRef.current;
-    if (!incoming) return;
-    if (!token) {
-      setError("Sign in to accept the call");
-      return;
-    }
-    if (!socket || !connected) {
-      setError("Chat not connected — wait a moment and try again");
-      return;
-    }
-    setError(null);
-    const { callId: id, conversationId: convId, mode: callMode } = incoming;
-    // Set call id BEFORE awaits so early offer/ICE from caller can be queued.
-    setCallId(id);
-    callIdRef.current = id;
-    setConversationId(convId);
-    setMode(callMode);
-    setIncoming(null);
-    setUiState("connecting");
-    politeRef.current = true;
-
-    try {
-      const ice = await callsApi.getIceServers(token);
-      const stream = await getLocalMedia(callMode);
-      const pc = await ensurePc(ice.iceServers);
-      for (const track of stream.getTracks()) {
-        pc.addTrack(track, stream);
-      }
-
-      const res = await emitAck(socket, "call.accept", { callId: id });
-      if (!res.ok) {
-        failStart(res.error || "Could not accept call");
+  /**
+   * Accept ringing invite. Optional `from` for toast Answer (state may lag seed).
+   * Signals `call.accept` before getUserMedia so invite can't expire mid-permission.
+   */
+  const acceptIncoming = useCallback(
+    async (from?: IncomingCallPayload) => {
+      const socket = socketRef.current;
+      const invite = from ?? incoming;
+      if (!invite) return;
+      if (!token) {
+        setError("Sign in to accept the call");
         return;
       }
-
-      // Offer often arrives during/after accept ack while we were still wiring PC.
-      const queued = pendingSdpRef.current;
-      if (queued && queued.callId === id && handleRemoteSdpRef.current) {
-        pendingSdpRef.current = null;
-        await handleRemoteSdpRef.current(queued);
+      if (!socket || !connected) {
+        setError("Chat not connected — wait a moment and try again");
+        return;
       }
-    } catch (err) {
-      failStart(err instanceof Error ? err.message : "Accept failed");
-    }
-  }, [
-    socketRef,
-    connected,
-    token,
-    incoming,
-    getLocalMedia,
-    ensurePc,
-    failStart,
-  ]);
+      setError(null);
+      const { callId: id, conversationId: convId, mode: callMode } = invite;
+      // Set call id BEFORE awaits so early offer/ICE from caller can be queued.
+      setCallId(id);
+      callIdRef.current = id;
+      setConversationId(convId);
+      setMode(callMode);
+      setIncoming(null);
+      setUiState("connecting");
+      politeRef.current = true;
+
+      try {
+        // Claim invite on server first — media permission can take seconds.
+        const res = await emitAck(socket, "call.accept", { callId: id });
+        if (!res.ok) {
+          failStart(res.error || "Could not accept call");
+          return;
+        }
+
+        const ice = await callsApi.getIceServers(token);
+        const stream = await getLocalMedia(callMode);
+        const pc = await ensurePc(ice.iceServers);
+        for (const track of stream.getTracks()) {
+          pc.addTrack(track, stream);
+        }
+
+        // Offer often arrives during/after accept ack while we were still wiring PC.
+        const queued = pendingSdpRef.current;
+        if (queued && queued.callId === id && handleRemoteSdpRef.current) {
+          pendingSdpRef.current = null;
+          await handleRemoteSdpRef.current(queued);
+        }
+      } catch (err) {
+        failStart(err instanceof Error ? err.message : "Accept failed");
+      }
+    },
+    [
+      socketRef,
+      connected,
+      token,
+      incoming,
+      getLocalMedia,
+      ensurePc,
+      failStart,
+    ],
+  );
 
   const declineIncoming = useCallback(async () => {
     const socket = socketRef.current;
@@ -426,6 +436,13 @@ export function useCallSession({
     setIncoming(null);
     setUiState("idle");
   }, [socketRef, incoming]);
+
+  /** Toast / deep-link: apply ringing state if WS event already passed. */
+  const seedIncoming = useCallback((payload: IncomingCallPayload) => {
+    setIncoming((prev) => prev ?? payload);
+    if (payload.mode) setMode(payload.mode);
+    setUiState((s) => (s === "idle" ? "ringing_in" : s));
+  }, []);
 
   const hangup = useCallback(() => {
     void hangupInternal(false);
@@ -486,6 +503,7 @@ export function useCallSession({
         if (prev) return prev;
         return payload;
       });
+      if (payload.mode) setMode(payload.mode);
       setUiState((s) => (s === "idle" ? "ringing_in" : s));
     };
 
@@ -671,6 +689,7 @@ export function useCallSession({
     startCall,
     acceptIncoming,
     declineIncoming,
+    seedIncoming,
     hangup,
     toggleMute,
     toggleCamera,

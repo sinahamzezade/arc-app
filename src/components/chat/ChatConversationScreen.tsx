@@ -28,11 +28,17 @@ import { motion } from "motion/react";
 import { useSession } from "next-auth/react";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { ChatImageLightbox } from "@/components/study/ChatImageLightbox";
-import { CallScreen } from "@/components/chat/CallScreen";
+import { useAppCall } from "@/components/CallHost";
 import { ChatVoiceBubble } from "@/components/chat/ChatVoiceBubble";
 import { chatApi, type ChatMessageDto } from "@/lib/api/chat";
 import { ApiError, messageForCode } from "@/lib/api/errors";
-import { useCallSession } from "@/hooks/useCallSession";
+import {
+  decryptChatMessage,
+  decryptIncomingBlob,
+  encryptOutgoingBlob,
+  encryptOutgoingBody,
+  E2eNotReadyError,
+} from "@/lib/chat/e2e";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { useChatThread } from "@/hooks/useChatThread";
 import { useVisualViewportFrame } from "@/hooks/useVisualViewportFrame";
@@ -255,20 +261,26 @@ export default function ChatConversationScreen() {
     conversationId,
     enabled: Boolean(token && conversationId),
     onMessage: (msg) => {
-      mergeMessage(msg);
-      if (
-        msg.senderId !== myId &&
-        conversationId &&
-        msg.id !== markedReadRef.current
-      ) {
-        markedReadRef.current = msg.id;
-        emitRead(conversationId, msg.id);
-        if (token) {
-          void chatApi
-            .markRead(conversationId, msg.id, token)
-            .catch(() => undefined);
-        }
-      }
+      void decryptChatMessage(msg, token)
+        .then((plain) => {
+          mergeMessage(plain);
+          if (
+            plain.senderId !== myId &&
+            conversationId &&
+            plain.id !== markedReadRef.current
+          ) {
+            markedReadRef.current = plain.id;
+            emitRead(conversationId, plain.id);
+            if (token) {
+              void chatApi
+                .markRead(conversationId, plain.id, token)
+                .catch(() => undefined);
+            }
+          }
+        })
+        .catch(() => {
+          mergeMessage(msg);
+        });
     },
     onRead: (payload) => {
       if (payload.userId === myId) return;
@@ -303,11 +315,7 @@ export default function ChatConversationScreen() {
     },
   });
 
-  const call = useCallSession({
-    socketRef,
-    connected,
-    myUserId: myId ?? null,
-  });
+  const call = useAppCall();
 
   const displayError = error ?? call.error ?? threadError;
 
@@ -355,6 +363,16 @@ export default function ChatConversationScreen() {
     el.scrollTop = el.scrollHeight;
   }, []);
 
+  /** Own send always pins bottom — ignore prior scroll-away. */
+  const pinToLatest = useCallback(() => {
+    stickToBottomRef.current = true;
+    scrollToLatest();
+    requestAnimationFrame(() => {
+      scrollToLatest();
+      requestAnimationFrame(scrollToLatest);
+    });
+  }, [scrollToLatest]);
+
   /** Sync jump before paint when thread loads / grows / keyboard resizes. */
   useLayoutEffect(() => {
     if (showSkeleton) return;
@@ -400,7 +418,7 @@ export default function ChatConversationScreen() {
   }, [showSkeleton, conversationId, scrollToLatest]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !conversationId) return;
     for (const m of messages) {
       if (
         m.attachmentId &&
@@ -410,8 +428,17 @@ export default function ChatConversationScreen() {
       ) {
         void chatApi
           .fetchAttachmentBlob(m.attachmentId, token)
-          .then((blob) => {
-            const url = URL.createObjectURL(blob);
+          .then(async (blob) => {
+            const buf = new Uint8Array(await blob.arrayBuffer());
+            const plain = await decryptIncomingBlob(
+              conversationId,
+              buf,
+              token,
+            );
+            const out = new Blob([new Uint8Array(plain)], {
+              type: m.attachmentMime || blob.type || "image/jpeg",
+            });
+            const url = URL.createObjectURL(out);
             setAttachmentPreviews((prev) => ({
               ...prev,
               [m.attachmentId!]: url,
@@ -420,7 +447,7 @@ export default function ChatConversationScreen() {
           .catch(() => undefined);
       }
     }
-  }, [messages, token, attachmentPreviews]);
+  }, [messages, token, attachmentPreviews, conversationId]);
 
   // Poll presence lightly
   useEffect(() => {
@@ -501,23 +528,34 @@ export default function ChatConversationScreen() {
       delivered: false,
     };
     setMessages((prev) => [...prev, optimistic]);
+    pinToLatest();
 
     try {
       let attachmentId: string | undefined;
       if (fileSnapshot) {
+        const raw = new Uint8Array(await fileSnapshot.file.arrayBuffer());
+        const enc = await encryptOutgoingBlob(conversationId, raw, token);
+        const encBlob = new Blob([new Uint8Array(enc)], {
+          type: fileSnapshot.file.type || "image/jpeg",
+        });
         const att = await chatApi.uploadAttachment(
           conversationId,
-          fileSnapshot.file,
+          encBlob,
           fileSnapshot.file.name || "photo.jpg",
           token,
         );
         attachmentId = att.id;
       }
 
+      let wireBody: string | undefined;
+      if (body) {
+        wireBody = await encryptOutgoingBody(conversationId, body, token);
+      }
+
       const payload = {
         clientMsgId,
         type: (isImage ? "image" : "text") as "image" | "text",
-        body: body || undefined,
+        body: wireBody,
         attachmentId,
         replyToId: replySnapshot?.id,
       };
@@ -529,7 +567,18 @@ export default function ChatConversationScreen() {
       if (!msg) {
         msg = await chatApi.sendMessage(conversationId, payload, token);
       }
-      mergeMessage({ ...msg, seen: !!msg.seen, delivered: true });
+      const plain = await decryptChatMessage(
+        { ...msg, seen: !!msg.seen, delivered: true },
+        token,
+      );
+      // Keep optimistic plaintext body for sender UX
+      mergeMessage({
+        ...plain,
+        body: body || plain.body,
+        pending: false,
+        delivered: true,
+      });
+      pinToLatest();
       if (fileSnapshot) {
         URL.revokeObjectURL(fileSnapshot.previewUrl);
         setLocalPreviews((prev) => {
@@ -546,11 +595,13 @@ export default function ChatConversationScreen() {
         return next;
       });
       setError(
-        err instanceof ApiError
-          ? messageForCode(err.code, err.message)
-          : fileSnapshot
-            ? "Upload failed"
-            : "Send failed",
+        err instanceof E2eNotReadyError
+          ? err.message
+          : err instanceof ApiError
+            ? messageForCode(err.code, err.message)
+            : fileSnapshot
+              ? "Upload failed"
+              : "Send failed",
       );
       setText(body);
       if (fileSnapshot) {
@@ -611,11 +662,17 @@ export default function ChatConversationScreen() {
       delivered: false,
     };
     setMessages((prev) => [...prev, optimistic]);
+    pinToLatest();
 
     try {
+      const raw = new Uint8Array(await rec.blob.arrayBuffer());
+      const enc = await encryptOutgoingBlob(conversationId, raw, token);
+      const encBlob = new Blob([new Uint8Array(enc)], {
+        type: rec.mime || "audio/webm",
+      });
       const att = await chatApi.uploadAttachment(
         conversationId,
-        rec.blob,
+        encBlob,
         rec.filename,
         token,
       );
@@ -633,7 +690,12 @@ export default function ChatConversationScreen() {
       if (!msg) {
         msg = await chatApi.sendMessage(conversationId, payload, token);
       }
-      mergeMessage({ ...msg, seen: !!msg.seen, delivered: true });
+      const plain = await decryptChatMessage(
+        { ...msg, seen: !!msg.seen, delivered: true },
+        token,
+      );
+      mergeMessage(plain);
+      pinToLatest();
       URL.revokeObjectURL(localUrl);
       setLocalPreviews((prev) => {
         const next = { ...prev };
@@ -649,9 +711,11 @@ export default function ChatConversationScreen() {
         return next;
       });
       setError(
-        err instanceof ApiError
-          ? messageForCode(err.code, err.message)
-          : "Voice send failed",
+        err instanceof E2eNotReadyError
+          ? err.message
+          : err instanceof ApiError
+            ? messageForCode(err.code, err.message)
+            : "Voice send failed",
       );
       if (replySnapshot) setReplyTo(replySnapshot);
     } finally {
@@ -772,26 +836,54 @@ export default function ChatConversationScreen() {
           >
             <ChevronLeft className="h-6 w-6" strokeWidth={2.25} />
           </button>
-          <UserAvatar
-            initial={initialFrom(conv?.title ?? "?")}
-            avatarUrl={conv?.avatarUrl}
-            className="h-10 w-10 rounded-full"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-extrabold tracking-tight">
-              {conv?.title ?? "Chat"}
-            </p>
-            <p
-              className="text-[12px] font-semibold text-[#8a82a8]"
-              aria-live="polite"
+          {conv?.peerUserId ? (
+            <button
+              type="button"
+              onClick={() => router.push(`/friends/${conv.peerUserId}`)}
+              aria-label={`View ${conv.title ?? "user"} profile`}
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-2xl py-0.5 text-left transition-colors hover:bg-[#f4f0ff]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
             >
-              {peerBlockedByMe
-                ? "Blocked"
-                : typingUser
-                  ? "typing…"
-                  : presenceLabel}
-            </p>
-          </div>
+              <UserAvatar
+                initial={initialFrom(conv.title ?? "?")}
+                avatarUrl={conv.avatarUrl}
+                className="h-10 w-10 shrink-0 rounded-full"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-extrabold tracking-tight">
+                  {conv.title ?? "Chat"}
+                </p>
+                <p
+                  className="text-[12px] font-semibold text-[#8a82a8]"
+                  aria-live="polite"
+                >
+                  {peerBlockedByMe
+                    ? "Blocked"
+                    : typingUser
+                      ? "typing…"
+                      : presenceLabel}
+                </p>
+              </div>
+            </button>
+          ) : (
+            <>
+              <UserAvatar
+                initial={initialFrom(conv?.title ?? "?")}
+                avatarUrl={conv?.avatarUrl}
+                className="h-10 w-10 shrink-0 rounded-full"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-extrabold tracking-tight">
+                  {conv?.title ?? "Chat"}
+                </p>
+                <p
+                  className="text-[12px] font-semibold text-[#8a82a8]"
+                  aria-live="polite"
+                >
+                  {typingUser ? "typing…" : presenceLabel}
+                </p>
+              </div>
+            </>
+          )}
           <button
             type="button"
             disabled={
@@ -1006,7 +1098,9 @@ export default function ChatConversationScreen() {
                       m.attachmentMime?.startsWith("audio/") ? (
                       <ChatVoiceBubble
                         messageId={m.id}
+                        conversationId={conversationId}
                         attachmentId={m.attachmentId}
+                        attachmentMime={m.attachmentMime}
                         localUrl={
                           m.clientMsgId ? localPreviews[m.clientMsgId] : null
                         }
@@ -1280,8 +1374,6 @@ export default function ChatConversationScreen() {
           onClose={() => setLightboxSrc(null)}
         />
       ) : null}
-
-      <CallScreen call={call} peerName={conv?.title ?? "Contact"} />
     </div>
   );
 }
