@@ -35,6 +35,7 @@ import { ApiError, messageForCode } from "@/lib/api/errors";
 import { useCallSession } from "@/hooks/useCallSession";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { useChatThread } from "@/hooks/useChatThread";
+import { useVisualViewportFrame } from "@/hooks/useVisualViewportFrame";
 import {
   formatVoiceDuration,
   useVoiceRecorder,
@@ -147,20 +148,41 @@ export default function ChatConversationScreen() {
     };
   }, []);
 
-  /** iOS Safari: stop document rubber-band so header/composer stay pinned. */
+  const viewport = useVisualViewportFrame();
+
+  /** Lock document scroll so iOS can't shove header/composer off-screen. */
   useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
-    const prevHtmlOverflow = html.style.overflow;
-    const prevBodyOverflow = body.style.overflow;
-    const prevBodyOverscroll = body.style.overscrollBehavior;
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      htmlHeight: html.style.height,
+      bodyOverflow: body.style.overflow,
+      bodyHeight: body.style.height,
+      bodyPosition: body.style.position,
+      bodyWidth: body.style.width,
+      bodyTop: body.style.top,
+      bodyOverscroll: body.style.overscrollBehavior,
+      scrollY: window.scrollY,
+    };
     html.style.overflow = "hidden";
+    html.style.height = "100%";
     body.style.overflow = "hidden";
+    body.style.height = "100%";
+    body.style.position = "fixed";
+    body.style.width = "100%";
+    body.style.top = `-${prev.scrollY}px`;
     body.style.overscrollBehavior = "none";
     return () => {
-      html.style.overflow = prevHtmlOverflow;
-      body.style.overflow = prevBodyOverflow;
-      body.style.overscrollBehavior = prevBodyOverscroll;
+      html.style.overflow = prev.htmlOverflow;
+      html.style.height = prev.htmlHeight;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.height = prev.bodyHeight;
+      body.style.position = prev.bodyPosition;
+      body.style.width = prev.bodyWidth;
+      body.style.top = prev.bodyTop;
+      body.style.overscrollBehavior = prev.bodyOverscroll;
+      window.scrollTo(0, prev.scrollY);
     };
   }, []);
 
@@ -330,12 +352,19 @@ export default function ChatConversationScreen() {
     el.scrollTop = el.scrollHeight;
   }, []);
 
-  /** Sync jump before paint when thread loads / grows. */
+  /** Sync jump before paint when thread loads / grows / keyboard resizes. */
   useLayoutEffect(() => {
     if (showSkeleton) return;
     if (!stickToBottomRef.current) return;
     scrollToLatest();
-  }, [showSkeleton, messages, typingUser, scrollToLatest]);
+  }, [
+    showSkeleton,
+    messages,
+    typingUser,
+    viewport.height,
+    viewport.keyboardOpen,
+    scrollToLatest,
+  ]);
 
   /** Re-pin while images/voice inflate height after open. */
   useEffect(() => {
@@ -698,8 +727,22 @@ export default function ChatConversationScreen() {
   }, [messages, myId]);
 
   return (
-    <div className="fixed inset-0 z-40 mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden bg-white font-rounded text-[#0f1220]">
-      <header className="relative z-20 shrink-0 border-b border-[#f0ebf8] bg-white/95 px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-3 backdrop-blur-md">
+    <div
+      className="fixed inset-x-0 z-40 mx-auto flex w-full max-w-md flex-col overflow-hidden bg-white font-rounded text-[#0f1220]"
+      style={{
+        top: viewport.top,
+        height: viewport.height || "100dvh",
+        maxHeight: viewport.height || "100dvh",
+      }}
+    >
+      <header
+        className={cn(
+          "relative z-20 shrink-0 border-b border-[#f0ebf8] bg-white/95 px-3 pb-3 backdrop-blur-md",
+          viewport.keyboardOpen
+            ? "pt-2"
+            : "pt-[calc(env(safe-area-inset-top)+8px)]",
+        )}
+      >
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -1068,7 +1111,12 @@ export default function ChatConversationScreen() {
 
           <form
             onSubmit={(e) => void onSend(e)}
-            className="bg-white px-3 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)]"
+            className={cn(
+              "shrink-0 bg-white px-3 pt-2.5",
+              viewport.keyboardOpen
+                ? "pb-2.5"
+                : "pb-[calc(env(safe-area-inset-bottom)+10px)]",
+            )}
           >
             {voice.recording ? (
               <div className="mb-2 flex items-center gap-2">
