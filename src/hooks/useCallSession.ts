@@ -37,23 +37,33 @@ function newCallId() {
   });
 }
 
+type AckOk<T> = { ok: true } & T;
+type AckErr = { ok: false; error: string };
+
 function emitAck<T>(
   socket: Socket,
   event: string,
   payload: unknown,
-): Promise<T | null> {
+): Promise<AckOk<T> | AckErr> {
   return new Promise((resolve) => {
     socket.emit(event, payload, (res: unknown) => {
       if (!res || typeof res !== "object") {
-        resolve(null);
+        resolve({ ok: false, error: "No response from server" });
         return;
       }
-      const obj = res as { ok?: boolean; error?: string } & T;
+      const obj = res as {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+      } & T;
       if (obj.error || !obj.ok) {
-        resolve(null);
+        resolve({
+          ok: false,
+          error: obj.message || obj.error || "Request failed",
+        });
         return;
       }
-      resolve(obj);
+      resolve({ ok: true, ...(obj as T) });
     });
   });
 }
@@ -191,6 +201,17 @@ export function useCallSession({
     return stream;
   }, []);
 
+  const failStart = useCallback(
+    (message: string) => {
+      cleanupMedia();
+      setError(message);
+      setEndedReason("failed");
+      setUiState("ended");
+      window.setTimeout(() => resetToIdle(), 2200);
+    },
+    [cleanupMedia, resetToIdle],
+  );
+
   const hangupInternal = useCallback(
     async (failed = false) => {
       const id = callIdRef.current;
@@ -213,7 +234,15 @@ export function useCallSession({
   const startCall = useCallback(
     async (convId: string, callMode: CallMode) => {
       const socket = socketRef.current;
-      if (!socket || !connected || !token || uiState !== "idle") return;
+      if (uiState !== "idle") return;
+      if (!token) {
+        setError("Sign in to start a call");
+        return;
+      }
+      if (!socket || !connected) {
+        setError("Chat not connected — wait a moment and try again");
+        return;
+      }
       setError(null);
       const id = newCallId();
       setCallId(id);
@@ -231,21 +260,18 @@ export function useCallSession({
           pc.addTrack(track, stream);
         }
 
-        const res = await emitAck<{ error?: string }>(socket, "call.invite", {
+        const res = await emitAck(socket, "call.invite", {
           conversationId: convId,
           mode: callMode,
           callId: id,
         });
-        if (!res) {
-          setError("Could not start call");
-          resetToIdle();
-          return;
+        if (!res.ok) {
+          failStart(res.error || "Could not start call");
         }
       } catch (err) {
-        setError(
+        failStart(
           err instanceof Error ? err.message : "Could not start call",
         );
-        resetToIdle();
       }
     },
     [
@@ -255,13 +281,21 @@ export function useCallSession({
       uiState,
       getLocalMedia,
       ensurePc,
-      resetToIdle,
+      failStart,
     ],
   );
 
   const acceptIncoming = useCallback(async () => {
     const socket = socketRef.current;
-    if (!socket || !connected || !token || !incoming) return;
+    if (!incoming) return;
+    if (!token) {
+      setError("Sign in to accept the call");
+      return;
+    }
+    if (!socket || !connected) {
+      setError("Chat not connected — wait a moment and try again");
+      return;
+    }
     setError(null);
     const { callId: id, conversationId: convId, mode: callMode } = incoming;
     setCallId(id);
@@ -281,13 +315,11 @@ export function useCallSession({
       }
 
       const res = await emitAck(socket, "call.accept", { callId: id });
-      if (!res) {
-        setError("Could not accept call");
-        resetToIdle();
+      if (!res.ok) {
+        failStart(res.error || "Could not accept call");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Accept failed");
-      resetToIdle();
+      failStart(err instanceof Error ? err.message : "Accept failed");
     }
   }, [
     socketRef,
@@ -296,7 +328,7 @@ export function useCallSession({
     incoming,
     getLocalMedia,
     ensurePc,
-    resetToIdle,
+    failStart,
   ]);
 
   const declineIncoming = useCallback(async () => {

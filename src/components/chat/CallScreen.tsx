@@ -202,6 +202,11 @@ export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
         ) : isEnded ? (
           <div className="flex flex-col items-center gap-3">
             <p className="text-sm font-bold text-white/55">{statusLabel(call)}</p>
+            {call.error ? (
+              <p className="max-w-xs text-center text-sm font-bold text-[#ff8a96]">
+                {call.error}
+              </p>
+            ) : null}
             <button
               type="button"
               onClick={call.dismissEnded}

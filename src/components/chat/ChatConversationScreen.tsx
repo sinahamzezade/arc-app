@@ -129,8 +129,6 @@ export default function ChatConversationScreen() {
     loadOlder: loadOlderMessages,
   } = useChatThread(conversationId);
 
-  const displayError = error ?? threadError;
-
   const clearStagedFile = useCallback(() => {
     setStagedFile((prev) => {
       if (prev) URL.revokeObjectURL(prev.previewUrl);
@@ -285,6 +283,8 @@ export default function ChatConversationScreen() {
     connected,
     myUserId: myId ?? null,
   });
+
+  const displayError = error ?? call.error ?? threadError;
 
   const sendVoiceRef = useRef<(rec: VoiceRecording) => void>(() => undefined);
 
@@ -727,11 +727,17 @@ export default function ChatConversationScreen() {
           </div>
           <button
             type="button"
-            disabled={conv?.type !== "direct" || call.uiState !== "idle"}
+            disabled={
+              conv?.type !== "direct" ||
+              call.uiState !== "idle" ||
+              !connected
+            }
             title={
               conv?.type !== "direct"
                 ? "Calls only in direct chats"
-                : "Video call"
+                : !connected
+                  ? "Connecting…"
+                  : "Video call"
             }
             aria-label="Video call"
             onClick={() => {
@@ -739,7 +745,7 @@ export default function ChatConversationScreen() {
             }}
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-              conv?.type === "direct" && call.uiState === "idle"
+              conv?.type === "direct" && call.uiState === "idle" && connected
                 ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
                 : "cursor-not-allowed text-[#b3a8d6] opacity-50",
             )}
@@ -748,11 +754,17 @@ export default function ChatConversationScreen() {
           </button>
           <button
             type="button"
-            disabled={conv?.type !== "direct" || call.uiState !== "idle"}
+            disabled={
+              conv?.type !== "direct" ||
+              call.uiState !== "idle" ||
+              !connected
+            }
             title={
               conv?.type !== "direct"
                 ? "Calls only in direct chats"
-                : "Voice call"
+                : !connected
+                  ? "Connecting…"
+                  : "Voice call"
             }
             aria-label="Voice call"
             onClick={() => {
@@ -760,7 +772,7 @@ export default function ChatConversationScreen() {
             }}
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-              conv?.type === "direct" && call.uiState === "idle"
+              conv?.type === "direct" && call.uiState === "idle" && connected
                 ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
                 : "cursor-not-allowed text-[#b3a8d6] opacity-50",
             )}
