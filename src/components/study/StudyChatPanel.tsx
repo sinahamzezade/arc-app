@@ -459,37 +459,37 @@ export function StudyChatPanel({
                     );
                   })
                 )}
+
+                {partnerTyping ? (
+                  <div
+                    className="flex justify-start"
+                    aria-live="polite"
+                    aria-atomic="true"
+                  >
+                    <div className="flex items-center gap-2 rounded-[18px] rounded-bl-md border-2 border-[#ebe4f6] bg-white px-3.5 py-2.5 shadow-[0_3px_0_#ebe4f6]">
+                      <div className="flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:0ms]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:120ms]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:240ms]" />
+                      </div>
+                      <span className="text-[12px] font-bold text-arc-lavender-600">
+                        {partnerFirst} typing…
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div ref={endRef} />
               </div>
 
-              <div
-                className="flex h-9 shrink-0 items-center px-4"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                {recordError ? (
-                  <span className="text-[11px] font-bold text-[#c0392b]">
-                    {recordError}
-                  </span>
-                ) : partnerTyping ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 rounded-full border-2 border-[#ebe4f6] bg-white px-2.5 py-1 shadow-[0_2px_0_#ebe4f6]">
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:0ms]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:120ms]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:240ms]" />
-                    </div>
-                    <span className="text-[11px] font-bold text-arc-lavender-600">
-                      {partnerFirst} typing…
-                    </span>
-                  </div>
-                ) : recording ? (
-                  <span className="text-[11px] font-extrabold tabular-nums text-[#e5484d]">
-                    Recording {formatDuration(recordMs)} · tap stop to send
-                  </span>
-                ) : (
-                  <span className="sr-only">Partner not typing</span>
-                )}
-              </div>
+              {recordError ? (
+                <p
+                  role="alert"
+                  className="shrink-0 px-4 pt-1 text-[11px] font-bold text-[#c0392b]"
+                >
+                  {recordError}
+                </p>
+              ) : null}
 
               <form
                 className="flex shrink-0 items-center gap-2 border-t border-[#ebe4f6] bg-[#f3effc] px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]"
