@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import {
   systemFlagsApi,
@@ -12,7 +12,8 @@ const DEFAULTS: PublicSystemFlags = {
   intake_chat_enabled: true,
   intake_default_mode: "form",
   arlo_ai_enabled: true,
-  sso_enabled: true,
+  // Fail closed — never flash SSO before public flags resolve.
+  sso_enabled: false,
   avatar_studio_enabled: true,
 };
 
@@ -37,6 +38,8 @@ export function useSystemFlags() {
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     enabled: status !== "loading",
+    // Keep guest flags while anon→me key flips after login (avoids SSO flash).
+    placeholderData: keepPreviousData,
   });
 
   const flags = query.data ?? DEFAULTS;
