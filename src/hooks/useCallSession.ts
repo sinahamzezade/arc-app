@@ -101,6 +101,10 @@ export function useCallSession({
   const callIdRef = useRef<string | null>(null);
   const activeSinceRef = useRef<number | null>(null);
   const durationTimer = useRef<number | null>(null);
+  /** ICE candidates that arrive before remote description is set. */
+  const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const remoteReadyRef = useRef(false);
+  const iceRestartedRef = useRef(false);
 
   callIdRef.current = callId;
 
@@ -119,6 +123,9 @@ export function useCallSession({
     usedTurnRef.current = false;
     makingOfferRef.current = false;
     activeSinceRef.current = null;
+    pendingIceRef.current = [];
+    remoteReadyRef.current = false;
+    iceRestartedRef.current = false;
   }, []);
 
   const resetToIdle = useCallback(() => {
@@ -146,11 +153,50 @@ export function useCallSession({
     }, 1000);
   }, []);
 
+  const flushPendingIce = useCallback(async (pc: RTCPeerConnection) => {
+    const queued = pendingIceRef.current;
+    pendingIceRef.current = [];
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(candidate);
+      } catch {
+        // ignore stale / duplicate
+      }
+    }
+  }, []);
+
+  const tryIceRestart = useCallback(async () => {
+    const pc = pcRef.current;
+    const socket = socketRef.current;
+    const id = callIdRef.current;
+    if (!pc || !socket || !id || iceRestartedRef.current) return false;
+    if (politeRef.current) return false; // caller owns restart offer
+    iceRestartedRef.current = true;
+    try {
+      makingOfferRef.current = true;
+      const offer = await pc.createOffer({ iceRestart: true });
+      await pc.setLocalDescription(offer);
+      socket.emit("call.sdp", {
+        callId: id,
+        sdp: offer.sdp,
+        type: "offer",
+      });
+      makingOfferRef.current = false;
+      return true;
+    } catch {
+      makingOfferRef.current = false;
+      return false;
+    }
+  }, [socketRef]);
+
   const ensurePc = useCallback(
     async (iceServers: RTCIceServer[]) => {
       if (pcRef.current) return pcRef.current;
       const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
+      remoteReadyRef.current = false;
+      pendingIceRef.current = [];
+      iceRestartedRef.current = false;
 
       pc.onicecandidate = (ev) => {
         const socket = socketRef.current;
@@ -181,14 +227,22 @@ export function useCallSession({
             sock.emit("call.connected", { callId: callIdRef.current });
           }
         } else if (st === "failed") {
-          void hangupInternal(true);
+          void (async () => {
+            const restarted = await tryIceRestart();
+            if (!restarted) {
+              setError(
+                "Couldn't connect — network blocked media (TURN required)",
+              );
+              void hangupInternal(true);
+            }
+          })();
         }
       };
 
       return pc;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [socketRef, startDurationTick],
+    [socketRef, startDurationTick, tryIceRestart],
   );
 
   const getLocalMedia = useCallback(async (callMode: CallMode) => {
@@ -484,6 +538,9 @@ export function useCallSession({
           await pc.setRemoteDescription(desc);
         }
 
+        remoteReadyRef.current = true;
+        await flushPendingIce(pc);
+
         if (payload.type === "offer") {
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
@@ -494,6 +551,7 @@ export function useCallSession({
           });
         }
       } catch {
+        setError("Couldn't connect — signaling failed");
         void hangupInternal(true);
       }
     };
@@ -503,6 +561,10 @@ export function useCallSession({
       candidate: RTCIceCandidateInit;
     }) => {
       if (payload.callId !== callIdRef.current || !pcRef.current) return;
+      if (!remoteReadyRef.current || !pcRef.current.remoteDescription) {
+        pendingIceRef.current.push(payload.candidate);
+        return;
+      }
       try {
         await pcRef.current.addIceCandidate(payload.candidate);
       } catch {
@@ -538,6 +600,7 @@ export function useCallSession({
     cleanupMedia,
     resetToIdle,
     hangupInternal,
+    flushPendingIce,
   ]);
 
   useEffect(() => {
