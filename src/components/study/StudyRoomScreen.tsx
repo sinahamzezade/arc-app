@@ -19,6 +19,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import {
   studyApi,
+  type StudyChatReadReceiptDto,
   type StudyContentDto,
   type StudyMessageDto,
   type StudySessionDto,
@@ -108,7 +109,24 @@ export default function StudyRoomScreen() {
     [applySession, loadContent],
   );
 
-  const { connected, emitHeartbeat, emitAckRead, emitChatSend, emitTyping } =
+  const applyChatRead = useCallback(
+    (receipt: StudyChatReadReceiptDto) => {
+      if (!session || receipt.userId === session.you.userId) return;
+      const readAtMs = new Date(receipt.readAt).getTime();
+      if (Number.isNaN(readAtMs)) return;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.senderId === session.you.userId &&
+          new Date(m.createdAt).getTime() <= readAtMs
+            ? { ...m, seen: true }
+            : m,
+        ),
+      );
+    },
+    [session],
+  );
+
+  const { connected, emitHeartbeat, emitAckRead, emitChatSend, emitChatRead, emitTyping } =
     useStudySocket({
       sessionId,
       enabled: Boolean(sessionId && session && !TERMINAL.has(session.status)),
@@ -124,12 +142,28 @@ export default function StudyRoomScreen() {
       onMessage: (msg) => {
         setMessages((prev) => mergeMessage(prev, normalizeMessage(msg)));
       },
+      onChatRead: applyChatRead,
       onPartnerTyping: () => {
         setPartnerTyping(true);
         setTimeout(() => setPartnerTyping(false), 2500);
       },
       onPartnerPresence: (p) => setPartnerOnline(p.online),
     });
+
+  const markChatRead = useCallback(
+    (messageId?: string) => {
+      if (!sessionId) return;
+      if (connected) {
+        void emitChatRead(messageId);
+        return;
+      }
+      void studyApi
+        .markMessagesRead(sessionId, messageId)
+        .then(applyChatRead)
+        .catch(() => undefined);
+    },
+    [sessionId, connected, emitChatRead, applyChatRead],
+  );
 
   useEffect(() => {
     void refresh();
@@ -369,16 +403,15 @@ export default function StudyRoomScreen() {
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#f3effc] font-rounded">
-      {/* Night header */}
-      <header className="relative z-40 shrink-0 overflow-hidden bg-[#0f1220] px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-3 text-white">
+      {/* Night header — overflow visible so options menu can escape */}
+      <header className="relative z-50 shrink-0 bg-[#0f1220] px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-3 text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-16 right-[-40px] h-40 w-40 rounded-full bg-arc-purple-500/30 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[-24px] h-24 w-24 rounded-full bg-[#ffc928]/12 blur-2xl"
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+        >
+          <div className="absolute -top-16 right-[-40px] h-40 w-40 rounded-full bg-arc-purple-500/30 blur-3xl" />
+          <div className="absolute bottom-0 left-[-24px] h-24 w-24 rounded-full bg-[#ffc928]/12 blur-2xl" />
+        </div>
 
         <div className="relative flex items-center gap-2.5">
           <BackButton tone="dark" />
@@ -409,7 +442,7 @@ export default function StudyRoomScreen() {
             {timerLabel}
           </span>
 
-          <div className="relative shrink-0">
+          <div className="relative z-50 shrink-0">
             <button
               type="button"
               aria-label="Room options"
@@ -426,7 +459,7 @@ export default function StudyRoomScreen() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -4, scale: 0.96 }}
                   transition={softSpring}
-                  className="absolute top-[calc(100%+8px)] right-0 z-40 w-44 overflow-hidden rounded-[16px] border border-white/10 bg-[#1a1e30] shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
+                  className="absolute top-[calc(100%+8px)] right-0 z-50 w-44 overflow-hidden rounded-[16px] border border-white/10 bg-[#1a1e30] shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
                 >
                   {canEndEarly ? (
                     <MenuItem
@@ -512,17 +545,17 @@ export default function StudyRoomScreen() {
         ) : null}
       </header>
 
-      {/* Backdrop for menu */}
+      {/* Backdrop under menu (header z-50), above main */}
       {menuOpen ? (
         <button
           type="button"
           aria-label="Close menu"
-          className="fixed inset-0 z-30 cursor-default"
+          className="fixed inset-0 z-40 cursor-default"
           onClick={() => setMenuOpen(false)}
         />
       ) : null}
 
-      <main className="flex min-h-0 flex-1 flex-col px-4 pt-4">
+      <main className="relative z-0 flex min-h-0 flex-1 flex-col px-4 pt-4">
         {showReading && content ? (
           <StudyReadingPanel
             content={content}
@@ -655,6 +688,7 @@ export default function StudyRoomScreen() {
             onSend={onSendChat}
             onSendMedia={onSendMedia}
             onTyping={emitTyping}
+            onMarkRead={markChatRead}
             disabled={busy}
             defaultOpen={false}
           />
@@ -945,6 +979,7 @@ function normalizeMessage(m: StudyMessageDto): StudyMessageDto {
     mediaUrl: m.mediaUrl ?? null,
     mediaMime: m.mediaMime ?? null,
     durationMs: m.durationMs ?? null,
+    seen: !!m.seen,
   };
 }
 
@@ -959,6 +994,10 @@ function mergeMessage(
   prev: StudyMessageDto[],
   msg: StudyMessageDto,
 ): StudyMessageDto[] {
-  if (prev.some((m) => m.id === msg.id)) return prev;
+  const existing = prev.find((m) => m.id === msg.id);
+  if (existing) {
+    if (existing.seen || !msg.seen) return prev;
+    return prev.map((m) => (m.id === msg.id ? { ...m, seen: true } : m));
+  }
   return sortMessagesAsc([...prev, msg]);
 }

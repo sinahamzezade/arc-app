@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { getWsBase, getWsPath } from "@/lib/api/ws";
 import type {
+  StudyChatReadReceiptDto,
   StudyMessageDto,
   StudySessionDto,
   StudyStepDto,
@@ -16,6 +17,7 @@ type UseStudySocketOpts = {
   onState?: (state: StudySessionDto) => void;
   onStep?: (step: StudyStepDto) => void;
   onMessage?: (msg: StudyMessageDto) => void;
+  onChatRead?: (receipt: StudyChatReadReceiptDto) => void;
   onPartnerTyping?: (userId: string) => void;
   onPartnerPresence?: (payload: { online: boolean; userId?: string }) => void;
   /** Fired when server says room state changed (re-fetch personalized DTO). */
@@ -44,6 +46,7 @@ function asMessage(res: unknown): StudyMessageDto | null {
     mediaUrl: raw.mediaUrl ?? null,
     mediaMime: raw.mediaMime ?? null,
     durationMs: raw.durationMs ?? null,
+    seen: !!raw.seen,
     createdAt: raw.createdAt,
   };
 }
@@ -69,6 +72,7 @@ export function useStudySocket({
   onState,
   onStep,
   onMessage,
+  onChatRead,
   onPartnerTyping,
   onPartnerPresence,
   onStateDirty,
@@ -82,6 +86,7 @@ export function useStudySocket({
     onState,
     onStep,
     onMessage,
+    onChatRead,
     onPartnerTyping,
     onPartnerPresence,
     onStateDirty,
@@ -91,6 +96,7 @@ export function useStudySocket({
       onState,
       onStep,
       onMessage,
+      onChatRead,
       onPartnerTyping,
       onPartnerPresence,
       onStateDirty,
@@ -155,6 +161,38 @@ export function useStudySocket({
     if (!sessionId || !socketRef.current?.connected || !joined) return;
     socketRef.current.emit("typing", { sessionId });
   }, [sessionId, joined]);
+
+  const emitChatRead = useCallback(
+    (messageId?: string) => {
+      if (!sessionId || !socketRef.current?.connected || !joined)
+        return Promise.resolve(null);
+      return new Promise<StudyChatReadReceiptDto | null>((resolve) => {
+        const timer = setTimeout(() => resolve(null), 4000);
+        socketRef.current?.emit(
+          "chat:read",
+          { sessionId, messageId },
+          (res: unknown) => {
+            clearTimeout(timer);
+            if (!res || typeof res !== "object") {
+              resolve(null);
+              return;
+            }
+            const r = res as Partial<StudyChatReadReceiptDto>;
+            if (!r.userId || !r.readAt) {
+              resolve(null);
+              return;
+            }
+            resolve({
+              userId: r.userId,
+              readAt: r.readAt,
+              messageId: r.messageId ?? null,
+            });
+          },
+        );
+      });
+    },
+    [sessionId, joined],
+  );
 
   useEffect(() => {
     const token = session?.accessToken;
@@ -222,6 +260,9 @@ export function useStudySocket({
     socket.on("chat:message", (msg: StudyMessageDto) =>
       handlersRef.current.onMessage?.(msg),
     );
+    socket.on("chat:read", (receipt: StudyChatReadReceiptDto) =>
+      handlersRef.current.onChatRead?.(receipt),
+    );
     socket.on("partner_typing", (p: { userId: string }) =>
       handlersRef.current.onPartnerTyping?.(p.userId),
     );
@@ -245,6 +286,7 @@ export function useStudySocket({
     emitHeartbeat,
     emitAckRead,
     emitChatSend,
+    emitChatRead,
     emitTyping,
   };
 }

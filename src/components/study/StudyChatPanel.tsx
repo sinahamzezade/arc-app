@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import {
   Camera,
+  Check,
+  CheckCheck,
   Mic,
   MessageSquare,
   Pause,
@@ -31,6 +33,7 @@ export function StudyChatPanel({
   onSend,
   onSendMedia,
   onTyping,
+  onMarkRead,
   disabled,
   defaultOpen = false,
 }: {
@@ -50,6 +53,8 @@ export function StudyChatPanel({
     },
   ) => Promise<void>;
   onTyping: () => void;
+  /** Mark chat read through latest message (when sheet open). */
+  onMarkRead?: (messageId?: string) => void;
   disabled?: boolean;
   defaultOpen?: boolean;
 }) {
@@ -77,6 +82,13 @@ export function StudyChatPanel({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
     inputRef.current?.focus();
   }, [messages.length, open]);
+
+  const latestMessageId = messages[messages.length - 1]?.id;
+  // Emit read receipt while chat sheet is open.
+  useEffect(() => {
+    if (!open || !onMarkRead) return;
+    onMarkRead(latestMessageId);
+  }, [open, latestMessageId, onMarkRead]);
 
   useEffect(() => {
     if (!open || !partnerTyping) return;
@@ -415,6 +427,31 @@ export function StudyChatPanel({
                               )}
                             >
                               {m.body}
+                            </p>
+                          ) : null}
+
+                          {isMe ? (
+                            <p
+                              className={cn(
+                                "mt-1 flex items-center justify-end gap-1 px-0.5 text-[9px] font-extrabold tracking-wide uppercase",
+                                m.seen ? "text-[#ffc928]" : "text-white/55",
+                              )}
+                              aria-label={m.seen ? "Seen" : "Sent"}
+                            >
+                              {m.seen ? (
+                                <>
+                                  <CheckCheck
+                                    className="h-3 w-3"
+                                    strokeWidth={2.75}
+                                  />
+                                  Seen
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="h-3 w-3" strokeWidth={2.75} />
+                                  Sent
+                                </>
+                              )}
                             </p>
                           ) : null}
                         </div>

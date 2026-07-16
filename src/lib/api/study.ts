@@ -121,7 +121,15 @@ export type StudyMessageDto = {
   mediaUrl: string | null;
   mediaMime: string | null;
   durationMs: number | null;
+  /** True when partner has read this outgoing message. */
+  seen: boolean;
   createdAt: string;
+};
+
+export type StudyChatReadReceiptDto = {
+  userId: string;
+  readAt: string;
+  messageId: string | null;
 };
 
 export type CreateStudySessionInput = {
@@ -255,6 +263,21 @@ export const studyApi = {
       body: { body },
       accessToken,
     });
+  },
+
+  markMessagesRead(
+    id: string,
+    messageId?: string,
+    accessToken?: string | null,
+  ) {
+    return apiFetch<StudyChatReadReceiptDto>(
+      `/study-together/${id}/messages/read`,
+      {
+        method: "POST",
+        body: messageId ? { messageId } : {},
+        accessToken,
+      },
+    );
   },
 
   sendMedia(
