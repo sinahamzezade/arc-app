@@ -2,6 +2,7 @@ import type { RoadmapTreeDto } from "@/lib/api/types";
 import type {
   PathIconName,
   PathData,
+  PathNode,
   PathNodeStatus,
 } from "@/lib/path/types";
 
