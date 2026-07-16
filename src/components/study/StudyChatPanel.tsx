@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { ChatImageLightbox } from "@/components/study/ChatImageLightbox";
 import { studyApi, type StudyMessageDto } from "@/lib/api/study";
 import {
   STUDY_VOICE_MAX_MS,
@@ -569,6 +570,7 @@ function AuthChatImage({
   createdAt: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   useEffect(() => {
     let revoke: string | null = null;
@@ -610,17 +612,33 @@ function AuthChatImage({
         </time>
       </div>
       {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={url}
-          alt="Chat photo"
-          className="max-h-56 w-full object-cover"
-        />
+        <button
+          type="button"
+          aria-label="Open photo full screen"
+          onClick={() => setViewerOpen(true)}
+          className="block w-full cursor-zoom-in overflow-hidden rounded-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2"
+        >
+          {/* Blob URL — next/image not applicable */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt="Chat photo"
+            className="max-h-56 w-full object-cover transition-opacity hover:opacity-95"
+          />
+        </button>
       ) : (
         <div className="flex h-36 items-center justify-center bg-[#0f1220]/8 text-[11px] font-bold text-arc-lavender-600">
           Loading…
         </div>
       )}
+
+      {url ? (
+        <ChatImageLightbox
+          src={url}
+          open={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
