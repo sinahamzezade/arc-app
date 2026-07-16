@@ -209,9 +209,9 @@ export default function StudyInviteScreen() {
             : "Send invite";
 
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
+    <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#f3effc] font-rounded">
       {/* Night hero */}
-      <header className="relative shrink-0 overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-8 text-white">
+      <header className="relative shrink-0 overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-10 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-arc-purple-500/35 blur-3xl"
@@ -319,7 +319,7 @@ export default function StudyInviteScreen() {
       </header>
 
       {/* Sheet */}
-      <div className="relative z-10 -mt-4 flex min-h-0 flex-1 flex-col rounded-t-[28px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+108px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
+      <div className="relative z-10 -mt-6 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[28px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+80px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
         {/* Pending invites — always visible, compact */}
         {(incoming.length > 0 || outgoing.length > 0) && step === 0 ? (
           <div className="mb-4 space-y-2">
@@ -518,7 +518,7 @@ function PartnerStep({
           Pick your study partner
         </h2>
         <p className="mt-1 text-[13px] font-bold text-arc-lavender-600">
-          Same lesson. Shared timer. No camera.
+          Same lesson. Shared timer. No video call.
         </p>
       </div>
 
@@ -592,14 +592,10 @@ function PartnerStep({
                     <span
                       className={cn(
                         "mt-0.5 block text-[11px] font-bold",
-                        f.online
-                          ? "text-[#178a52]"
-                          : "text-arc-lavender-600",
+                        f.online ? "text-[#178a52]" : "text-arc-lavender-600",
                       )}
                     >
-                      {f.online
-                        ? "Online now"
-                        : `Lv ${f.level} · ${f.league}`}
+                      {f.online ? "Online now" : `Lv ${f.level} · ${f.league}`}
                     </span>
                   </span>
                   {active ? (
@@ -732,7 +728,7 @@ function SetupStep({
   partnerName?: string;
 }) {
   return (
-    <div className="space-y-3 overflow-y-auto overscroll-contain pb-2">
+    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-2">
       <div>
         <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
           Step 3 · When
@@ -772,7 +768,9 @@ function SetupStep({
                     : "border-[#ebe4f6] bg-white text-[#0f1220] shadow-[0_3px_0_#ebe4f6]",
                 )}
               >
-                <p className="font-display text-[14px] font-bold">{opt.label}</p>
+                <p className="font-display text-[14px] font-bold">
+                  {opt.label}
+                </p>
                 <p
                   className={cn(
                     "mt-1 text-[10px] leading-snug font-bold",
@@ -870,7 +868,7 @@ function SetupStep({
 
       <p className="flex items-center gap-1.5 text-[12px] font-bold text-arc-lavender-600">
         <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
-        Shared timer · synced reading · no camera
+        Shared timer · synced reading · no video call
       </p>
     </div>
   );

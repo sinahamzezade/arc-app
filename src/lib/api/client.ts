@@ -166,3 +166,82 @@ export async function apiFetch<T>(
 
   return (await res.json()) as T;
 }
+
+/** Multipart POST — do not set Content-Type (browser sets boundary).
+ *  No auto-retry: FormData body can only be consumed once. */
+export async function apiFetchFormData<T>(
+  path: string,
+  form: FormData,
+  accessToken?: string | null,
+): Promise<T> {
+  const url = path.startsWith("http")
+    ? path
+    : `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+  let token = accessToken ?? hooks.getAccessToken();
+  if (!token) {
+    const next = await refreshAccessToken();
+    token = next?.accessToken ?? null;
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: form,
+  });
+
+  if (!res.ok) {
+    throw await parseError(res);
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  return (await res.json()) as T;
+}
+
+/** Authenticated binary GET for study chat media. */
+export async function apiFetchBlob(
+  path: string,
+  accessToken?: string | null,
+  skipRefresh = false,
+): Promise<Blob> {
+  const url = path.startsWith("http")
+    ? path
+    : `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+
+  const headers: Record<string, string> = {
+    Accept: "*/*",
+  };
+  const token = accessToken ?? hooks.getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    headers,
+  });
+
+  if (res.status === 401 && !skipRefresh) {
+    const next = await refreshAccessToken();
+    if (next?.accessToken) {
+      return apiFetchBlob(path, next.accessToken, true);
+    }
+  }
+
+  if (!res.ok) {
+    throw await parseError(res);
+  }
+
+  return res.blob();
+}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
@@ -243,6 +244,14 @@ export default function PathScreen({
 }) {
   const { data, isPending, isError, error, retry } =
     useCurrentRoadmap(initialRoadmap);
+  const router = useRouter();
+
+  useEffect(() => {
+    const rm = data?.roadmap;
+    if (rm?.status === "completed" && (rm.finishedAt || rm.id)) {
+      router.replace(`/path/graduation?roadmapId=${rm.id}`);
+    }
+  }, [data?.roadmap, router]);
 
   if (dataProp) {
     return <RoadMap data={dataProp} />;
@@ -393,6 +402,7 @@ function RoadMap({ data }: { data: PathData }) {
                 key={row.key}
                 row={row}
                 lessonsTotal={data.lessonsTotal}
+                roadmapId={data.roadmapId}
               />
             ) : row.variant === "current" ? (
               <CurrentPin key={row.key} row={row} upNext={data.upNext} />
@@ -893,9 +903,11 @@ function CurrentPin({
 function FinishMarker({
   row,
   lessonsTotal,
+  roadmapId,
 }: {
   row: Extract<TrailRow, { kind: "terminal" }>;
   lessonsTotal: number;
+  roadmapId: string;
 }) {
   return (
     <motion.div
@@ -917,6 +929,14 @@ function FinishMarker({
         <p className="text-[11px] font-bold text-[#8a7cb8]">
           Finish line · {lessonsTotal} stops
         </p>
+        {row.reached ? (
+          <Link
+            href={`/path/graduation?roadmapId=${roadmapId}`}
+            className="rounded-xl border-2 border-[#0f1220] bg-arc-purple-500 px-3 py-1.5 text-[11px] font-black tracking-wide text-white uppercase shadow-[0_3px_0_#4b2fd6]"
+          >
+            Graduation
+          </Link>
+        ) : null}
       </div>
     </motion.div>
   );

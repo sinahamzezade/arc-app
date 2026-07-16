@@ -101,6 +101,7 @@ export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathData {
   });
 
   return {
+    roadmapId: roadmap.id,
     trackTitle: roadmap.title.replace(/\s+Path$/i, "") || roadmap.title,
     milestoneCount,
     lessonsDone,

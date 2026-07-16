@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
@@ -25,6 +25,8 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
  */
 export default function QuestionnaireIntroScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fastTrack = searchParams.get("mode") === "fast_track";
   const { data: session } = useSession();
   const { loading, schema, error } = useHydrateQuestionnaire();
   const answers = useQuestionnaireStore((s) => s.answers);
@@ -40,6 +42,12 @@ export default function QuestionnaireIntroScreen() {
       router.replace("/login");
     }
   }, [loading, error, router]);
+
+  // Doc 07 fast-track: prior answers pre-filled via hydrate; jump into form.
+  useEffect(() => {
+    if (!fastTrack || loading || !hydrated) return;
+    router.replace("/questionnaire/1?mode=fast_track");
+  }, [fastTrack, loading, hydrated, router]);
 
   useEffect(() => {
     let cancelled = false;

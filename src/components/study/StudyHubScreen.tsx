@@ -158,7 +158,7 @@ export default function StudyHubScreen() {
     live.length === 0 && other.length === 0 && incoming.length === 0;
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
+    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-clip bg-[#f2eefb] font-rounded">
       <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-12 text-white">
         <div
           aria-hidden

@@ -1,5 +1,11 @@
 import { apiFetch } from "./client";
-import type { RoadmapCurrentResponse, RoadmapJobDto } from "./types";
+import type {
+  ChooseNextResponse,
+  ReEnrollmentJobDto,
+  RoadmapCompletionSummaryDto,
+  RoadmapCurrentResponse,
+  RoadmapJobDto,
+} from "./types";
 
 export type RoadmapRetryResult = {
   status: "queued" | "processing" | "ready" | "failed";
@@ -25,5 +31,31 @@ export const roadmapsApi = {
     return apiFetch<RoadmapJobDto>(`/roadmaps/jobs/${jobId}`, {
       accessToken,
     });
+  },
+
+  getCompletionSummary(roadmapId: string, accessToken?: string | null) {
+    return apiFetch<RoadmapCompletionSummaryDto>(
+      `/roadmaps/${roadmapId}/completion-summary`,
+      { accessToken },
+    );
+  },
+
+  chooseNext(
+    roadmapId: string,
+    choice: "new_goal" | "same_goal_advanced" | "top_up",
+    accessToken?: string | null,
+  ) {
+    return apiFetch<ChooseNextResponse>(`/roadmaps/${roadmapId}/choose-next`, {
+      method: "POST",
+      accessToken,
+      body: { choice },
+    });
+  },
+
+  getReEnrollmentJob(jobId: string, accessToken?: string | null) {
+    return apiFetch<ReEnrollmentJobDto>(
+      `/roadmaps/re-enrollment-jobs/${jobId}`,
+      { accessToken },
+    );
   },
 };

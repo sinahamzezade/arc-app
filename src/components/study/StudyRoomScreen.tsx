@@ -93,7 +93,7 @@ export default function StudyRoomScreen() {
     try {
       const { items } = await studyApi.messages(sessionId);
       // API already returns oldest → newest (service reverses DESC page).
-      setMessages(sortMessagesAsc(items));
+      setMessages(sortMessagesAsc(items.map(normalizeMessage)));
     } catch {
       /* optional — 401 when session expired */
     }
@@ -122,7 +122,7 @@ export default function StudyRoomScreen() {
         void refresh();
       },
       onMessage: (msg) => {
-        setMessages((prev) => mergeMessage(prev, msg));
+        setMessages((prev) => mergeMessage(prev, normalizeMessage(msg)));
       },
       onPartnerTyping: () => {
         setPartnerTyping(true);
@@ -135,6 +135,12 @@ export default function StudyRoomScreen() {
     void refresh();
     void loadMessages();
   }, [refresh, loadMessages]);
+
+  useEffect(() => {
+    if (session && TERMINAL.has(session.status)) {
+      setMessages([]);
+    }
+  }, [session?.status]);
 
   // Chat poll fallback when WS not joined — keeps both sides in sync.
   useEffect(() => {
@@ -262,12 +268,26 @@ export default function StudyRoomScreen() {
     if (connected) {
       const msg = await emitChatSend(body);
       if (msg) {
-        setMessages((prev) => mergeMessage(prev, msg));
+        setMessages((prev) => mergeMessage(prev, normalizeMessage(msg)));
         return;
       }
     }
     const msg = await studyApi.sendMessage(sessionId, body);
-    setMessages((prev) => mergeMessage(prev, msg));
+    setMessages((prev) => mergeMessage(prev, normalizeMessage(msg)));
+  }
+
+  async function onSendMedia(
+    file: Blob,
+    meta: {
+      kind: "voice" | "image";
+      durationMs?: number;
+      caption?: string;
+      filename?: string;
+    },
+  ) {
+    if (!sessionId) return;
+    const msg = await studyApi.sendMedia(sessionId, file, meta);
+    setMessages((prev) => mergeMessage(prev, normalizeMessage(msg)));
   }
 
   async function onLeave() {
@@ -631,7 +651,9 @@ export default function StudyRoomScreen() {
             partnerTyping={partnerTyping}
             partnerName={session.partner.name}
             youUserId={session.you.userId}
+            sessionId={sessionId}
             onSend={onSendChat}
+            onSendMedia={onSendMedia}
             onTyping={emitTyping}
             disabled={busy}
             defaultOpen={false}
@@ -805,13 +827,13 @@ function LobbyState({
   const sub = ended
     ? "Nice work — head back when you're done celebrating."
     : isInviteePending
-      ? "Same lesson. Shared timer. No camera."
+      ? "Same lesson. Shared timer. No video call."
       : status === "invited"
         ? "They'll see your invite and jump in."
         : "Tap ready when you're set — reading unlocks for both.";
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto overscroll-contain text-center">
       <div className="flex items-center gap-3">
         <span className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-arc-purple-500 font-display text-[20px] font-bold text-white shadow-[0_5px_0_#4b2fd6]">
           {youInitial}
@@ -909,6 +931,21 @@ function PrimaryBtn({
       {busy ? "Working…" : label}
     </motion.button>
   );
+}
+
+function normalizeMessage(m: StudyMessageDto): StudyMessageDto {
+  const kind =
+    m.kind === "voice" || m.kind === "image" || m.kind === "text"
+      ? m.kind
+      : "text";
+  return {
+    ...m,
+    kind,
+    body: m.body ?? "",
+    mediaUrl: m.mediaUrl ?? null,
+    mediaMime: m.mediaMime ?? null,
+    durationMs: m.durationMs ?? null,
+  };
 }
 
 function sortMessagesAsc(items: StudyMessageDto[]): StudyMessageDto[] {

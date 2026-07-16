@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui";
 export function StudyHubSkeleton() {
   return (
     <div
-      className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded"
+      className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-clip bg-[#f2eefb] font-rounded"
       role="status"
       aria-busy="true"
       aria-label="Loading study hub"

@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFetchBlob, apiFetchFormData } from "./client";
 
 export type StudySessionStatusDto =
   | "draft"
@@ -109,12 +109,18 @@ export type StudyAckResultDto = {
   step: StudyStepDto | null;
 };
 
+export type StudyMessageKindDto = "text" | "voice" | "image";
+
 export type StudyMessageDto = {
   id: string;
   sessionId: string;
   senderId: string;
   senderName: string;
+  kind: StudyMessageKindDto;
   body: string;
+  mediaUrl: string | null;
+  mediaMime: string | null;
+  durationMs: number | null;
   createdAt: string;
 };
 
@@ -249,6 +255,49 @@ export const studyApi = {
       body: { body },
       accessToken,
     });
+  },
+
+  sendMedia(
+    id: string,
+    file: Blob,
+    meta: {
+      kind: "voice" | "image";
+      durationMs?: number;
+      caption?: string;
+      filename?: string;
+    },
+    accessToken?: string | null,
+  ) {
+    const form = new FormData();
+    form.append(
+      "file",
+      file,
+      meta.filename ??
+        (meta.kind === "voice" ? "voice.webm" : "photo.jpg"),
+    );
+    form.append("kind", meta.kind);
+    if (meta.durationMs != null) {
+      form.append("durationMs", String(meta.durationMs));
+    }
+    if (meta.caption) {
+      form.append("caption", meta.caption);
+    }
+    return apiFetchFormData<StudyMessageDto>(
+      `/study-together/${id}/messages/media`,
+      form,
+      accessToken,
+    );
+  },
+
+  async fetchMediaBlob(
+    sessionId: string,
+    messageId: string,
+    accessToken?: string | null,
+  ): Promise<Blob> {
+    return apiFetchBlob(
+      `/study-together/${sessionId}/media/${messageId}`,
+      accessToken,
+    );
   },
 
   state(id: string, accessToken?: string | null) {

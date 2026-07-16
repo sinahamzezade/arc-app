@@ -264,12 +264,55 @@ export type RoadmapTreeDto = {
   progressPercent: number;
   currentPhaseId: string | null;
   status: string;
+  finishedAt?: string | null;
   phases: RoadmapPhaseDto[];
 };
 
 export type RoadmapCurrentResponse = {
   job: RoadmapJobDto | null;
   roadmap: RoadmapTreeDto | null;
+};
+
+export type RoadmapCompletionSkillSummary = {
+  skillSlug: string;
+  stage: number;
+  target: number;
+  status: "mastered" | "partial" | "shaky";
+};
+
+export type RoadmapCompletionSummaryDto = {
+  roadmapId: string;
+  title: string;
+  finishedAt: string;
+  completionWeeks: number;
+  totalLessons: number;
+  totalXpEarned: number;
+  skillsMastered: number;
+  skillsPartial: number;
+  skillsShaky: number;
+  skillSummary: RoadmapCompletionSkillSummary[];
+  badges: string[];
+  coachAssessment: {
+    ready: boolean;
+    recommendation: "new_goal" | "same_goal_advanced" | "top_up" | null;
+    rationale: string | null;
+    options: Array<{ key: string; label: string }>;
+  };
+};
+
+export type ChooseNextResponse = {
+  redirect?: string;
+  jobId?: string;
+};
+
+export type ReEnrollmentJobDto = {
+  id: string;
+  status: "queued" | "processing" | "ready" | "failed";
+  trigger: string;
+  previousRoadmapId: string;
+  newRoadmapId: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
 };
 
 export type NotificationCategoryDto =
@@ -646,6 +689,8 @@ export type LessonCompleteResponse = {
   attemptId?: string | null;
   contentVersionId?: string;
   rewardRuleVersion?: string;
+  roadmapCompleted?: boolean;
+  roadmapId?: string | null;
 };
 
 export type LessonArloChatResponse = {

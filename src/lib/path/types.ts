@@ -31,6 +31,7 @@ export type PathNode = {
 };
 
 export type PathData = {
+  roadmapId: string;
   trackTitle: string;
   milestoneCount: number;
   lessonsDone: number;

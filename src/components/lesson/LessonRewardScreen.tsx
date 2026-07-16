@@ -271,10 +271,19 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
           transition={{ delay: 0.28 }}
           className="relative z-[1] space-y-1"
         >
-          <LessonPrimaryButton href="/path">
-            Back to Path
-            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-          </LessonPrimaryButton>
+          {result.roadmapCompleted && result.roadmapId ? (
+            <LessonPrimaryButton
+              href={`/path/graduation?roadmapId=${result.roadmapId}`}
+            >
+              See graduation
+              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+            </LessonPrimaryButton>
+          ) : (
+            <LessonPrimaryButton href="/path">
+              Back to Path
+              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+            </LessonPrimaryButton>
+          )}
           <button
             type="button"
             onClick={() => router.push("/home")}

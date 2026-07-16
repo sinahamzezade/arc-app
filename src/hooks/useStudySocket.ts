@@ -25,14 +25,27 @@ type UseStudySocketOpts = {
 function asMessage(res: unknown): StudyMessageDto | null {
   if (!res || typeof res !== "object") return null;
   const obj = res as Record<string, unknown>;
-  const data =
+  const raw =
     obj.data && typeof obj.data === "object"
-      ? (obj.data as Record<string, unknown>)
-      : obj;
-  if (typeof data.id === "string" && typeof data.body === "string") {
-    return data as unknown as StudyMessageDto;
-  }
-  return null;
+      ? (obj.data as Partial<StudyMessageDto>)
+      : (obj as Partial<StudyMessageDto>);
+  if (!raw.id || !raw.sessionId || !raw.senderId || !raw.createdAt) return null;
+  const kind =
+    raw.kind === "voice" || raw.kind === "image" || raw.kind === "text"
+      ? raw.kind
+      : "text";
+  return {
+    id: raw.id,
+    sessionId: raw.sessionId,
+    senderId: raw.senderId,
+    senderName: raw.senderName ?? "Learner",
+    kind,
+    body: raw.body ?? "",
+    mediaUrl: raw.mediaUrl ?? null,
+    mediaMime: raw.mediaMime ?? null,
+    durationMs: raw.durationMs ?? null,
+    createdAt: raw.createdAt,
+  };
 }
 
 function joinOk(res: unknown): boolean {

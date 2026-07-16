@@ -49,7 +49,12 @@ export default function QuestionnaireStepScreen({
   const router = useRouter();
   const searchParams = useSearchParams();
   const changeGoal = searchParams.get("change") === "1";
-  const changeQ = changeGoal ? "?change=1" : "";
+  const fastTrack = searchParams.get("mode") === "fast_track";
+  const changeQ = changeGoal
+    ? "?change=1"
+    : fastTrack
+      ? "?mode=fast_track"
+      : "";
   const { data: session } = useSession();
   const { answers, setAnswers, schema } = useQuestionnaireStore();
   const { loading: hydrating, error: hydrateError } = useHydrateQuestionnaire();
@@ -172,8 +177,10 @@ export default function QuestionnaireStepScreen({
       onBack={handleBack}
       title={step.title}
       subtitle={
-        changeGoal && step.id === "goal"
-          ? "Pick a catalog role that has a learning path, then rebuild."
+        (changeGoal || fastTrack) && step.id === "goal"
+          ? changeGoal
+            ? "Pick a catalog role that has a learning path, then rebuild."
+            : "Confirm or change your goal — prior answers stay editable."
           : step.subtitle
       }
       footer={
@@ -181,6 +188,10 @@ export default function QuestionnaireStepScreen({
           {changeGoal ? (
             <p className="text-center text-[11px] font-bold text-arc-purple-500">
               Change goal · save through to rebuild path
+            </p>
+          ) : fastTrack ? (
+            <p className="text-center text-[11px] font-bold text-arc-purple-500">
+              Fast-track · answers pre-filled from your last path
             </p>
           ) : null}
           {saveError ? (
