@@ -91,9 +91,17 @@ export default function ChatConversationScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<ChatMessageDto | null>(null);
+  const [stagedFile, setStagedFile] = useState<{
+    file: File;
+    previewUrl: string;
+  } | null>(null);
   const [attachmentPreviews, setAttachmentPreviews] = useState<
     Record<string, string>
   >({});
+  /** Blob previews for optimistic image sends (keyed by clientMsgId). */
+  const [localPreviews, setLocalPreviews] = useState<Record<string, string>>(
+    {},
+  );
   const [peerLastReadMessageId, setPeerLastReadMessageId] = useState<
     string | null
   >(null);
@@ -101,6 +109,25 @@ export default function ChatConversationScreen() {
   const typingTimeout = useRef<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const markedReadRef = useRef<string | null>(null);
+  const stagedFileRef = useRef<{ file: File; previewUrl: string } | null>(null);
+
+  const clearStagedFile = useCallback(() => {
+    setStagedFile((prev) => {
+      if (prev) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    stagedFileRef.current = stagedFile;
+  }, [stagedFile]);
+
+  useEffect(() => {
+    return () => {
+      const staged = stagedFileRef.current;
+      if (staged) URL.revokeObjectURL(staged.previewUrl);
+    };
+  }, []);
 
   const applyPeerRead = useCallback(
     (lastReadMessageId: string) => {
@@ -325,14 +352,27 @@ export default function ChatConversationScreen() {
   async function onSend(e?: FormEvent) {
     e?.preventDefault();
     const body = text.trim();
-    if (!body || !token || !conversationId || sending) return;
+    const fileSnapshot = stagedFile;
+    if ((!body && !fileSnapshot) || !token || !conversationId || sending) {
+      return;
+    }
+
     setSending(true);
     setText("");
+    setStagedFile(null);
     emitTypingStop(conversationId);
     const replySnapshot = replyTo;
     setReplyTo(null);
 
     const clientMsgId = newClientMsgId();
+    const isImage = !!fileSnapshot;
+    if (fileSnapshot) {
+      setLocalPreviews((prev) => ({
+        ...prev,
+        [clientMsgId]: fileSnapshot.previewUrl,
+      }));
+    }
+
     const optimistic: ChatMessageDto = {
       id: clientMsgId,
       conversationId,
@@ -340,11 +380,11 @@ export default function ChatConversationScreen() {
       senderName: "You",
       senderAvatarUrl: null,
       clientMsgId,
-      type: "text",
-      body,
+      type: isImage ? "image" : "text",
+      body: body || null,
       attachmentId: null,
       attachmentUrl: null,
-      attachmentMime: null,
+      attachmentMime: fileSnapshot?.file.type || null,
       replyToId: replySnapshot?.id ?? null,
       replyTo: replySnapshot
         ? {
@@ -364,75 +404,71 @@ export default function ChatConversationScreen() {
     setMessages((prev) => [...prev, optimistic]);
 
     try {
-      let msg: ChatMessageDto | null = null;
-      if (connected) {
-        msg = await emitSend({
+      let attachmentId: string | undefined;
+      if (fileSnapshot) {
+        const att = await chatApi.uploadAttachment(
           conversationId,
-          clientMsgId,
-          type: "text",
-          body,
-          replyToId: replySnapshot?.id,
-        });
-      }
-      if (!msg) {
-        msg = await chatApi.sendMessage(
-          conversationId,
-          {
-            clientMsgId,
-            type: "text",
-            body,
-            replyToId: replySnapshot?.id,
-          },
+          fileSnapshot.file,
+          fileSnapshot.file.name || "photo.jpg",
           token,
         );
+        attachmentId = att.id;
+      }
+
+      const payload = {
+        clientMsgId,
+        type: (isImage ? "image" : "text") as "image" | "text",
+        body: body || undefined,
+        attachmentId,
+        replyToId: replySnapshot?.id,
+      };
+
+      let msg: ChatMessageDto | null = null;
+      if (connected) {
+        msg = await emitSend({ conversationId, ...payload });
+      }
+      if (!msg) {
+        msg = await chatApi.sendMessage(conversationId, payload, token);
       }
       mergeMessage({ ...msg, seen: !!msg.seen, delivered: true });
+      if (fileSnapshot) {
+        URL.revokeObjectURL(fileSnapshot.previewUrl);
+        setLocalPreviews((prev) => {
+          const next = { ...prev };
+          delete next[clientMsgId];
+          return next;
+        });
+      }
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.clientMsgId !== clientMsgId));
+      setLocalPreviews((prev) => {
+        const next = { ...prev };
+        delete next[clientMsgId];
+        return next;
+      });
       setError(
         err instanceof ApiError
           ? messageForCode(err.code, err.message)
-          : "Send failed",
+          : fileSnapshot
+            ? "Upload failed"
+            : "Send failed",
       );
       setText(body);
+      if (fileSnapshot) {
+        setStagedFile(fileSnapshot);
+      }
       if (replySnapshot) setReplyTo(replySnapshot);
     } finally {
       setSending(false);
     }
   }
 
-  async function onPickImage(file: File) {
-    if (!token || !conversationId || sending) return;
-    setSending(true);
-    try {
-      const att = await chatApi.uploadAttachment(
-        conversationId,
-        file,
-        file.name || "photo.jpg",
-        token,
-      );
-      const clientMsgId = newClientMsgId();
-      const msg = await chatApi.sendMessage(
-        conversationId,
-        {
-          clientMsgId,
-          type: "image",
-          attachmentId: att.id,
-          replyToId: replyTo?.id,
-        },
-        token,
-      );
-      setReplyTo(null);
-      mergeMessage({ ...msg, seen: !!msg.seen, delivered: true });
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? messageForCode(err.code, err.message)
-          : "Upload failed",
-      );
-    } finally {
-      setSending(false);
-    }
+  function onPickImage(file: File) {
+    if (sending) return;
+    setStagedFile((prev) => {
+      if (prev) URL.revokeObjectURL(prev.previewUrl);
+      return { file, previewUrl: URL.createObjectURL(file) };
+    });
   }
 
   function onType(value: string) {
@@ -502,8 +538,8 @@ export default function ChatConversationScreen() {
   }, [messages, myId]);
 
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-hidden bg-white font-rounded text-[#0f1220]">
-      <header className="sticky top-0 z-20 border-b border-[#f0ebf8] bg-white/95 px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-3 backdrop-blur-md">
+    <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-white font-rounded text-[#0f1220]">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-[#f0ebf8] bg-white/95 px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-3 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -584,7 +620,7 @@ export default function ChatConversationScreen() {
           </p>
         ) : null}
 
-        <div className="flex-1 space-y-1 overflow-y-auto px-4 py-3">
+        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain px-4 py-2">
           {nextBefore ? (
             <button
               type="button"
@@ -601,8 +637,8 @@ export default function ChatConversationScreen() {
                 <div
                   key={i}
                   className={cn(
-                    "h-12 w-[70%] animate-pulse rounded-[20px] bg-[#efeaff]",
-                    i % 2 ? "ml-auto bg-[#ffe48a]/60" : "",
+                    "h-10 w-[70%] animate-pulse rounded-[20px] bg-[#efeaff]",
+                    i % 2 ? "ml-auto bg-arc-purple-200/60" : "",
                   )}
                 />
               ))}
@@ -611,10 +647,7 @@ export default function ChatConversationScreen() {
             rows.map((row) => {
               if (row.kind === "day") {
                 return (
-                  <div
-                    key={row.key}
-                    className="flex justify-center py-3"
-                  >
+                  <div key={row.key} className="flex justify-center py-2">
                     <span className="text-[12px] font-bold text-[#8a82a8]">
                       {row.label}
                     </span>
@@ -626,7 +659,9 @@ export default function ChatConversationScreen() {
               const mine = m.senderId === myId;
               const preview = m.attachmentId
                 ? attachmentPreviews[m.attachmentId]
-                : null;
+                : m.clientMsgId
+                  ? localPreviews[m.clientMsgId]
+                  : null;
               const quote = m.replyTo;
 
               return (
@@ -635,15 +670,15 @@ export default function ChatConversationScreen() {
                   initial={reduceMotion ? false : { opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
-                    "group flex max-w-[82%] flex-col",
+                    "group relative flex max-w-[82%] flex-col",
                     mine ? "ml-auto items-end" : "items-start",
                   )}
                 >
                   <div
                     className={cn(
-                      "relative rounded-[22px] px-3.5 py-2.5 text-[14px] leading-snug",
+                      "relative rounded-[22px] px-3.5 py-2 text-[14px] leading-snug",
                       mine
-                        ? "rounded-br-md bg-[#ffc928] text-[#0f1220]"
+                        ? "rounded-br-md bg-arc-purple-600 text-white"
                         : "rounded-bl-md bg-[#efeaff] text-[#0f1220]",
                       m.pending && "opacity-70",
                     )}
@@ -690,33 +725,38 @@ export default function ChatConversationScreen() {
                         ) : null}
                       </>
                     )}
-
-                    {!m.deletedAt ? (
-                      <div className="mt-1 flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button
-                          type="button"
-                          aria-label="Reply"
-                          onClick={() => setReplyTo(m)}
-                          className="cursor-pointer rounded-full p-1 text-[#0f1220]/50 hover:bg-black/5 hover:text-[#0f1220]"
-                        >
-                          <Reply className="h-3.5 w-3.5" />
-                        </button>
-                        {mine ? (
-                          <button
-                            type="button"
-                            aria-label="Delete"
-                            onClick={() => void deleteOwn(m)}
-                            className="cursor-pointer rounded-full p-1 text-[#0f1220]/50 hover:bg-black/5 hover:text-red-600"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
                   </div>
 
+                  {!m.deletedAt ? (
+                    <div
+                      className={cn(
+                        "pointer-events-none absolute top-1/2 z-10 flex -translate-y-1/2 gap-0.5 rounded-full border border-[#f0ebf8] bg-white/95 p-0.5 opacity-0 shadow-sm transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
+                        mine ? "right-full mr-1.5" : "left-full ml-1.5",
+                      )}
+                    >
+                      <button
+                        type="button"
+                        aria-label="Reply"
+                        onClick={() => setReplyTo(m)}
+                        className="cursor-pointer rounded-full p-1.5 text-[#0f1220]/55 transition-colors hover:bg-[#f4f0ff] hover:text-[#0f1220]"
+                      >
+                        <Reply className="h-3.5 w-3.5" />
+                      </button>
+                      {mine ? (
+                        <button
+                          type="button"
+                          aria-label="Delete"
+                          onClick={() => void deleteOwn(m)}
+                          className="cursor-pointer rounded-full p-1.5 text-[#0f1220]/55 transition-colors hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   {mine && row.isLastOwn && !m.deletedAt ? (
-                    <p className="mt-1 px-1 text-[11px] font-bold text-[#8a82a8]">
+                    <p className="mt-0.5 px-1 text-[11px] font-bold text-[#8a82a8]">
                       {m.pending
                         ? "Sending"
                         : m.seen
@@ -733,7 +773,7 @@ export default function ChatConversationScreen() {
 
           {typingUser ? (
             <div className="flex justify-start" aria-live="polite">
-              <div className="flex items-center gap-1 rounded-[20px] rounded-bl-md bg-[#efeaff] px-3.5 py-3">
+              <div className="flex items-center gap-1 rounded-[20px] rounded-bl-md bg-[#efeaff] px-3.5 py-2.5">
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#8a82a8] [animation-delay:0ms]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#8a82a8] [animation-delay:120ms]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#8a82a8] [animation-delay:240ms]" />
@@ -743,83 +783,117 @@ export default function ChatConversationScreen() {
           <div ref={bottomRef} />
         </div>
 
-        {replyTo ? (
-          <div className="flex items-center gap-2 border-t border-[#f0ebf8] bg-white px-4 py-2">
-            <div className="min-w-0 flex-1 rounded-xl border-l-[3px] border-[#ffc928] bg-[#f4f0ff] px-3 py-1.5">
-              <p className="text-[11px] font-extrabold text-[#0f1220]">
-                {replyTo.senderName}
-              </p>
-              <p className="truncate text-[12px] font-medium text-[#5c5478]">
-                {replyTo.body || "Attachment"}
-              </p>
-            </div>
-            <button
-              type="button"
-              aria-label="Cancel reply"
-              onClick={() => setReplyTo(null)}
-              className="cursor-pointer rounded-full p-2 text-[#8a82a8] hover:bg-[#f4f0ff]"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : null}
-
-        <form
-          onSubmit={(e) => void onSend(e)}
-          className="shrink-0 border-t border-[#f0ebf8] bg-white px-3 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)]"
-        >
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void onPickImage(f);
-                e.target.value = "";
-              }}
-            />
-            <button
-              type="button"
-              aria-label="Attach"
-              onClick={() => fileRef.current?.click()}
-              className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#0f1220] transition-colors hover:bg-[#f4f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
-            >
-              <Plus className="h-6 w-6" strokeWidth={2.25} />
-            </button>
-            <label className="sr-only" htmlFor="chat-composer">
-              Message
-            </label>
-            <input
-              id="chat-composer"
-              value={text}
-              onChange={(e) => onType(e.target.value)}
-              placeholder="New Chat"
-              className="min-h-12 flex-1 rounded-full bg-[#f4f0ff] px-4 py-3 text-sm font-medium text-[#0f1220] outline-none placeholder:text-[#8a82a8] focus-visible:ring-2 focus-visible:ring-arc-purple-500"
-            />
-            {text.trim() ? (
-              <button
-                type="submit"
-                disabled={sending}
-                aria-label="Send"
-                className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#0f1220] text-white transition-colors hover:bg-[#1a1f35] disabled:opacity-40"
-              >
-                <SendHorizontal className="h-4.5 w-4.5" />
-              </button>
-            ) : (
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[#f0ebf8] bg-white">
+          {replyTo ? (
+            <div className="flex items-center gap-2 bg-white px-4 py-2">
+              <div className="min-w-0 flex-1 rounded-xl border-l-[3px] border-arc-purple-500 bg-[#f4f0ff] px-3 py-1.5">
+                <p className="text-[11px] font-extrabold text-[#0f1220]">
+                  {replyTo.senderName}
+                </p>
+                <p className="truncate text-[12px] font-medium text-[#5c5478]">
+                  {replyTo.body || "Attachment"}
+                </p>
+              </div>
               <button
                 type="button"
-                disabled
-                title="Voice messages coming soon"
-                aria-label="Voice message (coming soon)"
-                className="flex h-11 w-11 shrink-0 cursor-not-allowed items-center justify-center rounded-full text-[#b3a8d6] opacity-60"
+                aria-label="Cancel reply"
+                onClick={() => setReplyTo(null)}
+                className="cursor-pointer rounded-full p-2 text-[#8a82a8] hover:bg-[#f4f0ff]"
               >
-                <Mic className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
-            )}
-          </div>
-        </form>
+            </div>
+          ) : null}
+
+          {stagedFile ? (
+            <div className="flex items-center gap-3 border-t border-[#f0ebf8] bg-[#faf8ff] px-4 py-2.5">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl ring-1 ring-[#ebe4f6]">
+                <Image
+                  src={stagedFile.previewUrl}
+                  alt="Attachment preview"
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-extrabold text-[#0f1220]">
+                  Photo
+                </p>
+                <p className="truncate text-[11px] font-semibold text-[#8a82a8]">
+                  {stagedFile.file.name || "image"}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Remove attachment"
+                disabled={sending}
+                onClick={clearStagedFile}
+                className="cursor-pointer rounded-full p-2 text-[#8a82a8] transition-colors hover:bg-white hover:text-[#0f1220] disabled:opacity-40"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+
+          <form
+            onSubmit={(e) => void onSend(e)}
+            className="bg-white px-3 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)]"
+          >
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onPickImage(f);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                aria-label="Attach"
+                disabled={sending}
+                onClick={() => fileRef.current?.click()}
+                className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#0f1220] transition-colors hover:bg-[#f4f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:opacity-40"
+              >
+                <Plus className="h-6 w-6" strokeWidth={2.25} />
+              </button>
+              <label className="sr-only" htmlFor="chat-composer">
+                {stagedFile ? "Caption" : "Message"}
+              </label>
+              <input
+                id="chat-composer"
+                value={text}
+                onChange={(e) => onType(e.target.value)}
+                placeholder={stagedFile ? "Add a caption…" : "Message"}
+                className="min-h-12 flex-1 rounded-full bg-[#f4f0ff] px-4 py-3 text-sm font-medium text-[#0f1220] outline-none placeholder:text-[#8a82a8] focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+              />
+              {text.trim() || stagedFile ? (
+                <button
+                  type="submit"
+                  disabled={sending}
+                  aria-label="Send"
+                  className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#0f1220] text-white transition-colors hover:bg-[#1a1f35] disabled:opacity-40"
+                >
+                  <SendHorizontal className="h-4.5 w-4.5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  title="Voice messages coming soon"
+                  aria-label="Voice message (coming soon)"
+                  className="flex h-11 w-11 shrink-0 cursor-not-allowed items-center justify-center rounded-full text-[#b3a8d6] opacity-60"
+                >
+                  <Mic className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

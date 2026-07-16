@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSession } from "next-auth/react";
+import { BackButton } from "@/components/BackButton";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
 import {
   chatApi,
@@ -186,9 +187,12 @@ export default function ChatListScreen() {
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-white font-rounded text-[#0f1220]">
       <header className="sticky top-0 z-20 bg-white/95 px-5 pt-[calc(env(safe-area-inset-top)+16px)] pb-3 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-[28px] font-extrabold tracking-tight text-[#0f1220]">
-            Messages
-          </h1>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <BackButton tone="light" fallbackHref="/home" />
+            <h1 className="truncate text-[28px] font-extrabold tracking-tight text-[#0f1220]">
+              Messages
+            </h1>
+          </div>
           <button
             type="button"
             aria-label={searchOpen ? "Close search" : "Search chats"}

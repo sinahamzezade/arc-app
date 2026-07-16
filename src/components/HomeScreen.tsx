@@ -26,7 +26,6 @@ import { useCurrentWeek } from "@/hooks/useCurrentWeek";
 import { useIncomingFriendRequestCount } from "@/hooks/useIncomingFriendRequestCount";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { useUnreadChatCount } from "@/hooks/useUnreadChatCount";
-import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { paceMeta } from "@/lib/course-timing/format";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import type {
@@ -59,7 +58,6 @@ export default function HomeScreen({
   const { data: unreadCount } = useUnreadNotificationCount();
   const { data: friendRequestCount } = useIncomingFriendRequestCount();
   const { data: chatUnreadCount } = useUnreadChatCount();
-  const { flags } = useSystemFlags();
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
@@ -117,14 +115,6 @@ export default function HomeScreen({
   );
 
   const greeting = useMemo(() => greetingForHour(new Date().getHours()), []);
-  const askArloHref =
-    flags.arlo_ai_enabled &&
-    liveRoadmap &&
-    data.mission.href.startsWith("/learn/")
-      ? `${data.mission.href}/arlo`
-      : liveRoadmap && data.mission.href.startsWith("/learn/")
-        ? data.mission.href
-        : "/learn";
   const timingPace = timing ? paceMeta(timing.pace) : null;
   const estimateMinutes =
     timing?.nextSession?.minutes ??
@@ -133,27 +123,14 @@ export default function HomeScreen({
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
-      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-14 text-white">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+10px)] pb-8 text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-14 -right-8 h-48 w-48 rounded-full bg-arc-purple-500/50 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute top-16 -left-12 h-36 w-36 rounded-full bg-[#ffc928]/12 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
-          style={{
-            backgroundImage:
-              "radial-gradient(1.5px 1.5px at 14% 22%, #fff, transparent), radial-gradient(1px 1px at 78% 12%, #fff, transparent), radial-gradient(1.5px 1.5px at 58% 48%, #fff, transparent), radial-gradient(1px 1px at 32% 70%, #fff, transparent)",
-          }}
+          className="pointer-events-none absolute -top-20 right-0 h-40 w-40 rounded-full bg-arc-purple-500/25 blur-3xl"
         />
 
         <div className="relative">
           <HomeHeader
-            coins={data.stats.coins}
             xp={data.stats.xp}
             gems={data.stats.gems}
             notificationCount={data.notificationCount}
@@ -164,14 +141,13 @@ export default function HomeScreen({
           <HomePortraitStage
             greeting={greeting}
             userName={data.userName}
-            askArloHref={askArloHref}
             weekStreak={data.weeklyStreak.weeks}
           />
         </div>
       </header>
 
       <motion.main
-        className="relative z-10 -mt-8 space-y-4 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-8"
+        className="relative z-10 -mt-4 space-y-4 rounded-t-[24px] bg-[#f2eefb] px-4 pt-5 pb-8"
         initial={reduceMotion || sheetLoading ? false : "hidden"}
         animate="visible"
         variants={{

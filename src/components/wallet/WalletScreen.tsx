@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { BackButton } from "@/components/BackButton";
 import {
   Coins,
@@ -8,11 +8,10 @@ import {
   Gem,
   Shield,
   Snowflake,
-  Sparkles,
   Star,
   Zap,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import {
   walletApi,
@@ -23,8 +22,7 @@ import {
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
 
-const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
-const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
+const soft = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 type WalletTab = "ledger" | "gems" | "coins";
 
@@ -45,20 +43,20 @@ function formatLedgerDelta(e: LedgerEntry): {
   if (e.currency === "coins") {
     return {
       label: e.reasonType.replace(/_/g, " "),
-      delta: `${sign}${abs} coins`,
+      delta: `${sign}${abs}`,
       tone: "coin",
     };
   }
   if (e.currency === "gems") {
     return {
       label: e.reasonType.replace(/_/g, " "),
-      delta: `${sign}${abs} gems`,
+      delta: `${sign}${abs}`,
       tone: "gem",
     };
   }
   return {
     label: e.reasonType.replace(/_/g, " "),
-    delta: `${sign}${abs} XP`,
+    delta: `${sign}${abs}`,
     tone: "xp",
   };
 }
@@ -71,15 +69,15 @@ function newIdempotencyKey(prefix: string, sku: string) {
 }
 
 /**
- * Private vault — luxury ledger.
- * Live wallet / store / streak from gamification APIs.
+ * Wallet — balances, shops, ledger. Minimal night masthead + light sheet.
  */
 export default function WalletScreen() {
   const xp = useEconomyStore((s) => s.xp);
   const gems = useEconomyStore((s) => s.gems);
   const coins = useEconomyStore((s) => s.coins);
   const hydrateFromWallet = useEconomyStore((s) => s.hydrateFromWallet);
-  const [tab, setTab] = useState<WalletTab>("gems");
+  const reduceMotion = useReducedMotion();
+  const [tab, setTab] = useState<WalletTab>("ledger");
   const [toast, setToast] = useState<string | null>(null);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [catalog, setCatalog] = useState<StoreCatalogItem[]>([]);
@@ -183,141 +181,99 @@ export default function WalletScreen() {
   };
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      {/* Night hero — Rank / Profile family */}
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-16 text-white">
+    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
+      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-10 text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_70%_0%,rgba(255,201,40,0.18),transparent_55%)]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-16 bottom-8 h-40 w-40 rounded-full bg-[#b35cff]/20 blur-3xl"
+          className="pointer-events-none absolute -top-16 right-0 h-36 w-36 rounded-full bg-arc-purple-500/20 blur-3xl"
         />
 
-        <div className="relative flex items-center justify-between">
+        <div className="relative flex items-center gap-3">
           <BackButton className="border-white/15 bg-white/10 text-white hover:bg-white/15" />
-          <p className="text-[11px] font-black tracking-[0.14em] text-white/45 uppercase">
-            Private vault
-          </p>
-          <span className="flex h-10 w-10 items-center justify-center">
-            <Sparkles className="h-5 w-5 text-[#b35cff]" strokeWidth={2.25} />
-          </span>
-        </div>
-
-        <div className="relative mt-6 grid grid-cols-[1fr_auto] items-end gap-3">
           <div className="min-w-0">
-            <p className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-[0.12em] text-[#ffc928] uppercase">
-              <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
-              Coins
+            <p className="text-[11px] font-bold tracking-[0.12em] text-white/45 uppercase">
+              Economy
             </p>
-            <motion.h1
-              className="mt-1 font-display text-[56px] leading-[0.88] font-bold tracking-[-0.05em] tabular-nums"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={softSpring}
-            >
-              {coins.toLocaleString()}
-            </motion.h1>
-            <p className="mt-2 max-w-[15rem] text-[12px] font-bold text-white/45">
-              Earn on the path · spend in shops
-            </p>
-          </div>
-
-          <div className="relative flex w-[132px] flex-col gap-2 pb-1">
-            <motion.div
-              className="relative z-[2] -rotate-1 rounded-2xl bg-[#b35cff] px-3 py-2.5 shadow-[0_5px_0_#7a2fc4]"
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ ...softSpring, delay: 0.08 }}
-            >
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/15">
-                  <Gem className="h-4 w-4 text-white" strokeWidth={2.5} />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-display text-[16px] leading-none font-bold tabular-nums">
-                    {gems.toLocaleString()}
-                  </p>
-                  <p className="mt-0.5 text-[9px] font-black tracking-wide text-white/70 uppercase">
-                    Gems
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-            <motion.div
-              className="relative z-[1] ml-3 rotate-2 rounded-2xl bg-[#2d8cff] px-3 py-2.5 shadow-[0_5px_0_#1a5fad]"
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ ...softSpring, delay: 0.14 }}
-            >
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/15">
-                  <Zap
-                    className="h-4 w-4 text-white"
-                    strokeWidth={2.5}
-                    fill="currentColor"
-                  />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-display text-[16px] leading-none font-bold tabular-nums">
-                    {xp.toLocaleString()}
-                  </p>
-                  <p className="mt-0.5 text-[9px] font-black tracking-wide text-white/70 uppercase">
-                    XP
-                  </p>
-                </div>
-              </div>
-            </motion.div>
+            <h1 className="font-display text-[22px] leading-none font-bold tracking-[-0.03em]">
+              Wallet
+            </h1>
           </div>
         </div>
+
+        <motion.ul
+          className="relative mt-5 grid grid-cols-3 gap-2"
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={soft}
+          aria-label="Balances"
+        >
+          <BalanceCell
+            label="Coins"
+            value={coins}
+            icon={<Coins className="h-3.5 w-3.5" strokeWidth={2.5} />}
+            accent="text-[#ffc928]"
+            well="bg-[#ffc928]/15"
+          />
+          <BalanceCell
+            label="XP"
+            value={xp}
+            icon={
+              <Zap
+                className="h-3.5 w-3.5"
+                strokeWidth={2.5}
+                fill="currentColor"
+              />
+            }
+            accent="text-[#7eb8ff]"
+            well="bg-[#2d8cff]/20"
+          />
+          <BalanceCell
+            label="Gems"
+            value={gems}
+            icon={<Gem className="h-3.5 w-3.5" strokeWidth={2.5} />}
+            accent="text-[#d4a8ff]"
+            well="bg-[#b35cff]/20"
+          />
+        </motion.ul>
 
         {streak ? (
-          <div className="relative mt-6 flex items-center justify-between gap-3 rounded-2xl bg-white/8 px-3.5 py-3 ring-1 ring-white/10">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff8a3d]/20">
-                <Flame className="h-4 w-4 text-[#ff8a3d]" strokeWidth={2.5} />
-              </span>
-              <div>
-                <p className="text-[10px] font-extrabold tracking-[0.12em] text-white/50 uppercase">
-                  Daily streak
-                </p>
-                <p className="font-display text-[18px] font-bold leading-none tabular-nums">
-                  {streak.dailyStreak}{" "}
-                  <span className="text-[13px] font-semibold text-white/50">
-                    day{streak.dailyStreak === 1 ? "" : "s"}
-                  </span>
-                </p>
-              </div>
+          <div className="relative mt-3 flex items-center justify-between gap-3 rounded-xl bg-white/6 px-3 py-2.5 ring-1 ring-white/8">
+            <div className="flex min-w-0 items-center gap-2">
+              <Flame
+                className="h-4 w-4 shrink-0 text-[#ff8a3d]"
+                strokeWidth={2.5}
+              />
+              <p className="truncate text-[13px] font-bold tabular-nums">
+                {streak.dailyStreak} day streak
+                <span className="ml-1.5 font-semibold text-white/40">
+                  · W{streak.weeklyStreak}
+                </span>
+              </p>
             </div>
             {streak.recoveryWindowEndsAt ? (
               <button
                 type="button"
                 onClick={() => void restore(1)}
-                className="rounded-xl bg-[#ffc928] px-3 py-2 text-[11px] font-extrabold text-[#0f1220] shadow-[0_3px_0_#c79a2e] active:translate-y-px active:shadow-none"
+                className="cursor-pointer shrink-0 rounded-lg bg-[#ffc928] px-2.5 py-1.5 text-[11px] font-extrabold text-[#0f1220] transition-opacity duration-200 hover:opacity-90"
               >
-                Restore 1d · 80
+                Restore · 80
               </button>
-            ) : (
-              <p className="rounded-xl bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold tracking-wide text-white/55 uppercase">
-                Week {streak.weeklyStreak}
-              </p>
-            )}
+            ) : null}
           </div>
         ) : null}
-      </section>
+      </header>
 
-      <div className="relative z-[1] -mt-5 px-4">
+      <main className="relative z-10 -mt-4 rounded-t-[24px] bg-[#f2eefb] px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+28px)]">
         <nav
           role="tablist"
           aria-label="Wallet sections"
-          className="flex gap-1 rounded-[20px] border border-[#ebe4f6] bg-white p-1.5 shadow-[0_14px_32px_rgba(15,18,32,0.1)]"
+          className="flex gap-1 rounded-2xl bg-white p-1 ring-1 ring-[#ebe4f6]"
         >
           {(
             [
-              ["gems", "Gem shop"],
-              ["coins", "Coin shop"],
-              ["ledger", "Ledger"],
+              ["ledger", "Activity"],
+              ["gems", "Gems"],
+              ["coins", "Coins"],
             ] as const
           ).map(([id, label]) => {
             const active = tab === id;
@@ -329,8 +285,10 @@ export default function WalletScreen() {
                 aria-selected={active}
                 onClick={() => setTab(id)}
                 className={cn(
-                  "flex-1 rounded-[14px] py-2.5 font-display text-[12px] font-semibold",
-                  active ? "bg-[#12141c] text-[#ffc928]" : "text-[#8a7cb8]",
+                  "flex-1 cursor-pointer rounded-xl py-2.5 font-display text-[12px] font-semibold transition-colors duration-200",
+                  active
+                    ? "bg-[#12141c] text-[#ffc928]"
+                    : "text-[#8a7cb8] hover:text-[#1b1730]",
                 )}
               >
                 {label}
@@ -338,9 +296,7 @@ export default function WalletScreen() {
             );
           })}
         </nav>
-      </div>
 
-      <div className="relative px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+28px)]">
         <AnimatePresence>
           {toast ? (
             <motion.p
@@ -348,7 +304,7 @@ export default function WalletScreen() {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mb-3 rounded-xl bg-[#12141c] px-3 py-2 text-center text-[12px] font-bold text-[#ffc928]"
+              className="mt-3 rounded-xl bg-[#12141c] px-3 py-2 text-center text-[12px] font-bold text-[#ffc928]"
             >
               {toast}
             </motion.p>
@@ -356,111 +312,91 @@ export default function WalletScreen() {
         </AnimatePresence>
 
         {loading ? (
-          <p className="py-8 text-center text-[13px] font-bold text-[#8a7cb8]">
-            Loading vault…
+          <p className="py-10 text-center text-[13px] font-bold text-[#8a7cb8]">
+            Loading…
           </p>
         ) : null}
 
-        <AnimatePresence mode="wait">
-          {tab === "ledger" && !loading ? (
-            <motion.section
-              key="ledger"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={softSpring}
-            >
-              <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
-                <h2 className="font-display text-[20px] font-bold tracking-[-0.02em] text-[#1b1730]">
-                  Recent activity
-                </h2>
-              </div>
-
-              {ledger.length === 0 ? (
-                <p className="rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-6 text-center text-[13px] font-semibold text-[#8a7cb8]">
-                  No ledger entries yet — finish a lesson to earn.
-                </p>
-              ) : (
-                <ul className="overflow-hidden rounded-[22px] border border-[#ebe4f6] bg-white shadow-[0_12px_28px_rgba(70,40,150,0.06)]">
-                  {ledger.slice(0, 20).map((raw, i) => {
-                    const e = formatLedgerDelta(raw);
-                    return (
-                      <li
-                        key={raw.id}
-                        className={cn(
-                          "relative flex items-center justify-between gap-3 px-4 py-3.5",
-                          i < Math.min(ledger.length, 20) - 1 &&
-                            "border-b border-[#f0ecf7]",
-                        )}
-                      >
-                        <span
-                          aria-hidden
+        <div className="mt-4">
+          <AnimatePresence mode="wait">
+            {tab === "ledger" && !loading ? (
+              <motion.section
+                key="ledger"
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={soft}
+              >
+                {ledger.length === 0 ? (
+                  <EmptyState text="No activity yet — finish a lesson to earn." />
+                ) : (
+                  <ul className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#ebe4f6]">
+                    {ledger.slice(0, 20).map((raw, i) => {
+                      const e = formatLedgerDelta(raw);
+                      return (
+                        <li
+                          key={raw.id}
                           className={cn(
-                            "absolute top-0 bottom-0 left-0 w-1",
-                            e.tone === "coin" && "bg-[#ffc928]",
-                            e.tone === "gem" && "bg-[#b35cff]",
-                            e.tone === "xp" && "bg-[#6b4eff]",
-                          )}
-                        />
-                        <span className="pl-2 text-[13px] font-semibold capitalize text-[#1b1730]">
-                          {e.label}
-                        </span>
-                        <span
-                          className={cn(
-                            "shrink-0 font-display text-[12px] font-bold",
-                            e.tone === "coin" && "text-[#9a6a00]",
-                            e.tone === "gem" && "text-[#b35cff]",
-                            e.tone === "xp" && "text-[#6b4eff]",
+                            "flex items-center justify-between gap-3 px-4 py-3.5",
+                            i < Math.min(ledger.length, 20) - 1 &&
+                              "border-b border-[#f0ecf7]",
                           )}
                         >
-                          {e.delta}
+                          <div className="min-w-0">
+                            <p className="truncate text-[13px] font-semibold capitalize text-[#1b1730]">
+                              {e.label}
+                            </p>
+                            <p className="mt-0.5 text-[10px] font-bold tracking-wide text-[#8a7cb8] uppercase">
+                              {e.tone === "coin"
+                                ? "Coins"
+                                : e.tone === "gem"
+                                  ? "Gems"
+                                  : "XP"}
+                            </p>
+                          </div>
+                          <span
+                            className={cn(
+                              "shrink-0 font-display text-[13px] font-bold tabular-nums",
+                              e.tone === "coin" && "text-[#9a6a00]",
+                              e.tone === "gem" && "text-[#b35cff]",
+                              e.tone === "xp" && "text-[#2d8cff]",
+                            )}
+                          >
+                            {e.delta}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <p className="mt-3 px-0.5 text-[11px] leading-relaxed font-semibold text-[#8a7cb8]">
+                  Gems buy utility. Coins buy cosmetics. Neither buys Battle wins.
+                </p>
+              </motion.section>
+            ) : null}
+
+            {tab === "gems" && !loading ? (
+              <motion.ul
+                key="gems"
+                className="space-y-2"
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={soft}
+              >
+                {gemItems.length === 0 ? (
+                  <EmptyState text="Gem shop empty for now." />
+                ) : (
+                  gemItems.map((item) => {
+                    const Icon = iconForSku(item.sku);
+                    return (
+                      <li
+                        key={item.id}
+                        className="flex items-center gap-3 rounded-2xl bg-white px-3.5 py-3 ring-1 ring-[#ebe4f6]"
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f6f2ff] text-[#b35cff]">
+                          <Icon className="h-5 w-5" strokeWidth={2.25} />
                         </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-
-              <p className="mt-4 rounded-[18px] border border-dashed border-[#d5ccec] bg-white/70 px-4 py-3 text-[12px] leading-relaxed font-semibold text-[#8a7cb8]">
-                Gems buy utility. Coins buy cosmetics. Neither buys Battle wins.
-              </p>
-            </motion.section>
-          ) : null}
-
-          {tab === "gems" && !loading ? (
-            <motion.ul
-              key="gems"
-              className="space-y-3"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={softSpring}
-            >
-              <p className="px-0.5 text-[12px] font-bold text-[#8a7cb8]">
-                Utility only · balance {gems.toLocaleString()} gems
-              </p>
-              {gemItems.map((item, i) => {
-                const Icon = iconForSku(item.sku);
-                return (
-                  <motion.li
-                    key={item.id}
-                    initial={{ opacity: 0, x: i % 2 === 0 ? -12 : 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ ...softSpring, delay: i * 0.04 }}
-                    className={cn(
-                      "relative overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white",
-                      i === 1 && "ml-3",
-                    )}
-                  >
-                    <div
-                      aria-hidden
-                      className="absolute top-0 bottom-0 left-[72px] w-px border-l border-dashed border-[#ebe4f6]"
-                    />
-                    <div className="flex items-stretch">
-                      <div className="flex w-[72px] shrink-0 flex-col items-center justify-center bg-[#f6f2ff] text-[#b35cff]">
-                        <Icon className="h-6 w-6" strokeWidth={2.25} />
-                      </div>
-                      <div className="flex min-w-0 flex-1 items-center gap-2 px-3.5 py-3.5">
                         <div className="min-w-0 flex-1">
                           <p className="font-display text-[14px] font-semibold text-[#1b1730]">
                             {item.title}
@@ -469,82 +405,111 @@ export default function WalletScreen() {
                             {item.description}
                           </p>
                         </div>
-                        <motion.button
+                        <button
                           type="button"
                           disabled={busySku === item.sku}
                           onClick={() => void buy(item)}
-                          whileTap={{ scale: 0.96, y: 1 }}
-                          transition={snappySpring}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#b35cff] px-3 py-2.5 text-[12px] font-extrabold text-white shadow-[0_3px_0_#7a2fc4] disabled:opacity-60"
+                          className="inline-flex cursor-pointer shrink-0 items-center gap-1 rounded-xl bg-[#b35cff] px-3 py-2 text-[12px] font-extrabold text-white transition-opacity duration-200 hover:opacity-90 disabled:opacity-60"
                         >
                           <Gem className="h-3.5 w-3.5" strokeWidth={2.5} />
                           {item.price}
-                        </motion.button>
-                      </div>
-                    </div>
-                  </motion.li>
-                );
-              })}
-            </motion.ul>
-          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })
+                )}
+              </motion.ul>
+            ) : null}
 
-          {tab === "coins" && !loading ? (
-            <motion.ul
-              key="coins"
-              className="space-y-3"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={softSpring}
-            >
-              <p className="px-0.5 text-[12px] font-bold text-[#8a7cb8]">
-                Cosmetics · balance {coins.toLocaleString()} coins
-              </p>
-              {coinItems.map((item, i) => (
-                <motion.li
-                  key={item.id}
-                  initial={{ opacity: 0, x: i % 2 === 0 ? 12 : -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ ...softSpring, delay: i * 0.05 }}
-                  className={cn(
-                    "overflow-hidden rounded-[20px] bg-[#12141c] text-white",
-                    i === 1 && "ml-4",
-                  )}
-                >
-                  <div className="flex items-center gap-3 p-3.5">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#ffc928]/15 text-[#ffc928]">
-                      <Coins className="h-6 w-6" strokeWidth={2.25} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-display text-[14px] font-semibold">
-                        {item.title}
-                      </p>
-                      <p className="mt-0.5 text-[11px] font-bold text-white/40">
-                        {item.description}
-                      </p>
-                    </div>
-                    <motion.button
-                      type="button"
-                      disabled={busySku === item.sku}
-                      onClick={() => void buy(item)}
-                      whileTap={{ scale: 0.96, y: 1 }}
-                      transition={snappySpring}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#ffc928] px-3 py-2.5 text-[12px] font-extrabold text-[#12141c] shadow-[0_3px_0_#c79a2e] disabled:opacity-60"
+            {tab === "coins" && !loading ? (
+              <motion.ul
+                key="coins"
+                className="space-y-2"
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={soft}
+              >
+                {coinItems.length === 0 ? (
+                  <EmptyState text="Coin shop empty for now." />
+                ) : (
+                  coinItems.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex items-center gap-3 rounded-2xl bg-white px-3.5 py-3 ring-1 ring-[#ebe4f6]"
                     >
-                      <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
-                      {item.price}
-                    </motion.button>
-                  </div>
-                  <div
-                    aria-hidden
-                    className="h-2 bg-[repeating-linear-gradient(90deg,#ffc928_0_8px,transparent_8px_14px)] opacity-40"
-                  />
-                </motion.li>
-              ))}
-            </motion.ul>
-          ) : null}
-        </AnimatePresence>
-      </div>
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fff8e0] text-[#c79a2e]">
+                        <Coins className="h-5 w-5" strokeWidth={2.25} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display text-[14px] font-semibold text-[#1b1730]">
+                          {item.title}
+                        </p>
+                        <p className="mt-0.5 text-[11px] font-bold text-[#8a7cb8]">
+                          {item.description}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={busySku === item.sku}
+                        onClick={() => void buy(item)}
+                        className="inline-flex cursor-pointer shrink-0 items-center gap-1 rounded-xl bg-[#ffc928] px-3 py-2 text-[12px] font-extrabold text-[#12141c] transition-opacity duration-200 hover:opacity-90 disabled:opacity-60"
+                      >
+                        <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        {item.price}
+                      </button>
+                    </li>
+                  ))
+                )}
+              </motion.ul>
+            ) : null}
+          </AnimatePresence>
+        </div>
+      </main>
     </div>
+  );
+}
+
+function BalanceCell({
+  label,
+  value,
+  icon,
+  accent,
+  well,
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  accent: string;
+  well: string;
+}) {
+  return (
+    <li className="rounded-2xl bg-white/8 px-2.5 py-3 ring-1 ring-white/10">
+      <div className="flex items-center gap-1.5">
+        <span
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-lg",
+            well,
+            accent,
+          )}
+        >
+          {icon}
+        </span>
+        <p className="text-[10px] font-bold tracking-wide text-white/45 uppercase">
+          {label}
+        </p>
+      </div>
+      <p className="mt-2 font-display text-[20px] leading-none font-bold tabular-nums tracking-[-0.03em]">
+        {value.toLocaleString()}
+      </p>
+    </li>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <p className="rounded-2xl border border-dashed border-[#d5ccec] bg-white/70 px-4 py-8 text-center text-[13px] font-semibold text-[#8a7cb8]">
+      {text}
+    </p>
   );
 }
