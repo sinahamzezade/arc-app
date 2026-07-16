@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Check,
   CheckCheck,
@@ -17,13 +17,12 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import { useSession } from "next-auth/react";
 import { BackButton } from "@/components/BackButton";
+import { CallScreen } from "@/components/chat/CallScreen";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
-import {
-  chatApi,
-  type ConversationListItemDto,
-} from "@/lib/api/chat";
-import { socialApi, type SocialFriendDto } from "@/lib/api/social";
+import { chatApi, type ConversationListItemDto } from "@/lib/api/chat";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { useCallSession } from "@/hooks/useCallSession";
+import { useChatInbox } from "@/hooks/useChatInbox";
 import { cn } from "@/lib/utils";
 
 function initialFrom(title: string) {
@@ -51,9 +50,13 @@ function previewText(c: ConversationListItemDto) {
   const body =
     m.type === "image"
       ? "Photo"
-      : m.type === "file"
-        ? "File"
-        : (m.body?.trim() || "No messages yet");
+      : m.type === "audio"
+        ? "Voice message"
+        : m.type === "file"
+          ? "File"
+          : m.type === "system"
+            ? m.body?.trim() || "Call"
+            : m.body?.trim() || "No messages yet";
   if (c.type === "group" && m.senderName && !c.lastMessageFromMe) {
     return `${m.senderName} : ${body}`;
   }
@@ -68,14 +71,21 @@ type ComposeMode = "dm" | "group";
 export default function ChatListScreen() {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
-  const { data: session, status } = useSession();
-  const token = session?.accessToken;
+  const { data: session } = useSession();
 
-  const [items, setItems] = useState<ConversationListItemDto[]>([]);
-  const [onlineFriends, setOnlineFriends] = useState<SocialFriendDto[]>([]);
-  const [allFriends, setAllFriends] = useState<SocialFriendDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    items,
+    onlineFriends,
+    allFriends,
+    showSkeleton,
+    error: inboxError,
+    invalidateInbox,
+    connected,
+    socketRef,
+  } = useChatInbox();
+
+  const [localError, setLocalError] = useState<string | null>(null);
+  const error = localError ?? inboxError;
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [composing, setComposing] = useState(false);
@@ -85,33 +95,11 @@ export default function ChatListScreen() {
   const [groupTitle, setGroupTitle] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [conv, online, friends] = await Promise.all([
-        chatApi.conversations(undefined, token),
-        socialApi.friends(true, token).catch(() => ({ items: [] as SocialFriendDto[] })),
-        socialApi.friends(undefined, token).catch(() => ({ items: [] as SocialFriendDto[] })),
-      ]);
-      setItems(conv.items);
-      setOnlineFriends(online.items ?? []);
-      setAllFriends(friends.items ?? []);
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? messageForCode(err.code, err.message)
-          : "Could not load chats",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    if (status === "authenticated" && token) void load();
-  }, [status, token, load]);
+  const call = useCallSession({
+    socketRef,
+    connected,
+    myUserId: session?.user?.id ?? null,
+  });
 
   const filtered = items.filter((c) => {
     if (!query.trim()) return true;
@@ -136,6 +124,7 @@ export default function ChatListScreen() {
     setSelectedIds([]);
     setGroupTitle("");
     setFriendQuery("");
+    setLocalError(null);
     setComposing(true);
   }
 
@@ -146,13 +135,15 @@ export default function ChatListScreen() {
   }
 
   async function startDm(peerUserId: string) {
-    if (!token || creating) return;
+    if (!session?.accessToken || creating) return;
     setCreating(true);
+    setLocalError(null);
     try {
-      const conv = await chatApi.createDirect(peerUserId, token);
+      const conv = await chatApi.createDirect(peerUserId, session.accessToken);
+      invalidateInbox();
       router.push(`/chat/${conv.id}`);
     } catch (err) {
-      setError(
+      setLocalError(
         err instanceof ApiError
           ? messageForCode(err.code, err.message)
           : "Could not start chat",
@@ -162,19 +153,26 @@ export default function ChatListScreen() {
   }
 
   async function createGroup() {
-    if (!token || creating || selectedIds.length < 1 || !groupTitle.trim()) {
+    if (
+      !session?.accessToken ||
+      creating ||
+      selectedIds.length < 1 ||
+      !groupTitle.trim()
+    ) {
       return;
     }
     setCreating(true);
+    setLocalError(null);
     try {
       const conv = await chatApi.createGroup(
         groupTitle.trim(),
         selectedIds,
-        token,
+        session.accessToken,
       );
+      invalidateInbox();
       router.push(`/chat/${conv.id}`);
     } catch (err) {
-      setError(
+      setLocalError(
         err instanceof ApiError
           ? messageForCode(err.code, err.message)
           : "Could not create group",
@@ -185,7 +183,7 @@ export default function ChatListScreen() {
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-white font-rounded text-[#0f1220]">
-      <header className="sticky top-0 z-20 bg-white/95 px-5 pt-[calc(env(safe-area-inset-top)+16px)] pb-3 backdrop-blur-md">
+      <header className="sticky top-0 z-20 bg-white/95 px-4 pt-[calc(env(safe-area-inset-top)+8px)] pb-3 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <BackButton tone="light" fallbackHref="/home" />
@@ -230,7 +228,7 @@ export default function ChatListScreen() {
 
         {/* Active / online strip */}
         <section aria-label="Active friends" className="mb-5">
-          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               onClick={() => openCompose("group")}
@@ -267,7 +265,7 @@ export default function ChatListScreen() {
                 </span>
               </button>
             ))}
-            {!loading && onlineFriends.length === 0 ? (
+            {!showSkeleton && onlineFriends.length === 0 ? (
               <p className="flex items-center self-center text-xs font-medium text-[#8a82a8]">
                 No friends online
               </p>
@@ -287,7 +285,7 @@ export default function ChatListScreen() {
           </button>
         </div>
 
-        {loading ? (
+        {showSkeleton ? (
           <div className="space-y-4" aria-busy>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3">
@@ -311,16 +309,15 @@ export default function ChatListScreen() {
           </div>
         ) : (
           <ul className="divide-y divide-[#f0ebf8]">
-            {filtered.map((c, index) => {
+            {filtered.map((c) => {
               const unread = c.unreadCount > 0;
               const fromMe = !!c.lastMessageFromMe;
               const seen = !!c.lastMessage?.seen;
               return (
                 <motion.li
                   key={c.id}
-                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(index * 0.03, 0.2) }}
                 >
                   <Link
                     href={`/chat/${c.id}`}
@@ -568,9 +565,7 @@ export default function ChatListScreen() {
                 <button
                   type="button"
                   disabled={
-                    creating ||
-                    selectedIds.length < 1 ||
-                    !groupTitle.trim()
+                    creating || selectedIds.length < 1 || !groupTitle.trim()
                   }
                   onClick={() => void createGroup()}
                   className="w-full cursor-pointer rounded-full bg-[#0f1220] py-3 text-sm font-extrabold text-white transition-colors hover:bg-[#1a1f35] disabled:opacity-40"
@@ -582,6 +577,15 @@ export default function ChatListScreen() {
           </motion.div>
         </div>
       ) : null}
+
+      <CallScreen
+        call={call}
+        peerName={
+          items.find((c) => c.id === call.incoming?.conversationId)?.title ??
+          items.find((c) => c.id === call.conversationId)?.title ??
+          "Contact"
+        }
+      />
     </div>
   );
 }

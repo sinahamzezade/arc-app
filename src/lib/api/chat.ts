@@ -1,6 +1,6 @@
 import { apiFetch, apiFetchBlob, apiFetchFormData } from "./client";
 
-export type ChatMessageType = "text" | "image" | "file" | "system";
+export type ChatMessageType = "text" | "image" | "file" | "audio" | "system";
 export type ConversationType = "direct" | "group";
 
 export type ChatReplyPreview = {
@@ -24,6 +24,7 @@ export type ChatMessageDto = {
   attachmentMime: string | null;
   replyToId: string | null;
   replyTo?: ChatReplyPreview | null;
+  durationMs?: number | null;
   editedAt: string | null;
   deletedAt: string | null;
   createdAt: string;
@@ -136,6 +137,7 @@ export const chatApi = {
       body?: string;
       attachmentId?: string;
       replyToId?: string;
+      durationMs?: number;
     },
     accessToken?: string | null,
   ) {

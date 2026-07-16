@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Bell, Gem, MessageSquare, UserPlus, Wallet, Zap } from "lucide-react";
+import { Bell, Gem, Send, UserPlus, Wallet, Zap } from "lucide-react";
 import { Skeleton } from "@/components/ui";
 import { formatBalance } from "@/lib/economy/format-balance";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,10 @@ export function HomeHeader({
 }: HomeHeaderProps) {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex min-w-0 flex-1 items-center" aria-busy={loading || undefined}>
+      <div
+        className="flex min-w-0 flex-1 items-center"
+        aria-busy={loading || undefined}
+      >
         {loading ? (
           <Skeleton
             animationType="shimmer"
@@ -74,14 +77,12 @@ export function HomeHeader({
         <IconBtn
           href="/chat"
           label={
-            chatUnreadCount > 0
-              ? `Chat, ${chatUnreadCount} unread`
-              : "Chat"
+            chatUnreadCount > 0 ? `Chat, ${chatUnreadCount} unread` : "Chat"
           }
           count={chatUnreadCount}
           capAtNine
         >
-          <MessageSquare className="h-4 w-4" strokeWidth={2.25} />
+          <Send className="h-4 w-4" strokeWidth={2.25} />
         </IconBtn>
         <IconBtn
           href="/friends?tab=requests"

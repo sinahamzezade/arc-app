@@ -14,6 +14,7 @@ import type { LeaderboardData } from "@/lib/leaderboard/types";
 async function loadLeaderboard(
   accessToken: string,
   userId: string,
+  meAvatarUrl?: string | null,
 ): Promise<LeaderboardData | undefined> {
   try {
     const [current, entries] = await Promise.all([
@@ -37,7 +38,7 @@ async function loadLeaderboard(
       })(),
     ]);
 
-    return mapLeagueToLeaderboardData(current, entries, userId);
+    return mapLeagueToLeaderboardData(current, entries, userId, meAvatarUrl);
   } catch {
     return undefined;
   }
@@ -47,7 +48,11 @@ export default async function LeaderboardPage() {
   const session = await auth();
   const data =
     session?.accessToken && session.user?.id
-      ? await loadLeaderboard(session.accessToken, session.user.id)
+      ? await loadLeaderboard(
+          session.accessToken,
+          session.user.id,
+          session.profile?.avatarUrl,
+        )
       : undefined;
 
   return (

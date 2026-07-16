@@ -27,7 +27,7 @@ import { useBattleStats } from "@/hooks/useBattles";
 import { useArcDay } from "@/hooks/useArcDay";
 import { useRankMe } from "@/hooks/useRanks";
 import { emptyProfileData, type ProfileData } from "@/lib/profile/types";
-import { isRankUploadSrc, rankImageFor } from "@/lib/rank/icons";
+import { isRankUploadSrc, rankAvatarSrc, rankImageFor } from "@/lib/rank/icons";
 import { cn } from "@/lib/utils";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
@@ -181,6 +181,7 @@ export default function ProfileScreen({
               percent={xpPercent}
               level={level}
               iconAssetKey={rankMe?.current.iconAssetKey}
+              avatarUrl={session?.profile?.avatarUrl}
             />
             <span className="absolute -right-0.5 -bottom-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-arc-purple-500 shadow-[0_3px_0_#c3badb]">
               <Pencil className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -536,17 +537,20 @@ function XpRing({
   percent,
   level,
   iconAssetKey,
+  avatarUrl,
 }: {
   percent: number;
   level: number;
   iconAssetKey?: string | null;
+  avatarUrl?: string | null;
 }) {
   const size = 108;
   const stroke = 6;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - (percent / 100) * c;
-  const rankSrc = rankImageFor(iconAssetKey);
+  const photoSrc = rankAvatarSrc(avatarUrl);
+  const src = photoSrc ?? rankImageFor(iconAssetKey);
 
   return (
     <div className="relative h-[108px] w-[108px]">
@@ -575,11 +579,11 @@ function XpRing({
       </svg>
       <div className="absolute inset-[10px] overflow-hidden rounded-full bg-arc-purple-500 ring-2 ring-white/15">
         <Image
-          src={rankSrc}
+          src={src}
           alt=""
           width={96}
           height={96}
-          unoptimized={isRankUploadSrc(rankSrc)}
+          unoptimized={isRankUploadSrc(src)}
           className="h-full w-full object-cover object-top"
           priority
         />

@@ -30,6 +30,8 @@ import type { RoadmapLessonDto } from "@/lib/api/types";
 import { pickableStudyLessons } from "@/lib/study/pick-lessons";
 import { useRankMe } from "@/hooks/useRanks";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
+import { rankAvatarSrc } from "@/lib/rank/icons";
 
 const softSpring = { type: "spring" as const, stiffness: 420, damping: 32 };
 
@@ -75,6 +77,11 @@ export default function StudyInviteScreen() {
   const searchParams = useSearchParams();
   const preselect = searchParams.get("friend");
   const { data: rankMe } = useRankMe();
+  const { data: session } = useSession();
+  const youAvatarUrl =
+    rankAvatarSrc(session?.profile?.avatarUrl) ??
+    rankMe?.current.iconAssetKey ??
+    null;
 
   const [step, setStep] = useState<InviteStep>(0);
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
@@ -247,7 +254,7 @@ export default function StudyInviteScreen() {
             name="You"
             sub="Host"
             color="#6B4EFF"
-            avatarUrl={rankMe?.current.iconAssetKey}
+            avatarUrl={youAvatarUrl}
             align="left"
           />
 

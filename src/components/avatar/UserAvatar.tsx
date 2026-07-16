@@ -17,7 +17,7 @@ type UserAvatarProps = {
 };
 
 /**
- * Rank-image avatar when admin uploaded; else letter chip.
+ * Rank-image or profile-photo avatar when URL is upload/remote; else letter chip.
  */
 export function UserAvatar({
   initial,

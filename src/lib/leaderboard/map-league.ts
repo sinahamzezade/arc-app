@@ -148,6 +148,7 @@ export function mapLeagueToLeaderboardData(
   current: LeagueCurrentResponse,
   entries: LeagueLeaderboardEntryDto[],
   meUserId?: string | null,
+  meAvatarUrl?: string | null,
 ): LeaderboardData {
   const tier = current.cohort.tier;
   const demoteBottom =
@@ -165,7 +166,7 @@ export function mapLeagueToLeaderboardData(
           qualifiedXp: current.me.qualifiedXp,
           displayName: "You",
           username: null,
-          avatarUrl: null,
+          avatarUrl: meAvatarUrl ?? null,
           anonymized: false,
         },
         meUserId,

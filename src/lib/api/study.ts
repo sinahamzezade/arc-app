@@ -22,6 +22,7 @@ export type StudyParticipantDto = {
   role: "creator" | "invitee";
   name: string;
   initial: string;
+  avatarUrl: string | null;
   invitationStatus: string;
   taskId: string | null;
   taskLabel: string | null;

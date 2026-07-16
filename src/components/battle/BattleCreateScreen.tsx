@@ -34,6 +34,8 @@ import {
   stakeOptionsForRank,
 } from "@/lib/battle/stake-limits";
 import { useRankMe } from "@/hooks/useRanks";
+import { rankAvatarSrc } from "@/lib/rank/icons";
+import { useSession } from "next-auth/react";
 import { useBattleStore } from "@/store/useBattleStore";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
@@ -87,6 +89,11 @@ export default function BattleCreateScreen() {
   const resetPlay = useBattleStore((s) => s.resetPlay);
   const coins = useEconomyStore((s) => s.coins);
   const { data: rankMe } = useRankMe();
+  const { data: session } = useSession();
+  const youAvatarUrl =
+    rankAvatarSrc(session?.profile?.avatarUrl) ??
+    rankMe?.current.iconAssetKey ??
+    null;
 
   const [step, setStep] = useState<CreateStep>(0);
   const [busy, setBusy] = useState(false);
@@ -319,7 +326,7 @@ export default function BattleCreateScreen() {
             name="You"
             sub="Challenger"
             color="#6B4EFF"
-            avatarUrl={rankMe?.current.iconAssetKey}
+            avatarUrl={youAvatarUrl}
             align="left"
           />
           <div className="relative z-[1] flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#ffc928] text-[#0f1220] shadow-[0_5px_0_#c79a2e]">

@@ -373,6 +373,8 @@ export type NotificationTypeDto =
   | "referral"
   | "product_update"
   | "coach_message"
+  | "chat_message"
+  | "incoming_call"
   | "system"
   | "security";
 

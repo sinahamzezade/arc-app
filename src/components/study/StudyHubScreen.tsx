@@ -353,7 +353,7 @@ function RoomCard({
               <UserAvatar
                 initial={room.partner.initial}
                 color={partnerColor(room.partner.initial)}
-                avatarUrl={null}
+                avatarUrl={room.partner.avatarUrl}
                 className="h-12 w-12 shrink-0 rounded-[16px] font-display text-[16px]"
                 textClassName="text-[16px]"
                 alt=""
@@ -436,7 +436,7 @@ function InviteCard({
         <UserAvatar
           initial={room.partner.initial}
           color={partnerColor(room.partner.initial)}
-          avatarUrl={null}
+          avatarUrl={room.partner.avatarUrl}
           className="h-12 w-12 shrink-0 rounded-[16px] font-display text-[16px]"
           textClassName="text-[16px]"
           alt=""

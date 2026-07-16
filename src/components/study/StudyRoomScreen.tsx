@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { StudyChatPanel } from "@/components/study/StudyChatPanel";
 import { StudyReadingPanel } from "@/components/study/StudyReadingPanel";
 import {
@@ -510,6 +511,7 @@ export default function StudyRoomScreen() {
           <PresenceChip
             label="You"
             initial={session.you.initial}
+            avatarUrl={session.you.avatarUrl}
             online
             ready={session.you.ready || showReading}
             accent="#6B4EFF"
@@ -520,6 +522,7 @@ export default function StudyRoomScreen() {
           <PresenceChip
             label={partnerFirst}
             initial={session.partner.initial}
+            avatarUrl={session.partner.avatarUrl}
             online={partnerOnline && !partnerDisconnected}
             ready={session.partner.ready || partnerAcked}
             accent="#8a7cb8"
@@ -709,12 +712,14 @@ function Shell({ children }: { children: React.ReactNode }) {
 function PresenceChip({
   label,
   initial,
+  avatarUrl,
   online,
   ready,
   accent,
 }: {
   label: string;
   initial: string;
+  avatarUrl?: string | null;
   online: boolean;
   ready: boolean;
   accent: string;
@@ -722,12 +727,14 @@ function PresenceChip({
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2 rounded-[14px] bg-white/8 px-2 py-1.5">
       <span className="relative shrink-0">
-        <span
-          className="flex h-8 w-8 items-center justify-center rounded-[12px] font-display text-[12px] font-bold text-white"
-          style={{ backgroundColor: accent }}
-        >
-          {initial}
-        </span>
+        <UserAvatar
+          initial={initial}
+          color={accent}
+          avatarUrl={avatarUrl}
+          className="h-8 w-8 rounded-[12px] font-display text-[12px]"
+          textClassName="text-[12px]"
+          alt=""
+        />
         <span
           aria-hidden
           className={cn(

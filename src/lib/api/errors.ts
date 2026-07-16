@@ -263,6 +263,22 @@ export function messageForCode(code: string, fallback: string): string {
       return "Only group admins can do that";
     case "CHAT_MESSAGE_NOT_FOUND":
       return "Message not found";
+    case "CALL_NOT_A_MEMBER":
+      return "You're not in this call";
+    case "CALL_BLOCKED":
+      return "Can't call this user";
+    case "CALL_NOT_ALLOWED":
+      return "Calling not allowed";
+    case "CALL_BUSY":
+      return "User is busy";
+    case "CALL_GROUP_UNSUPPORTED":
+      return "Group calls aren't available yet";
+    case "CALL_RATE_LIMITED":
+      return "Too many call attempts — try again soon";
+    case "CALL_ICE_FAILED":
+      return "Couldn't connect the call";
+    case "CALL_NOT_FOUND":
+      return "Call not found";
     default:
       return fallback || "Something went wrong";
   }

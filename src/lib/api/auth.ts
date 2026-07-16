@@ -1,4 +1,4 @@
-import { apiFetch, refreshAccessToken } from "./client";
+import { apiFetch, apiFetchFormData, refreshAccessToken } from "./client";
 import { ApiError } from "./errors";
 import type { AuthSessionResponse, MeResponse } from "./types";
 
@@ -108,6 +108,21 @@ export const meApi = {
     return apiFetch<{ profile: MeResponse["profile"] }>("/me/profile", {
       method: "PATCH",
       body,
+    });
+  },
+
+  uploadAvatar(file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return apiFetchFormData<{ profile: MeResponse["profile"] }>(
+      "/me/avatar",
+      form,
+    );
+  },
+
+  clearAvatar() {
+    return apiFetch<{ profile: MeResponse["profile"] }>("/me/avatar", {
+      method: "DELETE",
     });
   },
 };

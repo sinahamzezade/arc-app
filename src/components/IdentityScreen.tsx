@@ -2,19 +2,22 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { BackButton } from "@/components/BackButton";
+import { AvatarCropModal } from "@/components/avatar/AvatarCropModal";
 import {
+  Camera,
   Check,
   Pencil,
   Sparkles,
+  Trash2,
   WandSparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { meApi } from "@/lib/api/auth";
 import { ApiError, messageForCode } from "@/lib/api/errors";
-import { isRankUploadSrc, rankImageFor } from "@/lib/rank/icons";
+import { isRankUploadSrc, rankAvatarSrc, rankImageFor } from "@/lib/rank/icons";
 import { useArcDay } from "@/hooks/useArcDay";
 import { useRankMe } from "@/hooks/useRanks";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
@@ -25,7 +28,7 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Identity stage — tap profile avatar lands here.
- * Night hero with giant username + Arlo stage + name edit + Studio CTA.
+ * Night hero with giant username + avatar picker + name edit + Studio CTA.
  */
 export default function IdentityScreen({
   data: dataProp,
@@ -38,8 +41,11 @@ export default function IdentityScreen({
   const { data: rankMe } = useRankMe();
   const profile = session?.profile;
   const level = rankMe?.current.level ?? data.level;
-  const rankSrc = rankImageFor(rankMe?.current.iconAssetKey);
   const day = useArcDay(data.day);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const photoSrc = rankAvatarSrc(profile?.avatarUrl);
+  const avatarSrc = photoSrc ?? rankImageFor(rankMe?.current.iconAssetKey);
 
   const initialName =
     profile?.username || profile?.displayName || data.userName || "";
@@ -50,6 +56,9 @@ export default function IdentityScreen({
   const [savedFlash, setSavedFlash] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   useEffect(() => {
     const next =
@@ -57,6 +66,12 @@ export default function IdentityScreen({
     setUserName(next);
     setDraft(next);
   }, [profile?.username, profile?.displayName, data.userName]);
+
+  useEffect(() => {
+    return () => {
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+    };
+  }, [cropSrc]);
 
   const fromRole = data.fromRole;
   const becoming = data.becoming;
@@ -87,8 +102,68 @@ export default function IdentityScreen({
     }
   };
 
+  const openCrop = (file: File | null) => {
+    if (!file) return;
+    setAvatarError(null);
+    setCropSrc((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const closeCrop = () => {
+    setCropSrc((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  };
+
+  const uploadCropped = async (file: File) => {
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      const res = await meApi.uploadAvatar(file);
+      await update({ profile: res.profile });
+      closeCrop();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setAvatarError(messageForCode(err.code, err.message));
+      } else {
+        setAvatarError("Could not upload photo");
+      }
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const onClearAvatar = async () => {
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      const res = await meApi.clearAvatar();
+      await update({ profile: res.profile });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setAvatarError(messageForCode(err.code, err.message));
+      } else {
+        setAvatarError("Could not remove photo");
+      }
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
+      <AvatarCropModal
+        open={Boolean(cropSrc)}
+        imageSrc={cropSrc ?? ""}
+        busy={avatarBusy}
+        onCancel={closeCrop}
+        onConfirm={(file) => void uploadCropped(file)}
+      />
+
       <section className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+10px)] pb-24 text-white">
         <div
           aria-hidden
@@ -161,25 +236,50 @@ export default function IdentityScreen({
               ease: "easeInOut",
             }}
           >
-            <div className="relative h-[132px] w-[132px] overflow-hidden rounded-full bg-arc-purple-500 shadow-[0_12px_32px_rgba(107,78,255,0.45)] ring-4 ring-[#ffc928]/35">
+            <button
+              type="button"
+              disabled={avatarBusy}
+              onClick={() => fileRef.current?.click()}
+              aria-label="Change profile photo"
+              className="relative h-[132px] w-[132px] overflow-hidden rounded-full bg-arc-purple-500 shadow-[0_12px_32px_rgba(107,78,255,0.45)] ring-4 ring-[#ffc928]/35 disabled:opacity-60"
+            >
               <Image
-                src={rankSrc}
+                src={avatarSrc}
                 alt={`${userName}'s avatar`}
                 fill
                 priority
-                unoptimized={isRankUploadSrc(rankSrc)}
+                unoptimized={isRankUploadSrc(avatarSrc)}
                 className="object-cover object-top"
                 sizes="132px"
               />
-            </div>
+              <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/45 py-2 text-[11px] font-black tracking-wide text-white">
+                <Camera className="h-3.5 w-3.5" strokeWidth={2.5} />
+                {avatarBusy ? "…" : "Photo"}
+              </span>
+            </button>
             <span className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#ffc928] px-2.5 py-0.5 font-display text-[11px] font-bold text-[#0f1220] shadow-[0_3px_0_#c79a2e]">
               {level}
             </span>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={(e) => {
+                openCrop(e.target.files?.[0] ?? null);
+              }}
+            />
           </motion.div>
         </div>
       </section>
 
       <div className="relative z-10 -mt-10 flex flex-1 flex-col rounded-t-[28px] bg-[#f3effc] px-4 pt-6 pb-[calc(env(safe-area-inset-bottom)+24px)]">
+        {avatarError ? (
+          <p className="mb-3 text-[12px] font-bold text-arc-error">
+            {avatarError}
+          </p>
+        ) : null}
+
         {/* Username editor */}
         <div className="rounded-[20px] border-2 border-[#ebe4f6] bg-white p-4 shadow-[0_4px_0_#ebe4f6]">
           <div className="flex items-center justify-between gap-2">
@@ -250,6 +350,18 @@ export default function IdentityScreen({
           </p>
         </div>
 
+        {photoSrc ? (
+          <button
+            type="button"
+            disabled={avatarBusy}
+            onClick={() => void onClearAvatar()}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-[16px] border-2 border-[#ebe4f6] bg-white py-3 text-[13px] font-black text-[#8a7cb8] shadow-[0_3px_0_#ebe4f6] disabled:opacity-60"
+          >
+            <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+            Remove photo
+          </button>
+        ) : null}
+
         {/* Studio CTA */}
         {flags.avatar_studio_enabled ? (
           <motion.div
@@ -292,10 +404,10 @@ export default function IdentityScreen({
           <div className="mt-3 flex items-center gap-3">
             <div className="relative h-12 w-12 overflow-hidden rounded-full bg-arc-purple-500 ring-2 ring-[#ffc928]/50">
               <Image
-                src={rankSrc}
+                src={avatarSrc}
                 alt=""
                 fill
-                unoptimized={isRankUploadSrc(rankSrc)}
+                unoptimized={isRankUploadSrc(avatarSrc)}
                 className="object-cover object-top"
                 sizes="48px"
               />

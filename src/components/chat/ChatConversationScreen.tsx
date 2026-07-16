@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -18,20 +19,27 @@ import {
   Plus,
   Reply,
   SendHorizontal,
+  Square,
   Trash2,
   Video,
   X,
 } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { useSession } from "next-auth/react";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
-import {
-  chatApi,
-  type ChatMessageDto,
-  type ConversationListItemDto,
-} from "@/lib/api/chat";
+import { ChatImageLightbox } from "@/components/study/ChatImageLightbox";
+import { CallScreen } from "@/components/chat/CallScreen";
+import { ChatVoiceBubble } from "@/components/chat/ChatVoiceBubble";
+import { chatApi, type ChatMessageDto } from "@/lib/api/chat";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { useCallSession } from "@/hooks/useCallSession";
 import { useChatSocket } from "@/hooks/useChatSocket";
+import { useChatThread } from "@/hooks/useChatThread";
+import {
+  formatVoiceDuration,
+  useVoiceRecorder,
+  type VoiceRecording,
+} from "@/hooks/useVoiceRecorder";
 import { cn } from "@/lib/utils";
 
 function newClientMsgId() {
@@ -75,19 +83,13 @@ export default function ChatConversationScreen() {
   const params = useParams<{ id: string }>();
   const conversationId = params.id;
   const router = useRouter();
-  const reduceMotion = useReducedMotion();
   const { data: session } = useSession();
   const token = session?.accessToken;
   const myId = session?.user?.id;
 
-  const [conv, setConv] = useState<ConversationListItemDto | null>(null);
-  const [messages, setMessages] = useState<ChatMessageDto[]>([]);
-  const [nextBefore, setNextBefore] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [typingUser, setTypingUser] = useState<string | null>(null);
-  const [presenceLabel, setPresenceLabel] = useState("…");
   const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<ChatMessageDto | null>(null);
@@ -102,14 +104,32 @@ export default function ChatConversationScreen() {
   const [localPreviews, setLocalPreviews] = useState<Record<string, string>>(
     {},
   );
-  const [peerLastReadMessageId, setPeerLastReadMessageId] = useState<
-    string | null
-  >(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const listContentRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const typingTimeout = useRef<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const markedReadRef = useRef<string | null>(null);
   const stagedFileRef = useRef<{ file: File; previewUrl: string } | null>(null);
+
+  const {
+    conv,
+    messages,
+    nextBefore,
+    presenceLabel,
+    peerLastReadMessageId,
+    showSkeleton,
+    isPlaceholderData,
+    error: threadError,
+    setMessages,
+    setPresenceLabel,
+    setPeerLastReadMessageId,
+    loadOlder: loadOlderMessages,
+  } = useChatThread(conversationId);
+
+  const displayError = error ?? threadError;
 
   const clearStagedFile = useCallback(() => {
     setStagedFile((prev) => {
@@ -126,6 +146,23 @@ export default function ChatConversationScreen() {
     return () => {
       const staged = stagedFileRef.current;
       if (staged) URL.revokeObjectURL(staged.previewUrl);
+    };
+  }, []);
+
+  /** iOS Safari: stop document rubber-band so header/composer stay pinned. */
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyOverscroll = body.style.overscrollBehavior;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      body.style.overscrollBehavior = prevBodyOverscroll;
     };
   }, []);
 
@@ -184,117 +221,150 @@ export default function ChatConversationScreen() {
     });
   }, []);
 
-  const { connected, emitSend, emitRead, emitTypingStart, emitTypingStop } =
-    useChatSocket({
-      conversationId,
-      enabled: Boolean(token && conversationId),
-      onMessage: (msg) => {
-        mergeMessage(msg);
-        if (
-          msg.senderId !== myId &&
-          conversationId &&
-          msg.id !== markedReadRef.current
-        ) {
-          markedReadRef.current = msg.id;
-          emitRead(conversationId, msg.id);
-          if (token) {
-            void chatApi
-              .markRead(conversationId, msg.id, token)
-              .catch(() => undefined);
-          }
+  const {
+    connected,
+    socketRef,
+    emitSend,
+    emitRead,
+    emitTypingStart,
+    emitTypingStop,
+  } = useChatSocket({
+    conversationId,
+    enabled: Boolean(token && conversationId),
+    onMessage: (msg) => {
+      mergeMessage(msg);
+      if (
+        msg.senderId !== myId &&
+        conversationId &&
+        msg.id !== markedReadRef.current
+      ) {
+        markedReadRef.current = msg.id;
+        emitRead(conversationId, msg.id);
+        if (token) {
+          void chatApi
+            .markRead(conversationId, msg.id, token)
+            .catch(() => undefined);
         }
-      },
-      onRead: (payload) => {
-        if (payload.userId === myId) return;
-        applyPeerRead(payload.lastReadMessageId);
-      },
-      onDelivered: (payload) => {
-        if (payload.userId !== myId) return;
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === payload.messageId || m.clientMsgId === payload.messageId
-              ? { ...m, delivered: true }
-              : m,
-          ),
+      }
+    },
+    onRead: (payload) => {
+      if (payload.userId === myId) return;
+      applyPeerRead(payload.lastReadMessageId);
+    },
+    onDelivered: (payload) => {
+      if (payload.userId !== myId) return;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === payload.messageId || m.clientMsgId === payload.messageId
+            ? { ...m, delivered: true }
+            : m,
+        ),
+      );
+    },
+    onTyping: (payload) => {
+      if (payload.userId === myId) return;
+      if (payload.isTyping) {
+        setTypingUser(payload.userId);
+        if (typingTimeout.current) window.clearTimeout(typingTimeout.current);
+        typingTimeout.current = window.setTimeout(
+          () => setTypingUser(null),
+          5000,
         );
-      },
-      onTyping: (payload) => {
-        if (payload.userId === myId) return;
-        if (payload.isTyping) {
-          setTypingUser(payload.userId);
-          if (typingTimeout.current) window.clearTimeout(typingTimeout.current);
-          typingTimeout.current = window.setTimeout(
-            () => setTypingUser(null),
-            5000,
-          );
-        } else {
-          setTypingUser(null);
-        }
-      },
-      onPresence: (payload) => {
-        if (!conv?.peerUserId || payload.userId !== conv.peerUserId) return;
-        setPresenceLabel(payload.status === "online" ? "Online" : "Offline");
-      },
-    });
+      } else {
+        setTypingUser(null);
+      }
+    },
+    onPresence: (payload) => {
+      if (!conv?.peerUserId || payload.userId !== conv.peerUserId) return;
+      setPresenceLabel(payload.status === "online" ? "Online" : "Offline");
+    },
+  });
 
-  const load = useCallback(async () => {
-    if (!token || !conversationId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [c, hist, presence] = await Promise.all([
-        chatApi.conversation(conversationId, token),
-        chatApi.messages(conversationId, { limit: 50 }, token),
-        chatApi.presence(conversationId, token).catch(() => null),
-      ]);
-      setConv(c);
-      setMessages(
-        hist.items.map((m) => ({
-          ...m,
-          seen: !!m.seen,
-          delivered: true,
-        })),
-      );
-      setNextBefore(hist.nextBefore);
-      if (c.peerLastReadMessageId) {
-        setPeerLastReadMessageId(c.peerLastReadMessageId);
-      }
-      if (presence) {
-        setPresenceLabel(presence.label);
-      } else if (c.peerOnline != null) {
-        setPresenceLabel(c.peerOnline ? "Online" : "Offline");
-      }
-      const last = hist.items[hist.items.length - 1];
-      if (last) {
-        markedReadRef.current = last.id;
-        if (connected) emitRead(conversationId, last.id);
-        else await chatApi.markRead(conversationId, last.id, token);
-      }
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? messageForCode(err.code, err.message)
-          : "Could not load conversation",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [token, conversationId, connected, emitRead]);
+  const call = useCallSession({
+    socketRef,
+    connected,
+    myUserId: myId ?? null,
+  });
+
+  const sendVoiceRef = useRef<(rec: VoiceRecording) => void>(() => undefined);
+
+  const voice = useVoiceRecorder({
+    onComplete: (rec) => {
+      sendVoiceRef.current(rec);
+    },
+    onError: (message) => setError(message),
+  });
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    stickToBottomRef.current = true;
+    markedReadRef.current = null;
+  }, [conversationId]);
+
+  /** Mark latest read once real history is available. */
+  useEffect(() => {
+    if (!token || !conversationId || showSkeleton || isPlaceholderData) return;
+    const last = messages[messages.length - 1];
+    if (!last || markedReadRef.current === last.id) return;
+    markedReadRef.current = last.id;
+    if (connected) emitRead(conversationId, last.id);
+    else void chatApi.markRead(conversationId, last.id, token).catch(() => undefined);
+  }, [
+    token,
+    conversationId,
+    showSkeleton,
+    isPlaceholderData,
+    messages,
+    connected,
+    emitRead,
+  ]);
 
   useEffect(() => {
     if (!peerLastReadMessageId || !myId) return;
     applyPeerRead(peerLastReadMessageId);
   }, [peerLastReadMessageId, messages.length, myId, applyPeerRead]);
 
+  const scrollToLatest = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, []);
+
+  /** Sync jump before paint when thread loads / grows. */
+  useLayoutEffect(() => {
+    if (showSkeleton) return;
+    if (!stickToBottomRef.current) return;
+    scrollToLatest();
+  }, [showSkeleton, messages, typingUser, scrollToLatest]);
+
+  /** Re-pin while images/voice inflate height after open. */
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
+    if (showSkeleton) return;
+    const list = listRef.current;
+    const content = listContentRef.current;
+    if (!list || !content) return;
+
+    const onScroll = () => {
+      const gap = list.scrollHeight - list.scrollTop - list.clientHeight;
+      stickToBottomRef.current = gap < 100;
+    };
+    list.addEventListener("scroll", onScroll, { passive: true });
+
+    const ro = new ResizeObserver(() => {
+      if (stickToBottomRef.current) scrollToLatest();
     });
-  }, [messages.length, typingUser, reduceMotion]);
+    ro.observe(content);
+
+    scrollToLatest();
+    const settle = window.setTimeout(scrollToLatest, 50);
+    const settle2 = window.setTimeout(scrollToLatest, 250);
+
+    return () => {
+      list.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+      window.clearTimeout(settle);
+      window.clearTimeout(settle2);
+    };
+  }, [showSkeleton, conversationId, scrollToLatest]);
 
   useEffect(() => {
     if (!token) return;
@@ -330,23 +400,19 @@ export default function ChatConversationScreen() {
     };
     const id = window.setInterval(tick, 30_000);
     return () => window.clearInterval(id);
-  }, [token, conversationId]);
+  }, [token, conversationId, setPresenceLabel]);
 
   async function loadOlder() {
-    if (!token || !conversationId || !nextBefore) return;
-    const hist = await chatApi.messages(
-      conversationId,
-      { before: nextBefore, limit: 40 },
-      token,
-    );
-    setMessages((prev) => {
-      const ids = new Set(prev.map((m) => m.id));
-      const older = hist.items
-        .filter((m) => !ids.has(m.id))
-        .map((m) => ({ ...m, seen: !!m.seen, delivered: true }));
-      return [...older, ...prev];
-    });
-    setNextBefore(hist.nextBefore);
+    if (!nextBefore) return;
+    try {
+      await loadOlderMessages();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? messageForCode(err.code, err.message)
+          : "Could not load earlier messages",
+      );
+    }
   }
 
   async function onSend(e?: FormEvent) {
@@ -471,6 +537,99 @@ export default function ChatConversationScreen() {
     });
   }
 
+  async function sendVoice(rec: VoiceRecording) {
+    if (!token || !conversationId || sending) return;
+    setSending(true);
+    emitTypingStop(conversationId);
+    const replySnapshot = replyTo;
+    setReplyTo(null);
+
+    const clientMsgId = newClientMsgId();
+    const localUrl = URL.createObjectURL(rec.blob);
+    setLocalPreviews((prev) => ({ ...prev, [clientMsgId]: localUrl }));
+
+    const optimistic: ChatMessageDto = {
+      id: clientMsgId,
+      conversationId,
+      senderId: myId ?? "me",
+      senderName: "You",
+      senderAvatarUrl: null,
+      clientMsgId,
+      type: "audio",
+      body: null,
+      attachmentId: null,
+      attachmentUrl: null,
+      attachmentMime: rec.mime,
+      replyToId: replySnapshot?.id ?? null,
+      replyTo: replySnapshot
+        ? {
+            id: replySnapshot.id,
+            senderId: replySnapshot.senderId,
+            senderName: replySnapshot.senderName,
+            body: replySnapshot.body,
+          }
+        : null,
+      durationMs: rec.durationMs,
+      editedAt: null,
+      deletedAt: null,
+      createdAt: new Date().toISOString(),
+      pending: true,
+      seen: false,
+      delivered: false,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+
+    try {
+      const att = await chatApi.uploadAttachment(
+        conversationId,
+        rec.blob,
+        rec.filename,
+        token,
+      );
+      const payload = {
+        clientMsgId,
+        type: "audio" as const,
+        attachmentId: att.id,
+        durationMs: rec.durationMs,
+        replyToId: replySnapshot?.id,
+      };
+      let msg: ChatMessageDto | null = null;
+      if (connected) {
+        msg = await emitSend({ conversationId, ...payload });
+      }
+      if (!msg) {
+        msg = await chatApi.sendMessage(conversationId, payload, token);
+      }
+      mergeMessage({ ...msg, seen: !!msg.seen, delivered: true });
+      URL.revokeObjectURL(localUrl);
+      setLocalPreviews((prev) => {
+        const next = { ...prev };
+        delete next[clientMsgId];
+        return next;
+      });
+    } catch (err) {
+      setMessages((prev) => prev.filter((m) => m.clientMsgId !== clientMsgId));
+      URL.revokeObjectURL(localUrl);
+      setLocalPreviews((prev) => {
+        const next = { ...prev };
+        delete next[clientMsgId];
+        return next;
+      });
+      setError(
+        err instanceof ApiError
+          ? messageForCode(err.code, err.message)
+          : "Voice send failed",
+      );
+      if (replySnapshot) setReplyTo(replySnapshot);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  sendVoiceRef.current = (rec) => {
+    void sendVoice(rec);
+  };
+
   function onType(value: string) {
     setText(value);
     if (!conversationId) return;
@@ -538,8 +697,8 @@ export default function ChatConversationScreen() {
   }, [messages, myId]);
 
   return (
-    <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-white font-rounded text-[#0f1220]">
-      <header className="sticky top-0 z-20 shrink-0 border-b border-[#f0ebf8] bg-white/95 px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-3 backdrop-blur-md">
+    <div className="fixed inset-0 z-40 mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden bg-white font-rounded text-[#0f1220]">
+      <header className="relative z-20 shrink-0 border-b border-[#f0ebf8] bg-white/95 px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-3 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -567,19 +726,43 @@ export default function ChatConversationScreen() {
           </div>
           <button
             type="button"
-            disabled
-            title="Coming soon"
-            aria-label="Video call (coming soon)"
-            className="flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full text-[#b3a8d6] opacity-50"
+            disabled={conv?.type !== "direct" || call.uiState !== "idle"}
+            title={
+              conv?.type !== "direct"
+                ? "Calls only in direct chats"
+                : "Video call"
+            }
+            aria-label="Video call"
+            onClick={() => {
+              if (conversationId) void call.startCall(conversationId, "video");
+            }}
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+              conv?.type === "direct" && call.uiState === "idle"
+                ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
+                : "cursor-not-allowed text-[#b3a8d6] opacity-50",
+            )}
           >
             <Video className="h-5 w-5" />
           </button>
           <button
             type="button"
-            disabled
-            title="Coming soon"
-            aria-label="Voice call (coming soon)"
-            className="flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full text-[#b3a8d6] opacity-50"
+            disabled={conv?.type !== "direct" || call.uiState !== "idle"}
+            title={
+              conv?.type !== "direct"
+                ? "Calls only in direct chats"
+                : "Voice call"
+            }
+            aria-label="Voice call"
+            onClick={() => {
+              if (conversationId) void call.startCall(conversationId, "audio");
+            }}
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+              conv?.type === "direct" && call.uiState === "idle"
+                ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
+                : "cursor-not-allowed text-[#b3a8d6] opacity-50",
+            )}
           >
             <Phone className="h-5 w-5" />
           </button>
@@ -611,16 +794,20 @@ export default function ChatConversationScreen() {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col bg-[#faf8ff]">
-        {error ? (
+        {displayError ? (
           <p
             role="alert"
             className="mx-4 mt-3 rounded-2xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700"
           >
-            {error}
+            {displayError}
           </p>
         ) : null}
 
-        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain px-4 py-2">
+        <div
+          ref={listRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-2 [-webkit-overflow-scrolling:touch]"
+        >
+          <div ref={listContentRef} className="space-y-1.5">
           {nextBefore ? (
             <button
               type="button"
@@ -631,7 +818,7 @@ export default function ChatConversationScreen() {
             </button>
           ) : null}
 
-          {loading ? (
+          {showSkeleton ? (
             <div className="space-y-2" aria-busy>
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
@@ -664,10 +851,20 @@ export default function ChatConversationScreen() {
                   : null;
               const quote = m.replyTo;
 
+              if (m.type === "system") {
+                return (
+                  <div key={row.key} className="flex justify-center py-1.5">
+                    <span className="rounded-full bg-[#f4f0ff] px-3 py-1 text-[11px] font-bold text-[#8a82a8]">
+                      {m.body || "Call"}
+                    </span>
+                  </div>
+                );
+              }
+
               return (
                 <motion.div
                   key={row.key}
-                  initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "group relative flex max-w-[82%] flex-col",
@@ -703,17 +900,36 @@ export default function ChatConversationScreen() {
 
                     {m.deletedAt ? (
                       <span className="italic opacity-60">Message deleted</span>
+                    ) : m.type === "audio" ||
+                      m.attachmentMime?.startsWith("audio/") ? (
+                      <ChatVoiceBubble
+                        messageId={m.id}
+                        attachmentId={m.attachmentId}
+                        localUrl={
+                          m.clientMsgId ? localPreviews[m.clientMsgId] : null
+                        }
+                        durationMs={m.durationMs}
+                        mine={mine}
+                        accessToken={token}
+                      />
                     ) : (
                       <>
                         {preview ? (
-                          <Image
-                            src={preview}
-                            alt="Shared image"
-                            width={220}
-                            height={220}
-                            unoptimized
-                            className="mb-1.5 max-h-56 w-auto rounded-xl object-cover"
-                          />
+                          <button
+                            type="button"
+                            aria-label="Open photo full screen"
+                            onClick={() => setLightboxSrc(preview)}
+                            className="mb-1.5 block cursor-zoom-in overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+                          >
+                            <Image
+                              src={preview}
+                              alt="Shared image"
+                              width={220}
+                              height={220}
+                              unoptimized
+                              className="max-h-56 w-auto object-cover transition-opacity hover:opacity-95"
+                            />
+                          </button>
                         ) : null}
                         {m.body ? (
                           <p className="whitespace-pre-wrap font-medium">
@@ -781,9 +997,10 @@ export default function ChatConversationScreen() {
             </div>
           ) : null}
           <div ref={bottomRef} />
+          </div>
         </div>
 
-        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[#f0ebf8] bg-white">
+        <div className="relative z-20 shrink-0 border-t border-[#f0ebf8] bg-white">
           {replyTo ? (
             <div className="flex items-center gap-2 bg-white px-4 py-2">
               <div className="min-w-0 flex-1 rounded-xl border-l-[3px] border-arc-purple-500 bg-[#f4f0ff] px-3 py-1.5">
@@ -840,61 +1057,99 @@ export default function ChatConversationScreen() {
             onSubmit={(e) => void onSend(e)}
             className="bg-white px-3 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)]"
           >
-            <div className="flex items-center gap-2">
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onPickImage(f);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                aria-label="Attach"
-                disabled={sending}
-                onClick={() => fileRef.current?.click()}
-                className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#0f1220] transition-colors hover:bg-[#f4f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:opacity-40"
-              >
-                <Plus className="h-6 w-6" strokeWidth={2.25} />
-              </button>
-              <label className="sr-only" htmlFor="chat-composer">
-                {stagedFile ? "Caption" : "Message"}
-              </label>
-              <input
-                id="chat-composer"
-                value={text}
-                onChange={(e) => onType(e.target.value)}
-                placeholder={stagedFile ? "Add a caption…" : "Message"}
-                className="min-h-12 flex-1 rounded-full bg-[#f4f0ff] px-4 py-3 text-sm font-medium text-[#0f1220] outline-none placeholder:text-[#8a82a8] focus-visible:ring-2 focus-visible:ring-arc-purple-500"
-              />
-              {text.trim() || stagedFile ? (
-                <button
-                  type="submit"
-                  disabled={sending}
-                  aria-label="Send"
-                  className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#0f1220] text-white transition-colors hover:bg-[#1a1f35] disabled:opacity-40"
-                >
-                  <SendHorizontal className="h-4.5 w-4.5" />
-                </button>
-              ) : (
+            {voice.recording ? (
+              <div className="mb-2 flex items-center gap-2">
                 <button
                   type="button"
-                  disabled
-                  title="Voice messages coming soon"
-                  aria-label="Voice message (coming soon)"
-                  className="flex h-11 w-11 shrink-0 cursor-not-allowed items-center justify-center rounded-full text-[#b3a8d6] opacity-60"
+                  aria-label="Cancel recording"
+                  onClick={voice.cancelRecording}
+                  className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#8a82a8] transition-colors hover:bg-[#f4f0ff] hover:text-[#0f1220]"
                 >
-                  <Mic className="h-5 w-5" />
+                  <X className="h-5 w-5" />
                 </button>
-              )}
-            </div>
+                <div className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-[#fdecef] px-4 py-3 ring-1 ring-[#e5484d]/30">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-[#e5484d]" />
+                  <span className="font-display text-[14px] font-bold tabular-nums text-[#c0392b]">
+                    {formatVoiceDuration(voice.recordMs)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Stop and send voice"
+                  disabled={sending}
+                  onClick={voice.stopAndSend}
+                  className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#e5484d] text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  <Square className="h-4 w-4 fill-current" strokeWidth={2.5} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onPickImage(f);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label="Attach"
+                  disabled={sending}
+                  onClick={() => fileRef.current?.click()}
+                  className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#0f1220] transition-colors hover:bg-[#f4f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:opacity-40"
+                >
+                  <Plus className="h-6 w-6" strokeWidth={2.25} />
+                </button>
+                <label className="sr-only" htmlFor="chat-composer">
+                  {stagedFile ? "Caption" : "Message"}
+                </label>
+                <input
+                  id="chat-composer"
+                  value={text}
+                  onChange={(e) => onType(e.target.value)}
+                  placeholder={stagedFile ? "Add a caption…" : "Message"}
+                  className="min-h-12 flex-1 rounded-full bg-[#f4f0ff] px-4 py-3 text-sm font-medium text-[#0f1220] outline-none placeholder:text-[#8a82a8] focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+                />
+                {text.trim() || stagedFile ? (
+                  <button
+                    type="submit"
+                    disabled={sending}
+                    aria-label="Send"
+                    className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#0f1220] text-white transition-colors hover:bg-[#1a1f35] disabled:opacity-40"
+                  >
+                    <SendHorizontal className="h-4.5 w-4.5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label="Record voice message"
+                    disabled={sending}
+                    onClick={() => void voice.startRecording()}
+                    className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-arc-gold border border-arc-gold transition-colors hover:bg-[#1a1f35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:opacity-40"
+                  >
+                    <Mic className="h-5 w-5" strokeWidth={2.25} />
+                  </button>
+                )}
+              </div>
+            )}
           </form>
         </div>
       </div>
+
+      {lightboxSrc ? (
+        <ChatImageLightbox
+          src={lightboxSrc}
+          open
+          onClose={() => setLightboxSrc(null)}
+        />
+      ) : null}
+
+      <CallScreen call={call} peerName={conv?.title ?? "Contact"} />
     </div>
   );
 }

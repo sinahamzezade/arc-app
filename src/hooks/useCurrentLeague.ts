@@ -18,7 +18,11 @@ export function useCurrentLeague(initialData?: LeaderboardData) {
   const meUserId = session?.user?.id || null;
 
   const query = useQuery({
-    queryKey: [...leagueQueryKey(accessToken), meUserId ?? ""],
+    queryKey: [
+      ...leagueQueryKey(accessToken),
+      meUserId ?? "",
+      session?.profile?.avatarUrl ?? "",
+    ],
     enabled: status === "authenticated" && Boolean(accessToken),
     initialData,
     queryFn: async () => {
@@ -26,7 +30,12 @@ export function useCurrentLeague(initialData?: LeaderboardData) {
         leaguesApi.getCurrent(accessToken),
         leaguesApi.getFullLeaderboard(accessToken),
       ]);
-      return mapLeagueToLeaderboardData(current, board.entries, meUserId);
+      return mapLeagueToLeaderboardData(
+        current,
+        board.entries,
+        meUserId,
+        session?.profile?.avatarUrl,
+      );
     },
     retry: (count, err) => {
       const code =

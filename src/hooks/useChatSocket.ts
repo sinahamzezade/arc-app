@@ -84,7 +84,7 @@ export function useChatSocketGlobal({ enabled = true }: GlobalOpts = {}) {
     };
   }, []);
 
-  return { connected, onUnreadChanged };
+  return { connected, socket: socketRef.current, socketRef, onUnreadChanged };
 }
 
 type ConversationOpts = {
@@ -197,6 +197,7 @@ export function useChatSocket({
       body?: string;
       attachmentId?: string;
       replyToId?: string;
+      durationMs?: number;
     }) =>
       new Promise<ChatMessageDto | null>((resolve) => {
         const socket = socketRef.current;
@@ -240,6 +241,8 @@ export function useChatSocket({
 
   return {
     connected,
+    socket: socketRef.current,
+    socketRef,
     emitSend,
     emitRead,
     emitTypingStart,
