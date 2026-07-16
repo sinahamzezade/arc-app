@@ -125,10 +125,13 @@ export default function ChatConversationScreen() {
     isPlaceholderData,
     error: threadError,
     setMessages,
+    setConv,
     setPresenceLabel,
     setPeerLastReadMessageId,
     loadOlder: loadOlderMessages,
   } = useChatThread(conversationId);
+
+  const peerBlockedByMe = Boolean(conv?.peerBlockedByMe);
 
   const clearStagedFile = useCallback(() => {
     setStagedFile((prev) => {
@@ -686,12 +689,29 @@ export default function ChatConversationScreen() {
     try {
       await chatApi.block(conv.peerUserId, token);
       setMenuOpen(false);
-      router.push("/chat");
+      setConv({ ...conv, peerBlockedByMe: true });
+      setError(null);
     } catch (err) {
       setError(
         err instanceof ApiError
           ? messageForCode(err.code, err.message)
           : "Block failed",
+      );
+    }
+  }
+
+  async function unblockPeer() {
+    if (!token || !conv?.peerUserId) return;
+    try {
+      await chatApi.unblock(conv.peerUserId, token);
+      setMenuOpen(false);
+      setConv({ ...conv, peerBlockedByMe: false });
+      setError(null);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? messageForCode(err.code, err.message)
+          : "Unblock failed",
       );
     }
   }
@@ -765,7 +785,11 @@ export default function ChatConversationScreen() {
               className="text-[12px] font-semibold text-[#8a82a8]"
               aria-live="polite"
             >
-              {typingUser ? "typing…" : presenceLabel}
+              {peerBlockedByMe
+                ? "Blocked"
+                : typingUser
+                  ? "typing…"
+                  : presenceLabel}
             </p>
           </div>
           <button
@@ -773,14 +797,17 @@ export default function ChatConversationScreen() {
             disabled={
               conv?.type !== "direct" ||
               call.uiState !== "idle" ||
-              !connected
+              !connected ||
+              peerBlockedByMe
             }
             title={
-              conv?.type !== "direct"
-                ? "Calls only in direct chats"
-                : !connected
-                  ? "Connecting…"
-                  : "Video call"
+              peerBlockedByMe
+                ? "Unblock to call"
+                : conv?.type !== "direct"
+                  ? "Calls only in direct chats"
+                  : !connected
+                    ? "Connecting…"
+                    : "Video call"
             }
             aria-label="Video call"
             onClick={() => {
@@ -788,7 +815,10 @@ export default function ChatConversationScreen() {
             }}
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-              conv?.type === "direct" && call.uiState === "idle" && connected
+              conv?.type === "direct" &&
+                call.uiState === "idle" &&
+                connected &&
+                !peerBlockedByMe
                 ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
                 : "cursor-not-allowed text-[#b3a8d6] opacity-50",
             )}
@@ -800,14 +830,17 @@ export default function ChatConversationScreen() {
             disabled={
               conv?.type !== "direct" ||
               call.uiState !== "idle" ||
-              !connected
+              !connected ||
+              peerBlockedByMe
             }
             title={
-              conv?.type !== "direct"
-                ? "Calls only in direct chats"
-                : !connected
-                  ? "Connecting…"
-                  : "Voice call"
+              peerBlockedByMe
+                ? "Unblock to call"
+                : conv?.type !== "direct"
+                  ? "Calls only in direct chats"
+                  : !connected
+                    ? "Connecting…"
+                    : "Voice call"
             }
             aria-label="Voice call"
             onClick={() => {
@@ -815,7 +848,10 @@ export default function ChatConversationScreen() {
             }}
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-              conv?.type === "direct" && call.uiState === "idle" && connected
+              conv?.type === "direct" &&
+                call.uiState === "idle" &&
+                connected &&
+                !peerBlockedByMe
                 ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
                 : "cursor-not-allowed text-[#b3a8d6] opacity-50",
             )}
@@ -834,14 +870,24 @@ export default function ChatConversationScreen() {
                 <MoreVertical className="h-5 w-5" />
               </button>
               {menuOpen ? (
-                <div className="absolute top-11 right-0 z-20 min-w-[140px] overflow-hidden rounded-2xl border border-[#f0ebf8] bg-white py-1 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => void blockPeer()}
-                    className="w-full cursor-pointer px-3.5 py-2.5 text-left text-sm font-extrabold text-red-600 hover:bg-red-50"
-                  >
-                    Block user
-                  </button>
+                <div className="absolute top-11 right-0 z-20 min-w-[160px] overflow-hidden rounded-2xl border border-[#f0ebf8] bg-white py-1 shadow-lg">
+                  {peerBlockedByMe ? (
+                    <button
+                      type="button"
+                      onClick={() => void unblockPeer()}
+                      className="w-full cursor-pointer px-3.5 py-2.5 text-left text-sm font-extrabold text-arc-purple-600 hover:bg-[#f4f0ff]"
+                    >
+                      Unblock user
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void blockPeer()}
+                      className="w-full cursor-pointer px-3.5 py-2.5 text-left text-sm font-extrabold text-red-600 hover:bg-red-50"
+                    >
+                      Block user
+                    </button>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -1057,6 +1103,29 @@ export default function ChatConversationScreen() {
         </div>
 
         <div className="relative z-20 shrink-0 border-t border-[#f0ebf8] bg-white">
+          {peerBlockedByMe ? (
+            <div
+              className={cn(
+                "flex flex-col items-center gap-3 px-4 pt-4",
+                viewport.keyboardOpen
+                  ? "pb-3"
+                  : "pb-[calc(env(safe-area-inset-bottom)+14px)]",
+              )}
+            >
+              <p className="text-center text-[13px] font-bold text-[#5c5478]">
+                You blocked {conv?.title ?? "this user"}. They can’t message you
+                until you unblock.
+              </p>
+              <button
+                type="button"
+                onClick={() => void unblockPeer()}
+                className="cursor-pointer rounded-full bg-[#0f1220] px-5 py-2.5 text-[13px] font-extrabold text-white transition-colors hover:bg-[#1a1f35]"
+              >
+                Unblock
+              </button>
+            </div>
+          ) : (
+            <>
           {replyTo ? (
             <div className="flex items-center gap-2 bg-white px-4 py-2">
               <div className="min-w-0 flex-1 rounded-xl border-l-[3px] border-arc-purple-500 bg-[#f4f0ff] px-3 py-1.5">
@@ -1199,6 +1268,8 @@ export default function ChatConversationScreen() {
               </div>
             )}
           </form>
+            </>
+          )}
         </div>
       </div>
 

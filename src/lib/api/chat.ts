@@ -48,6 +48,8 @@ export type ConversationListItemDto = {
   updatedAt: string;
   peerLastReadMessageId?: string | null;
   memberCount?: number;
+  /** DM: you blocked this peer. */
+  peerBlockedByMe?: boolean;
 };
 
 export type ChatSummaryDto = {
@@ -207,6 +209,13 @@ export const chatApi = {
     return apiFetch("/chat/blocks", {
       method: "POST",
       body: { userId },
+      accessToken,
+    });
+  },
+
+  unblock(userId: string, accessToken?: string | null) {
+    return apiFetch<{ ok: boolean }>(`/chat/blocks/${userId}`, {
+      method: "DELETE",
       accessToken,
     });
   },
