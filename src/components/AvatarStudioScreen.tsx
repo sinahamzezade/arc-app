@@ -4,12 +4,14 @@ import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
 import { CoinsClayChip } from "@/components/economy";
+import { AvatarStudioSkeleton } from "@/components/avatar/AvatarStudioSkeleton";
 import {
   AvatarCharacter,
   AvatarPartPreview,
   type AvatarPartId,
 } from "@/components/avatar";
 import {
+  Ban,
   Check,
   Coins,
   Eye,
@@ -19,9 +21,8 @@ import {
   Smile,
   SunMedium,
   UserRound,
-  Ban,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   avatarColorPalettes,
   avatarStudioCatalog,
@@ -39,7 +40,6 @@ import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
-const snappySpring = { type: "spring" as const, stiffness: 480, damping: 34 };
 
 const categoryIcon: Record<AvatarCategory, typeof UserRound> = {
   hair: UserRound,
@@ -54,17 +54,15 @@ function categoryToColorSlot(category: AvatarCategory): AvatarColorSlot {
 }
 
 /**
- * Avatar Studio — cute chibi runway.
- * Equipped items paint hair / glasses / stache / shirt on the character.
+ * Avatar Studio — night dressing room + clay fitting sheet.
  */
 export default function AvatarStudioScreen() {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const { flags, isLoading: flagsLoading } = useSystemFlags();
   const { data: session } = useSession();
   const displayName =
-    session?.profile?.displayName ||
-    session?.user?.name ||
-    "You";
+    session?.profile?.displayName || session?.user?.name || "You";
   const coins = useAvatarStudioStore((s) => s.coins);
   const gender = useAvatarStudioStore((s) => s.gender);
   const owned = useAvatarStudioStore((s) => s.owned);
@@ -101,16 +99,6 @@ export default function AvatarStudioScreen() {
     [category, gender],
   );
 
-  if (flagsLoading || !flags.avatar_studio_enabled) {
-    return (
-      <div className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center bg-[#f3effc] px-4 font-rounded">
-        <p className="text-sm font-semibold text-[#8a7cb8]">
-          {flagsLoading ? "Loading…" : "Avatar Studio unavailable"}
-        </p>
-      </div>
-    );
-  }
-
   const look = useMemo(
     () => lookFromEquipped(equipped, gender, colors),
     [equipped, gender, colors],
@@ -123,58 +111,70 @@ export default function AvatarStudioScreen() {
   const equippedCount = Object.values(equipped).filter(Boolean).length;
   const activeColorSlot = categoryToColorSlot(category);
 
+  if (flagsLoading) {
+    return <AvatarStudioSkeleton />;
+  }
+
+  if (!flags.avatar_studio_enabled) {
+    return (
+      <div className="mx-auto flex min-h-dvh w-full max-w-md items-center justify-center bg-[#f2eefb] px-4 font-rounded">
+        <p className="text-sm font-semibold text-[#8a7cb8]">
+          Avatar Studio unavailable
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f3effc] font-rounded">
-      <section className="relative overflow-hidden bg-[#0f1220] pt-[calc(env(safe-area-inset-top)+12px)] text-white">
+    <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
+      <header className="relative overflow-hidden bg-[#0f1220] pt-[calc(env(safe-area-inset-top)+12px)] pb-14 text-white">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-24 -right-16 h-72 w-72 rounded-full blur-[80px]"
-          style={{ background: `${stageAccent}66` }}
+          className="pointer-events-none absolute -top-14 -right-8 h-48 w-48 rounded-full blur-3xl"
+          style={{ background: `${stageAccent}55` }}
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute top-32 -left-20 h-48 w-48 rounded-full bg-[#ffc928]/15 blur-[60px]"
+          className="pointer-events-none absolute top-16 -left-12 h-36 w-36 rounded-full bg-[#ffc928]/12 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.22]"
+          className="pointer-events-none absolute inset-0 opacity-30"
           style={{
             backgroundImage:
-              "radial-gradient(1.5px 1.5px at 14% 20%, #fff, transparent), radial-gradient(1px 1px at 78% 14%, #fff, transparent), radial-gradient(1px 1px at 48% 58%, #fff, transparent)",
+              "radial-gradient(1.5px 1.5px at 14% 22%, #fff, transparent), radial-gradient(1px 1px at 78% 12%, #fff, transparent), radial-gradient(1.5px 1.5px at 58% 48%, #fff, transparent), radial-gradient(1px 1px at 32% 70%, #fff, transparent)",
           }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[linear-gradient(to_top,rgba(0,0,0,0.55),transparent)]"
         />
 
         <div className="relative flex items-center gap-3 px-4">
-          <BackButton />
+          <BackButton tone="dark" fallbackHref="/profile" />
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+            <p className="text-[10px] font-extrabold tracking-[0.16em] text-[#ffc928] uppercase">
               Cosmetics
             </p>
-            <h1 className="font-display text-[22px] leading-none font-bold tracking-[-0.03em]">
+            <h1 className="mt-1.5 font-display text-[36px] leading-[0.88] font-bold tracking-[-0.045em]">
               Avatar Studio
             </h1>
           </div>
           <CoinsClayChip amount={coins} href={false} />
         </div>
 
-        <div className="relative mt-4 grid grid-cols-[0.95fr_1.15fr] items-end gap-1 px-4 pb-8">
-          <div className="min-w-0 pb-8">
-            <p className="text-[11px] font-bold text-white/40">Dressing</p>
-            <p className="mt-1 font-display text-[28px] leading-[0.95] font-bold tracking-[-0.04em]">
+        <div className="relative mt-5 grid grid-cols-[1fr_auto] items-end gap-2 px-4">
+          <div className="min-w-0 pb-2">
+            <p className="text-[10px] font-extrabold tracking-[0.12em] text-white/40 uppercase">
+              Dressing room
+            </p>
+            <p className="mt-1 truncate font-display text-[28px] leading-[0.92] font-bold tracking-[-0.04em]">
               {displayName}
             </p>
-            <p className="mt-2 max-w-[11rem] text-[12px] leading-snug font-bold text-white/50">
-              Boy & girl sets · hair, glasses, shirt
+            <p className="mt-2 max-w-[12rem] text-[12px] leading-snug font-bold text-white/50">
+              Hair · glasses · shirt · backgrounds
             </p>
 
             <div
               role="group"
               aria-label="Character gender"
-              className="mt-4 inline-flex rounded-xl bg-white/10 p-1 ring-1 ring-white/15"
+              className="mt-4 inline-flex gap-1 rounded-full border border-white/15 bg-white/10 p-1"
             >
               {(["boy", "girl"] as const).map((g) => (
                 <button
@@ -183,10 +183,10 @@ export default function AvatarStudioScreen() {
                   aria-pressed={gender === g}
                   onClick={() => setGender(g)}
                   className={cn(
-                    "rounded-lg px-3.5 py-1.5 text-[11px] font-extrabold tracking-wide uppercase transition-colors",
+                    "cursor-pointer rounded-full px-3.5 py-1.5 text-[11px] font-extrabold tracking-wide uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]",
                     gender === g
-                      ? "bg-[#ffc928] text-[#0f1220] shadow-[0_2px_0_#c79a2e]"
-                      : "text-white/55",
+                      ? "bg-[#ffc928] text-[#0f1220]"
+                      : "text-white/55 hover:text-white/80",
                   )}
                 >
                   {g}
@@ -195,22 +195,21 @@ export default function AvatarStudioScreen() {
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-extrabold tracking-wide ring-1 ring-white/15">
+              <span className="inline-flex items-center gap-1 rounded-full border border-[#ffc928]/35 bg-[#ffc928]/15 px-2.5 py-1 text-[10px] font-extrabold text-[#ffc928]">
                 {equippedCount} equipped
               </span>
               {Object.entries(equipped).map(([cat, id]) => {
                 if (!id || cat === "backgrounds") return null;
                 if (gender === "girl" && cat === "moustache") return null;
-                const item = avatarStudioCatalog.items.find(
-                  (i) => i.id === id,
-                );
+                const item = avatarStudioCatalog.items.find((i) => i.id === id);
                 if (!item) return null;
                 return (
                   <span
                     key={cat}
-                    className="max-w-[7rem] truncate rounded-full px-2.5 py-1 text-[10px] font-extrabold text-[#0f1220]"
+                    className="max-w-[7rem] truncate rounded-full border border-white/15 px-2.5 py-1 text-[10px] font-extrabold text-[#0f1220]"
                     style={{
-                      background: colors[cat as AvatarColorSlot] ?? item.accent,
+                      background:
+                        colors[cat as AvatarColorSlot] ?? item.accent,
                     }}
                   >
                     {item.name}
@@ -219,27 +218,37 @@ export default function AvatarStudioScreen() {
               })}
             </div>
           </div>
+
           <div className="relative -mr-1 justify-self-end">
             <div
               aria-hidden
               className="absolute bottom-4 left-1/2 h-10 w-32 -translate-x-1/2 rounded-full blur-2xl"
               style={{ background: `${stageAccent}99` }}
             />
-            <AvatarCharacter
-              look={look}
-              size={168}
-              label={`${displayName}'s avatar`}
-              className="relative z-[1] drop-shadow-[0_20px_36px_rgba(0,0,0,0.5)]"
-            />
+            <motion.div
+              animate={reduceMotion ? undefined : { y: [0, -4, 0] }}
+              transition={{
+                duration: 5,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            >
+              <AvatarCharacter
+                look={look}
+                size={168}
+                label={`${displayName}'s avatar`}
+                className="relative z-[1] drop-shadow-[0_20px_36px_rgba(0,0,0,0.5)]"
+              />
+            </motion.div>
           </div>
         </div>
-      </section>
+      </header>
 
-      <div className="relative z-[1] -mt-5 rounded-t-[28px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+28px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
+      <div className="relative z-10 -mt-8 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+28px)]">
         <div className="flex gap-3">
           <nav
             aria-label="Cosmetic categories"
-            className="flex w-14 shrink-0 flex-col gap-1.5"
+            className="flex w-[3.75rem] shrink-0 flex-col gap-1.5"
           >
             {categories.map((cat) => {
               const active = category === cat.id;
@@ -252,10 +261,10 @@ export default function AvatarStudioScreen() {
                   aria-pressed={active}
                   onClick={() => setCategory(cat.id)}
                   className={cn(
-                    "flex h-11 w-14 flex-col items-center justify-center gap-0.5 rounded-2xl transition-colors",
+                    "flex h-12 w-[3.75rem] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-2xl border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500",
                     active
-                      ? "bg-arc-purple-500 text-white shadow-[0_4px_0_#4b2fd6]"
-                      : "border border-[#ebe4f6] bg-white text-[#8a7cb8]",
+                      ? "border-[#0f1220] bg-[#0f1220] text-[#ffc928] shadow-[0_3px_0_#2a2f45]"
+                      : "border-[#ebe4f6] bg-white text-[#8a7cb8] shadow-[0_3px_0_#ebe4f6] hover:border-[#0f1220]/15",
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -268,16 +277,16 @@ export default function AvatarStudioScreen() {
           </nav>
 
           <div className="min-w-0 flex-1">
-            <div className="mb-3 flex items-end justify-between gap-2">
+            <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
               <div>
                 <p className="text-[10px] font-black tracking-[0.12em] text-[#8a7cb8] uppercase">
                   Fitting room
                 </p>
-                <h2 className="font-display text-[20px] leading-none font-bold text-[#1b1730]">
+                <h2 className="font-display text-[20px] leading-none font-semibold text-[#0f1220]">
                   {activeCat?.label ?? "Shop"}
                 </h2>
               </div>
-              <span className="text-[11px] font-bold text-[#8a7cb8]">
+              <span className="text-[11px] font-extrabold text-[#8a7cb8]">
                 {items.length} looks
               </span>
             </div>
@@ -293,20 +302,19 @@ export default function AvatarStudioScreen() {
               <motion.ul
                 key={category}
                 className="grid grid-cols-2 gap-2.5"
-                initial={{ opacity: 0, y: 10 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
                 transition={softSpring}
               >
-                {items.map((item, i) => {
+                {items.map((item) => {
                   const isClear = Boolean(item.clear);
                   const isEquipped = isClear
                     ? !equipped[item.category]
                     : equipped[item.category] === item.id;
                   const previewAccent =
                     !isClear && item.partId
-                      ? (colors[item.category as AvatarColorSlot] ??
-                        item.accent)
+                      ? (colors[item.category as AvatarColorSlot] ?? item.accent)
                       : item.accent;
                   return (
                     <ShopTile
@@ -315,7 +323,6 @@ export default function AvatarStudioScreen() {
                       owned={isClear || owned.includes(item.id)}
                       equipped={isEquipped}
                       canAfford={coins >= item.cost}
-                      offset={i % 2 === 1}
                       previewAccent={previewAccent}
                       onBuy={() => {
                         const ok = buy(item.id, item.cost);
@@ -351,20 +358,19 @@ function ColorTray({
   const slots: AvatarColorSlot[] =
     hideSkin || primarySlot === "skin" ? [primarySlot] : ["skin", primarySlot];
 
-  // Cute avatar has fixed skin — only show tint tray for hair/shirt/etc.
   const visible =
     hideSkin && primarySlot === "backgrounds"
       ? (["backgrounds"] as AvatarColorSlot[])
       : hideSkin
         ? primarySlot === "glasses"
-          ? [] // glasses styles are fixed-color artwork
+          ? []
           : [primarySlot]
         : slots;
 
   if (visible.length === 0) return null;
 
   return (
-    <div className="mb-3 space-y-2 rounded-[18px] border border-[#ebe4f6] bg-white p-3 shadow-[0_6px_16px_rgba(70,40,150,0.05)]">
+    <div className="mb-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3 shadow-[0_3px_0_#ebe4f6]">
       {visible.map((slot) => (
         <div key={slot}>
           <div className="mb-1.5 flex items-center justify-between">
@@ -372,7 +378,7 @@ function ColorTray({
               {colorSlotLabel(slot)} color
             </p>
             <span
-              className="h-3.5 w-3.5 rounded-full ring-1 ring-[#ebe4f6]"
+              className="h-3.5 w-3.5 rounded-full ring-2 ring-[#ebe4f6]"
               style={{ background: colors[slot] }}
               aria-hidden
             />
@@ -393,10 +399,10 @@ function ColorTray({
                   aria-label={`${colorSlotLabel(slot)} ${hex}`}
                   onClick={() => onPick(slot, hex)}
                   className={cn(
-                    "h-7 w-7 rounded-full ring-2 transition-transform",
+                    "h-7 w-7 cursor-pointer rounded-full ring-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500",
                     active
-                      ? "scale-110 ring-[#1b1730]"
-                      : "ring-transparent hover:scale-105",
+                      ? "ring-[#0f1220]"
+                      : "ring-transparent hover:ring-[#d5ccec]",
                   )}
                   style={{ background: hex }}
                 />
@@ -414,7 +420,6 @@ function ShopTile({
   owned,
   equipped,
   canAfford,
-  offset,
   previewAccent,
   onBuy,
   onEquip,
@@ -423,7 +428,6 @@ function ShopTile({
   owned: boolean;
   equipped: boolean;
   canAfford: boolean;
-  offset?: boolean;
   previewAccent?: string;
   onBuy: () => void;
   onEquip: () => void;
@@ -435,40 +439,32 @@ function ShopTile({
   const accent = previewAccent ?? item.accent;
 
   return (
-    <li
-      className={cn(
-        offset && "translate-y-3",
-        isLegendary && "rotate-[1.5deg]",
-        isRare && !offset && "-rotate-[1deg]",
-      )}
-    >
-      <motion.div
+    <li>
+      <div
         className={cn(
-          "relative overflow-hidden rounded-[22px] border bg-white p-3 shadow-[0_10px_24px_rgba(70,40,150,0.08)]",
+          "relative overflow-hidden rounded-[18px] border-2 bg-white p-3",
           equipped
-            ? "border-arc-purple-400 ring-2 ring-arc-purple-200"
-            : "border-[#ebe4f6]",
+            ? "border-arc-purple-500 shadow-[0_4px_0_#4b2fd6]/30"
+            : "border-[#ebe4f6] shadow-[0_4px_0_#ebe4f6]",
         )}
-        whileTap={{ scale: 0.98 }}
-        transition={snappySpring}
       >
-        <div
+        <span
           aria-hidden
-          className="absolute top-0 left-0 h-full w-1"
+          className="absolute top-0 bottom-0 left-0 w-1 rounded-r-full"
           style={{
             background: isClear
               ? "#c3badb"
-              : item.rarity === "legendary"
-                ? "#FFC928"
-                : item.rarity === "rare"
-                  ? "#6B4EFF"
+              : isLegendary
+                ? "#ffc928"
+                : isRare
+                  ? "#6b4eff"
                   : "#d8ccff",
           }}
         />
 
         <div
           className={cn(
-            "relative ml-1 flex h-[72px] items-center justify-center overflow-hidden rounded-2xl",
+            "relative ml-1 flex h-[72px] items-center justify-center overflow-hidden rounded-2xl border border-[#ebe4f6]/80",
             isClear && "bg-[#f0ecf7]",
           )}
           style={isClear ? undefined : { background: `${accent}28` }}
@@ -479,7 +475,7 @@ function ShopTile({
             </span>
           ) : item.category === "backgrounds" ? (
             <span
-              className="h-12 w-12 rounded-2xl shadow-[0_6px_14px_rgba(0,0,0,0.12)] ring-1 ring-black/5"
+              className="h-12 w-12 rounded-2xl shadow-[0_4px_0_rgba(0,0,0,0.12)] ring-1 ring-black/5"
               style={{ background: accent }}
             />
           ) : item.partId ? (
@@ -490,7 +486,7 @@ function ShopTile({
             />
           ) : (
             <span
-              className="flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_6px_14px_rgba(0,0,0,0.18)]"
+              className="flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_4px_0_rgba(0,0,0,0.18)]"
               style={{ background: accent }}
             >
               <Icon className="h-5 w-5" strokeWidth={2.4} />
@@ -500,15 +496,15 @@ function ShopTile({
 
         <div className="mt-2.5 ml-1 flex items-start justify-between gap-1">
           <div className="min-w-0">
-            <p className="truncate font-display text-[14px] font-semibold text-[#1b1730]">
+            <p className="truncate font-display text-[14px] font-bold text-[#0f1220]">
               {item.name}
             </p>
             <p
               className={cn(
                 "mt-0.5 text-[10px] font-extrabold tracking-wide uppercase",
                 isClear && "text-[#8a7cb8]",
-                !isClear && item.rarity === "legendary" && "text-[#c79a2e]",
-                !isClear && item.rarity === "rare" && "text-arc-purple-500",
+                !isClear && isLegendary && "text-[#c79a2e]",
+                !isClear && isRare && "text-arc-purple-500",
                 !isClear && item.rarity === "common" && "text-[#8a7cb8]",
               )}
             >
@@ -539,12 +535,12 @@ function ShopTile({
             onClick={onEquip}
             disabled={equipped}
             className={cn(
-              "mt-3 ml-1 w-[calc(100%-4px)] rounded-xl py-2.5 font-display text-[13px] font-semibold",
+              "mt-3 ml-1 w-[calc(100%-4px)] cursor-pointer rounded-2xl py-2.5 font-display text-[13px] font-bold transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:cursor-not-allowed",
               equipped
                 ? "bg-[#f0ecf7] text-[#8a7cb8]"
                 : isClear
-                  ? "bg-[#1b1730] text-white"
-                  : "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]",
+                  ? "border-2 border-[#0f1220] bg-[#0f1220] text-white shadow-[0_3px_0_#2a2f45]"
+                  : "bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6] hover:opacity-95",
             )}
           >
             {equipped
@@ -561,26 +557,23 @@ function ShopTile({
             onClick={onBuy}
             disabled={!canAfford && item.cost > 0}
             className={cn(
-              "mt-3 ml-1 flex w-[calc(100%-4px)] items-center justify-center gap-1 rounded-xl py-2.5 font-display text-[13px] font-semibold",
+              "mt-3 ml-1 flex w-[calc(100%-4px)] cursor-pointer items-center justify-center gap-1 rounded-2xl border-2 py-2.5 font-display text-[13px] font-bold transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] disabled:cursor-not-allowed",
               canAfford || item.cost === 0
-                ? "bg-[#0f1220] text-white"
-                : "bg-[#efe9f8] text-[#b3a8d6]",
+                ? "border-[#0f1220] bg-[#ffc928] text-[#0f1220] shadow-[0_3px_0_#c79a2e] hover:opacity-95"
+                : "border-[#ebe4f6] bg-[#efe9f8] text-[#b3a8d6]",
             )}
           >
             {item.cost === 0 ? (
               "Claim free"
             ) : (
               <>
-                <Coins
-                  className="h-3.5 w-3.5 text-[#ffc928]"
-                  strokeWidth={2.5}
-                />
+                <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
                 {item.cost}
               </>
             )}
           </button>
         )}
-      </motion.div>
+      </div>
     </li>
   );
 }
