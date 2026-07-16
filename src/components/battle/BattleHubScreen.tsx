@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Coins,
   Flame,
   Gem,
   Search,
@@ -27,6 +26,7 @@ import {
   useBattleHub,
 } from "@/hooks/useBattles";
 import { BattleHubSkeleton } from "@/components/battle/BattleHubSkeleton";
+import { CoinsClayChip } from "@/components/economy";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
@@ -244,18 +244,7 @@ export default function BattleHubScreen({
             </h1>
           </div>
 
-          <Link
-            href="/wallet"
-            aria-label={`${coins.toLocaleString()} coins — open wallet`}
-            className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-2xl border-2 border-[#0f1220]/15 bg-[#ffc928] py-1 pr-2.5 pl-1 text-[#0f1220] shadow-[0_3px_0_#c79a2e] transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220] focus-visible:outline-none active:translate-y-px active:shadow-none"
-          >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-xl bg-black/15">
-              <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
-            </span>
-            <span className="font-display text-[13px] leading-none font-bold tabular-nums">
-              {coins.toLocaleString()}
-            </span>
-          </Link>
+          <CoinsClayChip amount={coins} className="shrink-0" />
         </div>
 
         {/* Scoreboard — one clay panel, three columns */}

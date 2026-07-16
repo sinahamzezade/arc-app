@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
+import { CoinsClayChip } from "@/components/economy";
 import {
   AvatarCharacter,
   AvatarPartPreview,
@@ -157,12 +158,7 @@ export default function AvatarStudioScreen() {
               Avatar Studio
             </h1>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 py-1.5 pr-3 pl-2 ring-1 ring-white/15">
-            <Coins className="h-4 w-4 text-[#ffc928]" strokeWidth={2.5} />
-            <span className="text-[13px] font-extrabold tabular-nums">
-              {coins.toLocaleString()}
-            </span>
-          </span>
+          <CoinsClayChip amount={coins} href={false} />
         </div>
 
         <div className="relative mt-4 grid grid-cols-[0.95fr_1.15fr] items-end gap-1 px-4 pb-8">

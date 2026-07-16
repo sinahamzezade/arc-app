@@ -7,7 +7,6 @@ import {
   ArrowRight,
   Check,
   Clock,
-  Coins,
   Columns2,
   Compass,
   Flag,
@@ -20,6 +19,7 @@ import {
   VenetianMask,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { CoinsClayChip } from "@/components/economy";
 import PathGateScreen from "@/components/path/PathGateScreen";
 import { PathScreenSkeleton } from "@/components/path/PathScreenSkeleton";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
@@ -462,18 +462,7 @@ function RouteHero({
             whileTap={reduceMotion ? undefined : { scale: 0.94 }}
             transition={snappySpring}
           >
-            <Link
-              href="/wallet"
-              aria-label={`${coins.toLocaleString()} coins — open wallet`}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-2xl border-2 border-[#0f1220] bg-[#ffc928] py-1.5 pr-3 pl-1.5 text-[#0f1220] shadow-[0_3px_0_#c79a2e] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1220]"
-            >
-              <span className="flex h-6 w-6 items-center justify-center rounded-xl bg-[#0f1220] text-[#ffc928]">
-                <Coins className="h-3.5 w-3.5" strokeWidth={2.5} />
-              </span>
-              <span className="font-display text-[15px] leading-none font-bold tracking-[-0.02em] tabular-nums">
-                {coins.toLocaleString()}
-              </span>
-            </Link>
+            <CoinsClayChip amount={coins} />
           </motion.div>
         </div>
 

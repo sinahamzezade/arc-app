@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BackButton } from "@/components/BackButton";
+import { CoinsClayChip } from "@/components/economy";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
 import {
   ArrowLeft,
@@ -309,13 +310,7 @@ export default function BattleCreateScreen() {
               Write the fight
             </h1>
           </div>
-          <Link
-            href="/wallet"
-            className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold text-white/80 tabular-nums transition-colors hover:bg-white/16 focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:outline-none"
-          >
-            <Coins className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
-            {coins.toLocaleString()}c
-          </Link>
+          <CoinsClayChip amount={coins} suffix="c" />
         </div>
 
         <div className="relative mt-6 flex items-center justify-between gap-2">
