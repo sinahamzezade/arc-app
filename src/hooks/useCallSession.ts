@@ -103,8 +103,22 @@ export function useCallSession({
   const durationTimer = useRef<number | null>(null);
   /** ICE candidates that arrive before remote description is set. */
   const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
+  /** Offer/answer that arrives before PeerConnection exists (callee accept race). */
+  const pendingSdpRef = useRef<{
+    callId: string;
+    sdp: string;
+    type: "offer" | "answer";
+  } | null>(null);
   const remoteReadyRef = useRef(false);
   const iceRestartedRef = useRef(false);
+  const handleRemoteSdpRef = useRef<
+    | ((payload: {
+        callId: string;
+        sdp: string;
+        type: "offer" | "answer";
+      }) => Promise<void>)
+    | null
+  >(null);
 
   callIdRef.current = callId;
 
@@ -124,6 +138,7 @@ export function useCallSession({
     makingOfferRef.current = false;
     activeSinceRef.current = null;
     pendingIceRef.current = [];
+    pendingSdpRef.current = null;
     remoteReadyRef.current = false;
     iceRestartedRef.current = false;
   }, []);
@@ -321,6 +336,13 @@ export function useCallSession({
         });
         if (!res.ok) {
           failStart(res.error || "Could not start call");
+          return;
+        }
+        // Offer from peer is rare before invite ack; flush if queued.
+        const queued = pendingSdpRef.current;
+        if (queued && queued.callId === id && handleRemoteSdpRef.current) {
+          pendingSdpRef.current = null;
+          await handleRemoteSdpRef.current(queued);
         }
       } catch (err) {
         failStart(
@@ -352,6 +374,7 @@ export function useCallSession({
     }
     setError(null);
     const { callId: id, conversationId: convId, mode: callMode } = incoming;
+    // Set call id BEFORE awaits so early offer/ICE from caller can be queued.
     setCallId(id);
     callIdRef.current = id;
     setConversationId(convId);
@@ -371,6 +394,14 @@ export function useCallSession({
       const res = await emitAck(socket, "call.accept", { callId: id });
       if (!res.ok) {
         failStart(res.error || "Could not accept call");
+        return;
+      }
+
+      // Offer often arrives during/after accept ack while we were still wiring PC.
+      const queued = pendingSdpRef.current;
+      if (queued && queued.callId === id && handleRemoteSdpRef.current) {
+        pendingSdpRef.current = null;
+        await handleRemoteSdpRef.current(queued);
       }
     } catch (err) {
       failStart(err instanceof Error ? err.message : "Accept failed");
@@ -462,6 +493,9 @@ export function useCallSession({
       if (payload.callId !== callIdRef.current || !pcRef.current) return;
       setUiState("connecting");
       try {
+        // Brief delay so callee finishes accept + track attach before offer lands.
+        await new Promise((r) => window.setTimeout(r, 150));
+        if (!pcRef.current || callIdRef.current !== payload.callId) return;
         makingOfferRef.current = true;
         const offer = await pcRef.current.createOffer();
         await pcRef.current.setLocalDescription(offer);
@@ -517,7 +551,13 @@ export function useCallSession({
       sdp: string;
       type: "offer" | "answer";
     }) => {
-      if (payload.callId !== callIdRef.current || !pcRef.current) return;
+      if (payload.callId !== callIdRef.current) return;
+      if (!pcRef.current) {
+        // Callee still building PC — keep latest offer/answer.
+        pendingSdpRef.current = payload;
+        return;
+      }
+
       const pc = pcRef.current;
       const desc = new RTCSessionDescription({
         type: payload.type,
@@ -555,13 +595,18 @@ export function useCallSession({
         void hangupInternal(true);
       }
     };
+    handleRemoteSdpRef.current = onSdp;
 
     const onIce = async (payload: {
       callId: string;
       candidate: RTCIceCandidateInit;
     }) => {
-      if (payload.callId !== callIdRef.current || !pcRef.current) return;
-      if (!remoteReadyRef.current || !pcRef.current.remoteDescription) {
+      if (payload.callId !== callIdRef.current) return;
+      if (
+        !pcRef.current ||
+        !remoteReadyRef.current ||
+        !pcRef.current.remoteDescription
+      ) {
         pendingIceRef.current.push(payload.candidate);
         return;
       }
