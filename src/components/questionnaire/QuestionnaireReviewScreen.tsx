@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { BackButton } from "@/components/BackButton";
-import { Pencil } from "lucide-react";
+import { Pencil, Route, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import {
   authCtaClassName,
@@ -241,8 +241,10 @@ const STAGE_LABELS: Record<number, string> = {
   2: "Medium",
   3: "Pro",
   4: "Advanced",
-  5: "Job-ready",
+  5: "Job-ready Specialist",
 };
+
+const STAGE_COUNT = 5;
 
 function ProfilePreviewPanel({
   preview,
@@ -253,79 +255,255 @@ function ProfilePreviewPanel({
 }) {
   if (loading && !preview) {
     return (
-      <div className="mb-4 h-32 animate-pulse rounded-[20px] border-2 border-[#ebe4f6] bg-white/70 shadow-[0_3px_0_#ebe4f6]" />
+      <div className="mb-4 h-52 animate-pulse rounded-[20px] border-2 border-[#ebe4f6] bg-white/70 shadow-[0_3px_0_#ebe4f6]" />
     );
   }
   if (!preview) return null;
+
+  const here = clampStage(preview.provisionalStage);
+  const goal = clampStage(preview.targetStage);
+  const confidence = preview.stageConfidence.replace(/_/g, " ");
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mb-4 space-y-3 rounded-[20px] border-2 border-[#ebe4f6] bg-white p-4 shadow-[0_3px_0_#ebe4f6]"
+      className="mb-4 overflow-hidden rounded-[20px] border-2 border-[#ebe4f6] bg-white shadow-[0_3px_0_#ebe4f6]"
     >
-      <p className="text-[10px] font-black tracking-[0.14em] text-arc-purple-500 uppercase">
-        Your learner profile (estimate)
-      </p>
+      <div className="relative bg-[#0f1220] px-4 pt-3.5 pb-4 text-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-10 right-[-24px] h-28 w-28 rounded-full bg-arc-purple-500/45 blur-2xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-[-16px] h-20 w-20 rounded-full bg-[#ffc928]/20 blur-2xl"
+        />
 
-      <div className="space-y-2">
-        <PreviewRow label="You are here" value={preview.youAreHere} />
-        <PreviewRow label="You want to reach" value={preview.youWantToReach} />
-        <PreviewRow label="Your pace" value={preview.yourPace} />
-      </div>
-
-      {preview.skillMap.length ? (
-        <div>
-          <p className="mb-1.5 text-[10px] font-black tracking-[0.1em] text-[#b3a8d6] uppercase">
-            Skill map
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {preview.skillMap.map((s) => (
-              <span
-                key={s.skillSlug}
-                className="rounded-[10px] bg-[#f3effc] px-2.5 py-1 text-[11px] font-bold text-[#7a6fa3]"
-              >
-                {s.skillSlug} · Stage {s.provisionalStage}
-                {STAGE_LABELS[s.provisionalStage]
-                  ? ` (${STAGE_LABELS[s.provisionalStage]})`
-                  : ""}
-              </span>
-            ))}
+        <div className="relative flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-white/10 text-[#ffc928]">
+            <Route className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
+              Learner profile
+            </p>
+            <p className="text-[11px] font-bold text-white/45">
+              Estimate — confirmed after placement if needed
+            </p>
           </div>
         </div>
-      ) : null}
 
-      {preview.diagnosticRequired ? (
-        <p className="rounded-[12px] bg-[#fff7e0] px-3 py-2 text-[12px] font-bold text-[#8a6d1a]">
-          A short placement check will confirm your level before we skip
-          content.
-        </p>
-      ) : null}
+        <StageRail here={here} goal={goal} />
+      </div>
 
-      {preview.feasibility?.message ? (
-        <p
-          className={
-            preview.feasibility.state === "feasible"
-              ? "text-[12px] font-bold text-[#3e9a63]"
-              : "text-[12px] font-bold text-[#b0731d]"
-          }
-        >
-          {preview.feasibility.message}
-        </p>
-      ) : null}
+      <div className="space-y-3.5 px-4 py-3.5">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
+          <StageStat
+            eyebrow="You are here"
+            stage={here}
+            detail={`${STAGE_LABELS[here] ?? "Learner"} · ${confidence} confidence`}
+            tone="here"
+          />
+          <div
+            aria-hidden
+            className="flex items-center justify-center self-center text-[12px] font-black text-[#c3badb]"
+          >
+            →
+          </div>
+          <StageStat
+            eyebrow="Goal"
+            stage={goal}
+            detail={STAGE_LABELS[goal] ?? "Target"}
+            tone="goal"
+          />
+        </div>
+
+        <div>
+          <p className="mb-1.5 text-[10px] font-black tracking-widest text-arc-lavender-500 uppercase">
+            Your pace
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <PaceChip label={preview.paceClass.replace(/_/g, " ")} />
+            <PaceChip
+              label={`~${preview.weeklyEffectiveMinutes} effective min/wk`}
+            />
+            <PaceChip label={`${preview.preferredSessionMinutes} min sessions`} />
+          </div>
+        </div>
+
+        {preview.skillMap.length ? (
+          <div>
+            <p className="mb-1.5 text-[10px] font-black tracking-widest text-arc-lavender-500 uppercase">
+              Skill map
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {preview.skillMap.map((s) => (
+                <span
+                  key={s.skillSlug}
+                  className="rounded-arc-xs bg-[#f3effc] px-2.5 py-1 text-[11px] font-bold text-[#7a6fa3]"
+                >
+                  {s.skillSlug} · S{s.provisionalStage}
+                  {STAGE_LABELS[s.provisionalStage]
+                    ? ` · ${shortStageLabel(STAGE_LABELS[s.provisionalStage])}`
+                    : ""}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {preview.diagnosticRequired ? (
+          <div className="flex items-start gap-2.5 rounded-arc-sm bg-[#fff7e0] px-3 py-2.5">
+            <Sparkles
+              className="mt-0.5 h-4 w-4 shrink-0 text-[#b0891a]"
+              strokeWidth={2.4}
+              aria-hidden
+            />
+            <p className="text-[12px] leading-snug font-bold text-[#8a6d1a]">
+              A short placement check will confirm your level before we skip
+              content.
+            </p>
+          </div>
+        ) : null}
+
+        {preview.feasibility?.message ? (
+          <p
+            className={
+              preview.feasibility.state === "feasible"
+                ? "text-[12px] leading-snug font-bold text-[#3e9a63]"
+                : "text-[12px] leading-snug font-bold text-[#b0731d]"
+            }
+          >
+            {preview.feasibility.message}
+          </p>
+        ) : null}
+      </div>
     </motion.div>
   );
 }
 
-function PreviewRow({ label, value }: { label: string; value: string }) {
+function clampStage(stage: number) {
+  return Math.min(STAGE_COUNT, Math.max(1, Math.round(stage || 1)));
+}
+
+function shortStageLabel(label: string) {
+  return label.replace(" Specialist", "");
+}
+
+function StageRail({ here, goal }: { here: number; goal: number }) {
+  const fillTo = Math.max(here, goal);
+
   return (
-    <div>
-      <p className="text-[10px] font-black tracking-[0.1em] text-[#b3a8d6] uppercase">
-        {label}
+    <div
+      className="mt-4"
+      aria-label={`Stage ${here} of ${STAGE_COUNT}, goal stage ${goal}`}
+    >
+      <ol className="flex items-start">
+        {Array.from({ length: STAGE_COUNT }, (_, i) => {
+          const stage = i + 1;
+          const isHere = stage === here;
+          const isGoal = stage === goal && stage !== here;
+          const reached = stage <= fillTo;
+          const segmentFilled = stage < fillTo;
+
+          return (
+            <li
+              key={stage}
+              className={
+                stage < STAGE_COUNT
+                  ? "flex min-w-0 flex-1 flex-col items-stretch"
+                  : "flex w-6 shrink-0 flex-col items-center"
+              }
+            >
+              <div className="flex items-center">
+                <span
+                  className={[
+                    "relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-black transition-colors duration-200",
+                    isHere
+                      ? "bg-arc-purple-500 text-white shadow-[0_0_0_3px_rgba(124,92,255,0.35)]"
+                      : isGoal
+                        ? "bg-[#ffc928] text-[#0f1220] shadow-[0_0_0_3px_rgba(255,201,40,0.28)]"
+                        : reached
+                          ? "bg-white/25 text-white"
+                          : "bg-white/10 text-white/40",
+                  ].join(" ")}
+                >
+                  {stage}
+                </span>
+                {stage < STAGE_COUNT ? (
+                  <span
+                    className={[
+                      "mx-1 h-1 min-w-0 flex-1 rounded-full transition-colors duration-200",
+                      segmentFilled
+                        ? "bg-linear-to-r from-arc-purple-500 to-[#ffc928]"
+                        : "bg-white/10",
+                    ].join(" ")}
+                  />
+                ) : null}
+              </div>
+              <span
+                className={[
+                  "mt-1.5 w-6 text-center text-[9px] font-black tracking-[0.04em] uppercase",
+                  isHere
+                    ? "text-arc-purple-200"
+                    : isGoal
+                      ? "text-[#ffc928]"
+                      : "text-transparent",
+                ].join(" ")}
+              >
+                {isHere ? "Here" : isGoal ? "Goal" : "·"}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function StageStat({
+  eyebrow,
+  stage,
+  detail,
+  tone,
+}: {
+  eyebrow: string;
+  stage: number;
+  detail: string;
+  tone: "here" | "goal";
+}) {
+  return (
+    <div
+      className={
+        tone === "here"
+          ? "rounded-arc-sm bg-arc-purple-500/8 px-3 py-2.5"
+          : "rounded-arc-sm bg-[#fff7e0] px-3 py-2.5"
+      }
+    >
+      <p
+        className={
+          tone === "here"
+            ? "text-[9px] font-black tracking-widest text-arc-purple-500 uppercase"
+            : "text-[9px] font-black tracking-widest text-[#b0891a] uppercase"
+        }
+      >
+        {eyebrow}
       </p>
-      <p className="text-[13px] leading-snug font-bold text-[#0f1220]">
-        {value}
+      <p className="mt-0.5 font-display text-[18px] leading-none font-bold tracking-[-0.03em] text-[#0f1220]">
+        Stage {stage}
+      </p>
+      <p className="mt-1 text-[11px] leading-snug font-bold text-[#7a6fa3]">
+        {detail}
       </p>
     </div>
+  );
+}
+
+function PaceChip({ label }: { label: string }) {
+  return (
+    <span className="rounded-arc-xs border border-[#ebe4f6] bg-[#faf8ff] px-2.5 py-1 text-[11px] font-bold capitalize text-[#0f1220]">
+      {label}
+    </span>
   );
 }

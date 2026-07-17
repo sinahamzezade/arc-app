@@ -288,11 +288,7 @@ Snapshot DAG: `id`, `title`, `prerequisites[]`, `level`, `recipe_version`. Rebui
 
 ### 6.9 `question_templates`
 
-Question bank for lesson quiz, assessment, and Battle.
-
-subject and skill node, question type, prompt version, option/answer version, difficulty-calibrated score, estimated seconds, explanation, allowed contexts (lesson / assessment / battle), exposure limit, discrimination/quality metrics, status and version.
-
-**Correct answers are never sent in normal play payloads** and are never copied into compiled units — units carry only prompt/option shells; keys stay server-side (§14, and 05 §4.1).
+Question bank for lesson quiz and assessment (legacy / shared authoring). **Battles select from active quiz units** (`units` with `lesson_type = quiz`), not from this table — see §10.
 
 ### 6.10 `datasets`
 
@@ -434,16 +430,16 @@ For large paths:
 
 ## 10. Battle question selection
 
-`QuestionPoolService.selectBattleSet()` accepts: subject, topic, difficulty mix, count, user exposure history, opponent exposure history, mode (live | async).
+`QuestionPoolService.selectBattleSet()` reads **active quiz units** (`lesson_type = quiz`), flattens `content.questions`, and filters by stack (subject) / `skills_taught` (topic). Accepts: subject, topic, difficulty mix, count, user exposure history, opponent exposure history, mode (live | async).
 
 Rules:
 
-- live: same question version for both players
-- async: equivalent calibrated questions
-- exclude recently exposed questions
+- live: same question snapshot for both players
+- async: equivalent calibrated questions (same difficulty band twins when available)
+- exclude recently exposed questions (by deterministic unit+index version id)
 - minimum pool size: 5× requested count (`CONTENT_QUESTION_POOL_TOO_SMALL` otherwise)
-- snapshot questions into the Battle so later edits do not alter results
-- AI-generated questions are allowed only after offline review/publication — never live generation in MVP
+- snapshot questions into the Battle so later unit edits do not alter results
+- never live AI generation — gradeable stems come only from authored quiz units
 
 ---
 
@@ -583,7 +579,7 @@ Do not auto-retire from a single metric — flag for review.
 | Deterministic allow-list + fallback select (§7) | `roadmap-pipeline.service.ts` (gap → topo → allow-list → select/pack) |
 | AI orchestrate + validate/repair (§7.6)         | `roadmap-units-orchestrator.service.ts` (+ `.validate.ts`)            |
 | Narration fallback (§7.7)                       | `roadmap-narrator.service.ts`                                         |
-| Battle pool                                  | `question-pool.service.ts` → battles                                                                        |
+| Battle pool                                  | `question-pool.service.ts` ← quiz units (`unit-battle-question.util.ts`) → battles                          |
 | Courses / modules / datasets / prereqs       | `content-catalog.service.ts`, admin routes                                                                  |
 | Rolling window materialize                   | `ContentQueryService.materializeRoadmapContent` after roadmap assemble                                      |
 | Intake lesson-body AI (async, narrates only) | `LessonBodyPersonalizerService` via `lesson_body_personalization` queue; writes `lessons.play_content` only |

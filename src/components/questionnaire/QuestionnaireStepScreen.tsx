@@ -309,10 +309,11 @@ function SectionHeading({ children }: { children: ReactNode }) {
   );
 }
 
-/** track-select: required primary track + optional secondary interests. */
+/** track-select: multi = flat chips (first=primary); single = primary + optional secondary. */
 function TrackSelectStep({ step, answers, setAnswers }: StepBodyProps) {
   const [query, setQuery] = useState("");
   const track = asTrackSelection(answers, step.id);
+  const isMulti = step.selection === "multi";
 
   const filteredOptions = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -322,6 +323,11 @@ function TrackSelectStep({ step, answers, setAnswers }: StepBodyProps) {
         o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
     );
   }, [query, step.options]);
+
+  const orderedPicks = useMemo(() => {
+    if (!track.primary) return [] as string[];
+    return [track.primary, ...track.secondary.filter((s) => s !== track.primary)];
+  }, [track.primary, track.secondary]);
 
   const setPrimary = (value: string) => {
     const primary = track.primary === value ? "" : value;
@@ -340,24 +346,70 @@ function TrackSelectStep({ step, answers, setAnswers }: StepBodyProps) {
     setAnswers({ [step.id]: { primary: track.primary, secondary: next } });
   };
 
+  /** Flat multi: toggle in ordered list; first pick = primary, rest = secondary. */
+  const toggleMulti = (value: string) => {
+    let next: string[];
+    if (orderedPicks.includes(value)) {
+      next = orderedPicks.filter((v) => v !== value);
+    } else {
+      next = [...orderedPicks, value];
+    }
+    const primary = next[0] ?? "";
+    const secondary = next.slice(1);
+    setAnswers({ [step.id]: { primary, secondary } });
+  };
+
   const secondaryChoices = step.options.filter(
     (o) => o.value !== track.primary,
   );
+
+  const searchInput =
+    step.options.length > 4 ? (
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search tracks…"
+        className="mb-2.5 h-11 w-full rounded-[14px] border-2 border-[#ebe4f6] bg-white px-3.5 text-[13px] font-semibold text-[#0f1220] placeholder:text-[#c3badb] shadow-[0_3px_0_#ebe4f6] focus:border-arc-purple-500 focus:outline-none"
+        aria-label="Search tracks"
+      />
+    ) : null;
+
+  if (isMulti) {
+    return (
+      <div className="space-y-6">
+        <section>
+          <SectionHeading>Select all that apply</SectionHeading>
+          <p className="mb-2.5 text-[12px] font-semibold text-[#7a6fa3]">
+            First pick becomes your primary track.
+          </p>
+          {searchInput}
+          <div className="space-y-2.5">
+            {filteredOptions.length === 0 ? (
+              <p className="rounded-[16px] border-2 border-dashed border-[#ebe4f6] bg-white/70 px-4 py-6 text-center text-[13px] font-semibold text-[#7a6fa3]">
+                No tracks match — try another search.
+              </p>
+            ) : (
+              filteredOptions.map((option) => (
+                <QuestionnaireOptionCard
+                  key={option.value}
+                  option={option}
+                  selected={orderedPicks.includes(option.value)}
+                  onToggle={() => toggleMulti(option.value)}
+                />
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <section>
         <SectionHeading>Primary track</SectionHeading>
-        {step.options.length > 4 ? (
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search tracks…"
-            className="mb-2.5 h-11 w-full rounded-[14px] border-2 border-[#ebe4f6] bg-white px-3.5 text-[13px] font-semibold text-[#0f1220] placeholder:text-[#c3badb] shadow-[0_3px_0_#ebe4f6] focus:border-arc-purple-500 focus:outline-none"
-            aria-label="Search tracks"
-          />
-        ) : null}
+        {searchInput}
         <div className="space-y-2.5">
           {filteredOptions.length === 0 ? (
             <p className="rounded-[16px] border-2 border-dashed border-[#ebe4f6] bg-white/70 px-4 py-6 text-center text-[13px] font-semibold text-[#7a6fa3]">

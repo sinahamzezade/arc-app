@@ -1,22 +1,5 @@
 import type { BattleSetup } from "./types";
 
-/** Fallback chips when catalog API unavailable (dev / offline). */
-export const battleSubjects = [
-  "SQL",
-  "Python",
-  "Excel",
-  "Data Analysis",
-  "Frontend",
-] as const;
-
-export const battleTopics: Record<string, string[]> = {
-  SQL: ["SELECT", "WHERE", "JOIN", "GROUP BY", "Aggregations"],
-  Python: ["Lists", "Dicts", "Pandas", "Loops"],
-  Excel: ["VLOOKUP", "Pivot", "Charts"],
-  "Data Analysis": ["Cleaning", "EDA", "Metrics"],
-  Frontend: ["HTML", "CSS", "JS Basics"],
-};
-
 export type BattleCatalogTopic = {
   slug: string;
   name: string;
@@ -33,8 +16,8 @@ export type BattleCatalogSubject = {
 
 export const defaultBattleSetup: BattleSetup = {
   opponentId: "",
-  subject: "sql",
-  topic: "select",
+  subject: "",
+  topic: "",
   difficulty: "medium",
   questions: 5,
   seconds: 30,

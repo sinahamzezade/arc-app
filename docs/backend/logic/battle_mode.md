@@ -194,7 +194,7 @@ Decline/expiry does not debit Coins.
 
 ## 7. Question Generation
 
-From `QuestionPoolService`.
+From active **quiz units** via `QuestionPoolService` (flattened `unit.content.questions`).
 
 ### Live mode
 
@@ -213,7 +213,7 @@ Question-set rules:
 
 - minimum pool size 5× requested count
 - no recent exposure for either user where possible
-- no unpublished/retired question
+- only active quiz units (`lesson_type = quiz`)
 - no live AI-generated question
 - snapshot content and answer keys at Battle creation
 
@@ -487,7 +487,7 @@ Controls:
 
 - Battle eligibility respects friendship/privacy/blocking
 - both stakes are escrowed before start
-- questions come from published Content Pool
+- questions come from active quiz units in the Content Pool
 - answer keys are never sent early
 - live players see synchronized authoritative state
 - scoring and winner logic are deterministic
@@ -505,7 +505,8 @@ Controls:
 - Heartbeat `POST /battles/:id/heartbeat` + disconnect forfeit/void
 - Async play expiry + invite expiring notifs
 - Pair XP farm cap, participation coin daily cap, league XP daily cap 100
-- Exposure histories wired into `selectBattleSet`; async set differentiation
+- Quiz-unit pool via `selectBattleSet` / `unit-battle-question.util`; async set differentiation
+- Dev seed: `BattleQuizUnitsSeedService` upserts quiz units (not question_templates)
 
 ### Frontend
 - Sudden death banner, reveal opponent pick + points, forfeit, heartbeat poll

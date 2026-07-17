@@ -23,11 +23,7 @@ import { battlesApi } from "@/lib/api/battles";
 import { ApiError, messageForCode } from "@/lib/api/errors";
 import { leaguesApi } from "@/lib/api/leagues";
 import { socialApi, type SocialFriendDto } from "@/lib/api/social";
-import {
-  battleSubjects,
-  battleTopics,
-  type BattleCatalogSubject,
-} from "@/lib/battle/catalog";
+import type { BattleCatalogSubject } from "@/lib/battle/catalog";
 import type { BattleDifficulty, BattleMode } from "@/lib/battle/types";
 import {
   maxStakeForRankLevel,
@@ -190,20 +186,7 @@ export default function BattleCreateScreen() {
         }
       : (friends[0] ?? fallbackOpponent));
 
-  const subjects: BattleCatalogSubject[] =
-    catalog.length > 0
-      ? catalog
-      : battleSubjects.map((name) => ({
-          slug: name.toLowerCase().replace(/\s+/g, "-").replace(/&/g, ""),
-          name,
-          publishedCount: undefined,
-          topics: (battleTopics[name] ?? []).map((t) => ({
-            slug: t.toLowerCase().replace(/\s+/g, "-"),
-            name: t,
-            skillNodeId: "",
-            publishedCount: undefined,
-          })),
-        }));
+  const subjects: BattleCatalogSubject[] = catalog;
   const activeSubject =
     subjects.find(
       (s) => s.slug === setup.subject || s.name === setup.subject,
@@ -229,7 +212,7 @@ export default function BattleCreateScreen() {
   const challenge = async () => {
     if (!canStake || busy) return;
     if (!hasArena) {
-      setError("Pick a subject with enough published questions.");
+      setError("Pick a subject with enough quiz-unit questions.");
       return;
     }
     if (!opponentOk) {
@@ -296,7 +279,7 @@ export default function BattleCreateScreen() {
           : `Challenge ${opponent.name.split(" ")[0]} · ${effectiveStake}c`;
 
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
+    <div className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#f3effc] font-rounded">
       <header className="relative shrink-0 overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-8 text-white">
         <div
           aria-hidden
@@ -398,7 +381,7 @@ export default function BattleCreateScreen() {
         </nav>
       </header>
 
-      <div className="relative z-10 -mt-4 flex min-h-0 flex-1 flex-col rounded-t-[28px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+108px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
+      <div className="relative z-10 -mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[28px] bg-[#f3effc] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+108px)] shadow-[0_-12px_40px_rgba(0,0,0,0.2)]">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -406,7 +389,7 @@ export default function BattleCreateScreen() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -12 }}
             transition={softSpring}
-            className="flex min-h-0 flex-1 flex-col"
+            className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
           >
             {step === 0 ? (
               <RivalStep
@@ -571,7 +554,7 @@ function RivalStep({
           </Link>
         </div>
       ) : (
-        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pb-2">
+        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] pb-2">
           {friends.map((f) => {
             const active = opponentId === f.userId;
             const disabled = !f.canBattle;
@@ -661,7 +644,7 @@ function ArenaStep({
   rivalName?: string;
 }) {
   return (
-    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2">
+    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] pb-2">
       <div>
         <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
           Step 2 · What
@@ -690,7 +673,8 @@ function ArenaStep({
 
         {subjects.length === 0 ? (
           <p className="mt-3 text-[12px] font-bold text-arc-lavender-600">
-            No battle-ready subjects yet. Pool needs published questions.
+            No battle-ready subjects yet. Need enough quiz-unit questions in the
+            content pool.
           </p>
         ) : (
           <div className="mt-2.5 grid grid-cols-2 gap-2">
@@ -827,7 +811,7 @@ function RulesStep({
   rivalName?: string;
 }) {
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-2">
+    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] pb-2">
       <div>
         <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
           Step 3 · How

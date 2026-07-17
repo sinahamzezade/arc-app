@@ -11,9 +11,11 @@ export function mapPoolQuestionToBattle(
   const stem =
     typeof dto.prompt?.stem === "string"
       ? dto.prompt.stem
-      : typeof dto.prompt?.body === "string"
-        ? dto.prompt.body
-        : "Question";
+      : typeof dto.prompt?.text === "string"
+        ? dto.prompt.text
+        : typeof dto.prompt?.body === "string"
+          ? dto.prompt.body
+          : "Question";
 
   return {
     id: dto.questionVersionId,
