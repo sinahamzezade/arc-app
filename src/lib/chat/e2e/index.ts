@@ -19,6 +19,10 @@ export {
 } from "./crypto";
 export { loadOrCreateIdentity, clearIdentityCache } from "./keystore";
 export {
+  saveConversationKey,
+  listConversationKeys,
+} from "./conv-keystore";
+export {
   ensureIdentityPublished,
   ensureConversationReady,
   rewrapConversationKeys,

@@ -7,6 +7,8 @@ import {
 
 const DB_NAME = "arc-chat-e2e";
 const STORE = "identity";
+const CONV_STORE = "conv-keys";
+const DB_VERSION = 3;
 const LEGACY_KEY = "default";
 
 type StoredIdentity = {
@@ -17,11 +19,17 @@ type StoredIdentity = {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 2);
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE);
+      }
+      if (!db.objectStoreNames.contains(CONV_STORE)) {
+        const store = db.createObjectStore(CONV_STORE, { keyPath: "id" });
+        store.createIndex("byConv", ["userId", "conversationId"], {
+          unique: false,
+        });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -77,11 +85,14 @@ async function idbPut(row: StoredIdentity): Promise<void> {
 }
 
 const cachedByUser = new Map<string, IdentityKeyPair>();
+const inflightByUser = new Map<string, Promise<IdentityKeyPair>>();
 
 /**
  * Load or create identity for a specific Arc user.
  * Keys are per-userId so account switches on one browser stay isolated.
  * Migrates legacy v1 `default` slot when present.
+ * Serialized per userId — prevents dual-generate races that rotate the
+ * published public key and wipe conversation wraps.
  */
 export async function loadOrCreateIdentity(
   userId: string,
@@ -92,31 +103,46 @@ export async function loadOrCreateIdentity(
   const hit = cachedByUser.get(userId);
   if (hit) return hit;
 
-  const stored = await idbGet(userId);
-  if (stored?.publicKeyB64 && stored?.privateKeyB64) {
-    const kp = identityFromStored(stored.publicKeyB64, stored.privateKeyB64);
-    cachedByUser.set(userId, kp);
-    // Ensure per-user slot exists (legacy migration).
-    void idbPut({
-      userId,
-      publicKeyB64: stored.publicKeyB64,
-      privateKeyB64: stored.privateKeyB64,
-    });
-    return kp;
-  }
+  const pending = inflightByUser.get(userId);
+  if (pending) return pending;
 
-  const kp = await generateIdentityKeyPair();
-  await idbPut({
-    userId,
-    publicKeyB64: kp.publicKeyB64,
-    privateKeyB64: toBase64Url(kp.privateKey),
+  const task = (async () => {
+    const stored = await idbGet(userId);
+    if (stored?.publicKeyB64 && stored?.privateKeyB64) {
+      const kp = identityFromStored(stored.publicKeyB64, stored.privateKeyB64);
+      cachedByUser.set(userId, kp);
+      // Ensure per-user slot exists (legacy migration).
+      await idbPut({
+        userId,
+        publicKeyB64: stored.publicKeyB64,
+        privateKeyB64: stored.privateKeyB64,
+      });
+      return kp;
+    }
+
+    const kp = await generateIdentityKeyPair();
+    await idbPut({
+      userId,
+      publicKeyB64: kp.publicKeyB64,
+      privateKeyB64: toBase64Url(kp.privateKey),
+    });
+    cachedByUser.set(userId, kp);
+    return kp;
+  })().finally(() => {
+    inflightByUser.delete(userId);
   });
-  cachedByUser.set(userId, kp);
-  return kp;
+
+  inflightByUser.set(userId, task);
+  return task;
 }
 
 /** Test helper — clear in-memory cache. */
 export function clearIdentityCache(userId?: string): void {
-  if (userId) cachedByUser.delete(userId);
-  else cachedByUser.clear();
+  if (userId) {
+    cachedByUser.delete(userId);
+    inflightByUser.delete(userId);
+  } else {
+    cachedByUser.clear();
+    inflightByUser.clear();
+  }
 }
