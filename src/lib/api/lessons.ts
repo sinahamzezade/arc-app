@@ -1,6 +1,7 @@
 import { apiFetch } from "./client";
 import type {
   LessonArloChatResponse,
+  LessonCheckActiveBlockResponse,
   LessonCheckPracticeResponse,
   LessonCheckQuizResponse,
   LessonCompleteResponse,
@@ -38,6 +39,30 @@ export type CheckQuizBody = {
   questionIndex?: number;
   optionIndex?: number;
   booleanAnswer?: boolean;
+};
+
+export type CheckActiveBlockBody = {
+  attemptId: string;
+};
+
+export type CheckScenarioBody = CheckActiveBlockBody & {
+  optionId: string;
+};
+
+export type CheckVisualHotspotBody = CheckActiveBlockBody & {
+  hotspotId: string;
+};
+
+export type CheckDragOrderBody = CheckActiveBlockBody & {
+  orderedIds: string[];
+};
+
+export type CheckDebateBody = CheckActiveBlockBody & {
+  side: "a" | "b";
+};
+
+export type CheckSandboxSimulationBody = CheckActiveBlockBody & {
+  actions: string[];
 };
 
 function newIdempotencyKey() {
@@ -107,6 +132,66 @@ export const lessonsApi = {
         body,
         accessToken,
       },
+    );
+  },
+
+  checkScenario(
+    lessonId: string,
+    blockId: string,
+    body: CheckScenarioBody,
+    accessToken?: string | null,
+  ) {
+    return apiFetch<LessonCheckActiveBlockResponse>(
+      `/lessons/${lessonId}/scenario/${blockId}/check`,
+      { method: "POST", body, accessToken },
+    );
+  },
+
+  checkVisualHotspot(
+    lessonId: string,
+    blockId: string,
+    body: CheckVisualHotspotBody,
+    accessToken?: string | null,
+  ) {
+    return apiFetch<LessonCheckActiveBlockResponse>(
+      `/lessons/${lessonId}/visual-hotspot/${blockId}/check`,
+      { method: "POST", body, accessToken },
+    );
+  },
+
+  checkDragOrder(
+    lessonId: string,
+    blockId: string,
+    body: CheckDragOrderBody,
+    accessToken?: string | null,
+  ) {
+    return apiFetch<LessonCheckActiveBlockResponse>(
+      `/lessons/${lessonId}/drag-order/${blockId}/check`,
+      { method: "POST", body, accessToken },
+    );
+  },
+
+  checkDebate(
+    lessonId: string,
+    blockId: string,
+    body: CheckDebateBody,
+    accessToken?: string | null,
+  ) {
+    return apiFetch<LessonCheckActiveBlockResponse>(
+      `/lessons/${lessonId}/debate/${blockId}/check`,
+      { method: "POST", body, accessToken },
+    );
+  },
+
+  checkSandboxSimulation(
+    lessonId: string,
+    blockId: string,
+    body: CheckSandboxSimulationBody,
+    accessToken?: string | null,
+  ) {
+    return apiFetch<LessonCheckActiveBlockResponse>(
+      `/lessons/${lessonId}/sandbox-simulation/${blockId}/check`,
+      { method: "POST", body, accessToken },
     );
   },
 

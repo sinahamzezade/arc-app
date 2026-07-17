@@ -39,9 +39,11 @@ export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathData {
     const unit = phaseIndex + 1;
 
     if (phaseIndex > 0) {
+      const phaseLabel =
+        phase.narrativeTitle?.trim() || phase.title || `Unit ${unit}`;
       nodes.push({
         id: `gate-${phase.id}`,
-        title: phase.title,
+        title: phaseLabel,
         subtitle: `Unit ${unit}`,
         kind: "unit-gate",
         status: phase.locked ? "unit-locked" : "locked",
@@ -100,6 +102,19 @@ export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathData {
     }
   });
 
+  const currentPhase =
+    phases.find((p) =>
+      p.milestones.some((m) =>
+        m.lessons.some((l) => l.status === "available"),
+      ),
+    ) ?? phases[0];
+
+  const identityTitle =
+    currentPhase?.narrativeTitle?.trim() ||
+    currentPhase?.title ||
+    phases[0]?.title ||
+    "Start";
+
   return {
     roadmapId: roadmap.id,
     trackTitle: roadmap.title.replace(/\s+Path$/i, "") || roadmap.title,
@@ -108,8 +123,10 @@ export function mapRoadmapToPathData(roadmap: RoadmapTreeDto): PathData {
     lessonsTotal,
     rank: {
       level: 1,
-      title: phases[0]?.title ?? "Start",
-      unitLabel: phases[0] ? `Unit 1` : "Unit 1",
+      title: identityTitle,
+      unitLabel: currentPhase
+        ? `Unit ${phases.indexOf(currentPhase) + 1}`
+        : "Unit 1",
     },
     nodes,
     upNext: firstAvailable ?? {

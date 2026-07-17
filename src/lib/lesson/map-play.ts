@@ -1,4 +1,5 @@
 import type {
+  LessonActiveBodyDto,
   LessonPlayBodyDto,
   LessonPlayDto,
   LessonQuizBodyDto,
@@ -13,7 +14,8 @@ export type LessonBody =
   | ({ kind: "reading" } & LessonReadingBodyDto)
   | ({ kind: "video" } & LessonVideoBodyDto)
   | ({ kind: "task" } & LessonTaskBodyDto)
-  | ({ kind: "quiz" } & LessonQuizBodyDto);
+  | ({ kind: "quiz" } & LessonQuizBodyDto)
+  | ({ kind: "active" } & LessonActiveBodyDto);
 
 /** UI playable lesson — no grading keys (server owns those). */
 export type PlayableLesson = {
@@ -43,6 +45,13 @@ export type PlayableLesson = {
   suggestedArlo: string[];
 };
 
+const ACTIVE_LESSON_TYPES: LessonTypeDto[] = [
+  "scenario",
+  "visual_hotspot",
+  "debate",
+  "sandbox_simulation",
+];
+
 /** First in-lesson route segment for a lesson type. */
 export function startSegmentFor(lessonType: LessonTypeDto): string {
   switch (lessonType) {
@@ -52,6 +61,11 @@ export function startSegmentFor(lessonType: LessonTypeDto): string {
     case "mini_project":
     case "interactive":
       return "practice";
+    case "scenario":
+    case "visual_hotspot":
+    case "debate":
+    case "sandbox_simulation":
+      return "active";
     default:
       return "content";
   }
@@ -79,6 +93,8 @@ const ARLO_PROMPTS: Record<LessonBody["kind"], string> = {
   video: "Watch the video, then swing by if anything felt fuzzy.",
   task: "Work through the task step by step. Stuck? Ask me for a nudge.",
   quiz: "Show me what you've got. I'm here if a question trips you up.",
+  active:
+    "Make the call — scenario, hotspot, or sim. I'm here if you want to talk it through.",
 };
 
 const ARLO_SUGGESTIONS: Record<LessonBody["kind"], string[]> = {
@@ -86,6 +102,7 @@ const ARLO_SUGGESTIONS: Record<LessonBody["kind"], string[]> = {
   video: ["What should I watch for?", "Recap the key idea"],
   task: ["Give me a hint", "Break the task into steps"],
   quiz: ["Recap the key idea", "How should I approach this quiz?"],
+  active: ["Walk me through the setup", "What would you pick?", "Why that choice?"],
 };
 
 /**
@@ -112,7 +129,14 @@ function normalizeSections(sections: unknown): LessonSectionDto[] {
   });
 }
 
+function isActiveBody(body: LessonPlayBodyDto): body is LessonActiveBodyDto {
+  return Array.isArray((body as LessonActiveBodyDto).blocks);
+}
+
 function narrowBody(lessonType: LessonTypeDto, body: LessonPlayBodyDto): LessonBody {
+  if (isActiveBody(body)) {
+    return { kind: "active", ...body };
+  }
   if (lessonType === "quiz" && "questions" in body) {
     return { kind: "quiz", ...body };
   }
@@ -130,9 +154,13 @@ function narrowBody(lessonType: LessonTypeDto, body: LessonPlayBodyDto): LessonB
   if ("sections" in body) {
     return { kind: "reading", ...body, sections: normalizeSections(body.sections) };
   }
+  if (ACTIVE_LESSON_TYPES.includes(lessonType) && isActiveBody(body)) {
+    return { kind: "active", ...body };
+  }
   // Shape/type mismatch fallbacks — trust the body shape over lessonType.
   if ("questions" in body) return { kind: "quiz", ...body };
   if ("task" in body) return { kind: "task", ...body };
+  if (isActiveBody(body)) return { kind: "active", ...body };
   return { kind: "video", ...(body as LessonVideoBodyDto) };
 }
 

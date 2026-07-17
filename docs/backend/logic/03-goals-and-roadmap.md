@@ -1,9 +1,11 @@
 # 03 — Skill Graph, Roadmap Generator & AI Coach
 
-**Version:** 3.1 (stage-aware, consumes questionnaire-v2 profile)  
+**Version:** 3.2 (AI unit orchestration — propose + server validate)  
 **Integration:** Shared curriculum is further specified in [content_pool.md](./content_pool.md) v3.0, which now compiles the authoring graph into flat, self-describing **units** plus a **skills index** (the prerequisite DAG). This generator consumes that compiled projection, not the authoring tree. A generated roadmap is not Home-ready until Course Timing and the current Weekly Plan are ready.
 
-**What changed in 3.0:** ordering, selection, and budgeting are strictly deterministic backend code; the LLM is confined to narration (titles, phase grouping, copy) and its output is validated to add/drop/reorder nothing before persistence. See §5 and content_pool §7.
+**What changed in 3.2:** when `roadmap_ai_orchestrator_enabled` (default on for engine mode `llm`), the LLM may **propose which allow-list units to include and their order**, plus phase titles. The server **validates/repairs** (allow-list only, required coverage, prereq order, budget, sole checkpoint protection). On LLM failure → deterministic `selectUnitsPerSkill` + `packBudget` + narrator-only. See §5 and content_pool §7.
+
+**What changed in 3.0:** gap, topo, allow-list filters, and budget floors stay deterministic backend code; the LLM never invents unit ids outside the pool.
 
 **Engines:** Skill Graph Engine · Roadmap Generator · AI Coach (see [README](./README.md) four-engine map)  
 **Stack:** NestJS + TypeORM + PostgreSQL  
@@ -566,26 +568,22 @@ Inputs — the versioned **`RoadmapGenerationProfile`** snapshot from the Questi
 - `targetDeadline?` — timeline sizing
 - `profilingModelVersion` — recorded in `generation_meta`
 
-Steps (five deterministic code stages, then one validated narration stage):
+Steps (deterministic prep → AI propose+validate, with deterministic fallback):
 
 1. **Resolve recipe** — `role_recipes` where `target_role_slug = profile.primaryTrackSlug`. Missing → `ROLE_RECIPE_MISSING`.
 2. **Decode capacity (in code)** — `budgetMinutes = capacity.effectiveWeeklyMinutes × timelineWeeks × 0.85`, where `timelineWeeks` comes from `targetDeadline` (or recipe default). `effectiveWeeklyMinutes` is already schedule-discounted by doc 02 §8. Computed once, passed downstream as a single number. **Never** recomputed by the model.
 3. **Load compiled units + skills index** — read the version-pinned compiled projection for each stack in `stack_plan` (content_pool §4.2, §6.7–6.8). No authoring-tree traversal.
 4. **Gap (stage-aware)** — resolve each `skillEstimate.skillSlug` onto its `domain:*` skill nodes (content_pool §7.1); each node inherits an **entry stage**. Per node, choose an action from entry stage + confidence: verified mastered → omit; provisional-mastered high-confidence → `checkpoint`; provisional-mastered lower-confidence → `refresher`; claimed-high-but-low-confidence with `placement.required` → `placement` first; stage 1 / unknown → `foundation` (full teaching path through the target stage). Then compute the missing-prerequisite closure over the skills index. Never mutate pool rows.
-5. **Order (topological sort)** — sort the gap skills topologically over the skills index; break ties by `level` (low → high, derived per content_pool §4.3) then `order_hint`. Ordering is graph-derived and prerequisite-safe — **not** score-derived, not anti-catalog. Two users differ in order only because their gaps and entry stages differ.
-6. **Select + fit (in code)** — per ordered skill: foundation keeps units whose `serves_stage` overlaps the path from entry stage to target stage; checkpoint/refresher first prefer units whose `serves_stage` includes the entry stage and whose `unit_role` matches the planned action. Fall back to foundation units if that role wasn't authored. Then drop a unit only if its `formats` share nothing with `learningStyleWeights` **and** another unit still covers the skill; never drop the only checkpoint/proof unit that can produce stage evidence. Rank survivors by the content_pool §7.3 within-skill score. Pack against `budgetMinutes`: required first, optional fills remaining capacity. Over budget on required content → return a feasibility result to Course Timing (`CONTENT_REQUIRED_BUDGET_EXCEEDED` / drop `required:false` phases), never silently delete a required skill.
-7. **Narration pass (optional LLM — titles/phases/copy ONLY)** — hand the already-ordered, already-selected unit list to `roadmap_generator_v1` (via `RoadmapAiService`). The model may only:
-   - write phase titles, mission names, and description/why copy;
-   - group the list into 3–6 **contiguous** phases;
-   - pick `resource_id`s **only from provided ids**.
-     It may **not** add, drop, or reorder units, and it does not select across skills. If `blockerTags` includes a "no clear path" signal, the narration must surface the full visible roadmap up front.
-8. **Validate narration (in code)** — Zod schema, plus: every unit index appears exactly once (none added/dropped); no prerequisite appears after a unit needing it; total minutes ≤ `budgetMinutes`; every id (unit, resource) resolves. On violation, repair ordering from the skills index (trivial — code holds the DAG) or issue one repair turn; emit `content_narration_repaired`. Reject unknown ids (`CONTENT_NARRATION_INVALID`).
-9. **Persist learning path** — transaction: job → roadmap → phases → milestones → lessons (instance snapshots of compiled units, each pinned to `source_template_id` + `source_version_id`); unlock first phase.
-10. **Fail soft** — missing `OPENAI_API_KEY`, timeout, invalid JSON, or Zod/validation failure → the deterministic result from stages 2–6 still ships a fully ordered, budgeted path (narration falls back to recipe/skill titles). `generation_meta.aiUsed` / `aiSkippedReason` records the outcome.
+5. **Order skills (topological sort)** — sort the gap skills topologically over the skills index; break ties by `level` then `order_hint`.
+6. **Build allow-list (in code)** — union of per-skill candidates after stage/role preference + style-evidence keep (same filters as deterministic selection). Candidates only — not the final pick. The LLM may only choose ids from this list.
+7. **AI orchestration (default when `roadmap_ai_orchestrator_enabled`)** — `RoadmapUnitsOrchestratorService` proposes ordered unit ids + 3–6 phase titles from the allow-list. Server validate/repair: drop unknown ids; ensure every required skill has ≥1 unit (insert cheapest matching allow-list unit, prefer planned `unit_role`); reorder for skill topo / unit prerequisites; never drop sole checkpoint/proof for a required skill; trim trailing optionals over budget (`CONTENT_REQUIRED_BUDGET_EXCEEDED` if required alone won't fit). Emit `content_orchestration_applied` / `content_orchestration_repaired`. On success, hydrate with AI phases (skip separate narrator).
+8. **Deterministic fallback** — if orchestrator off, LLM unconfigured/timeout/bad JSON, or repair cannot cover required skills → `selectUnitsPerSkill` + `packBudget` + narrator-only (titles/grouping; may not add/drop/reorder). Emit `content_orchestration_fallback`. Narrator repairs emit `content_narration_repaired`.
+9. **Persist learning path** — transaction: job → roadmap → phases → milestones → lessons (instance snapshots of compiled units); unlock first phase.
+10. **Fail soft** — roadmap always ships via fallback when orchestration fails. `generation_meta.aiMode` = `orchestrator` | `narrator`; `aiUsedFallback` records repair or deterministic path.
 
-**The deterministic path (stages 2–6) is the product; the narration pass only dresses it. Ordering and budget are correct with or without the LLM.**
+**Authority model:** AI proposes; server validates. The allow-list, required coverage, prereq order, and budget floors are never optional. Kill-switch: `roadmap_ai_orchestrator_enabled=false` → narrator path only without changing `ROADMAP_ENGINE_MODE`.
 
-Store in `roadmaps.generation_meta`: `{ schemaVersion, recipeId, contentCatalogVersion, learnerProfileId, profilingModelVersion, entryStagesBySkill, decodedWeeks, budgetMinutes, skippedSkillNodeIds, promptVersion, aiUsed, aiModel?, aiSkippedReason?, narrationRepaired? }`.
+Store in `roadmaps.generation_meta`: `{ schemaVersion, recipeId, contentCatalogVersion, learnerProfileId, profilingModelVersion, entryStagesBySkill, decodedWeeks, budgetMinutes, skippedSkillNodeIds, promptVersion, aiMode, aiModel?, aiUsedFallback?, narrationRepaired? }`.
 
 ---
 
@@ -768,8 +766,8 @@ From product §9.3 — enforce in generator + validators:
 - No job-ready claim without assessments
 - Cap roadmap size (max lessons / phases) to protect DB + UI
 - Never trust client for XP on complete (doc 05)
-- **The LLM never orders, selects across skills, grades, or budgets.** It narrates only; its output is validated to add/drop/reorder nothing and to keep prerequisites satisfied, else repaired from the skills index (§5 step 8).
-- **Ordering and budget are deterministic** and identical with or without the AI pass.
+- **The LLM may propose unit include/order only from the server allow-list.** Invented ids are dropped; required coverage, prereqs, and budget are repaired in code (§5 steps 6–8). It never grades or invents pool content.
+- **Allow-list filters, required floors, and budget enforcement are deterministic** — correct with orchestrator or fallback.
 
 ---
 
@@ -804,9 +802,10 @@ From product §9.3 — enforce in generator + validators:
 - [ ] Generator has no hard-coded “only Data Analyst” branch — role from recipe + pool data
 - [ ] New category/job seed works without editing Roadmap Generator / Coach algorithms
 - [ ] Generator reads the compiled units + skills index projection, not the authoring tree, at request time
-- [ ] Lesson order is produced by topological sort over the skills index — deterministic and prerequisite-safe — regardless of whether the AI pass runs
+- [ ] Lesson skill order respects topo/prereqs after server repair — regardless of AI proposal
 - [ ] `budgetMinutes` is computed in code and never recomputed by the model
-- [ ] The AI pass only narrates (titles/phases/copy + resource ids); validation rejects or repairs any added/dropped/reordered unit
+- [ ] AI orchestrator proposes from allow-list only; validation repairs coverage/order/budget; fallback to select+pack+narrator on failure
+- [ ] `generation_meta.aiMode` is `orchestrator` or `narrator`; kill-switch `roadmap_ai_orchestrator_enabled` works without changing engine mode
 - [ ] Lesson instances are pinned to `source_template_id` + `source_version_id` at generation time
 - [ ] Generator consumes the versioned `RoadmapGenerationProfile` (per-skill entry stages), not raw `goals` skill tokens
 - [ ] A partially-known skill produces a `checkpoint`/`refresher` at the learner's entry stage, not omission or full re-teaching
@@ -833,7 +832,7 @@ From product §9.3 — enforce in generator + validators:
 - [ ] Tag skill nodes with questionnaire skill tokens where applicable
 - [ ] `SkillGraphService` load subgraph by recipe (no user logic) — served from compiled units + skills index
 - [ ] `RoadmapGeneratorService.assemble(goalId)` deterministic gap → topo-sort → format-filter → budget-pack (stages 2–6)
-- [x] Optional generator AI enrich — **narration only** + Zod + reorder/id validation (`RoadmapAiService`, soft-fail, DAG repair)
+- [x] Generator AI — **orchestrator propose+validate** (`RoadmapUnitsOrchestratorService`) with deterministic select+pack+narrator fallback; kill-switch `roadmap_ai_orchestrator_enabled`
 - [x] Queue processor wired from `RoadmapsService.enqueueGenerate`
 - [ ] `CoachService` stub hooks for progress/assessment events
 - [ ] `GET /roadmaps/current` + job poll

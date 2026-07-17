@@ -261,10 +261,45 @@ export type RoadmapMilestoneDto = {
 export type RoadmapPhaseDto = {
   id: string;
   title: string;
+  /** Identity arc title for this phase (engagement §9). */
+  narrativeTitle?: string | null;
   orderIndex: number;
   locked: boolean;
   techStackSlug: string | null;
   milestones: RoadmapMilestoneDto[];
+};
+
+export type CrossTrackNudgeDto = {
+  unitId: string;
+  title: string;
+  estimatedMinutes: number;
+  optional: true;
+};
+
+export type RoadmapMapNodeDto = {
+  unitId: string | null;
+  lessonId: string;
+  x: number;
+  y: number;
+  type: string;
+  state: "locked" | "unlocked" | "completed";
+  icon: string;
+};
+
+export type RoadmapMapPhaseDto = {
+  phaseId: string;
+  title: string;
+  narrativeTitle: string;
+  lane: number;
+  nodes: RoadmapMapNodeDto[];
+};
+
+export type RoadmapMapDto = {
+  roadmapId: string;
+  goalToken: string;
+  phases: RoadmapMapPhaseDto[];
+  branchPoints: Array<{ afterUnitId: string; branches: string[] }>;
+  crossTrackNudge?: CrossTrackNudgeDto | null;
 };
 
 export type RoadmapTreeDto = {
@@ -282,6 +317,7 @@ export type RoadmapTreeDto = {
 export type RoadmapCurrentResponse = {
   job: RoadmapJobDto | null;
   roadmap: RoadmapTreeDto | null;
+  crossTrackNudge?: CrossTrackNudgeDto | null;
 };
 
 export type RoadmapCompletionSkillSummary = {
@@ -541,7 +577,62 @@ export type LessonTypeDto =
   | "practice"
   | "mini_project"
   | "interactive"
-  | "quiz";
+  | "quiz"
+  | "scenario"
+  | "visual_hotspot"
+  | "debate"
+  | "sandbox_simulation";
+
+export type LessonActiveLiveSnippetDto = {
+  headline: string;
+  body: string;
+  sourceUrl?: string;
+};
+
+export type LessonActiveBlockDto =
+  | { type: "text"; id?: string; body: string }
+  | { type: "callout"; id?: string; title: string; body: string }
+  | {
+      type: "live_context";
+      id?: string;
+      track_tag?: string;
+      snippet?: LessonActiveLiveSnippetDto;
+    }
+  | {
+      type: "scenario_decision";
+      id: string;
+      setup: string;
+      options: { id: string; label: string }[];
+    }
+  | {
+      type: "visual_hotspot";
+      id: string;
+      imageAssetKey: string;
+      hotspots: { id: string; label?: string; x?: number; y?: number }[];
+    }
+  | {
+      type: "drag_order";
+      id: string;
+      items: { id: string; label: string }[];
+    }
+  | {
+      type: "debate_pick";
+      id: string;
+      prompt: string;
+      sideA: string;
+      sideB: string;
+    }
+  | {
+      type: "sandbox_simulation";
+      id: string;
+      simulationAssetKey: string;
+      actions: string[];
+    };
+
+export type LessonActiveBodyDto = {
+  objective: string;
+  blocks: LessonActiveBlockDto[];
+};
 
 export type LessonSectionBlockDto = {
   type: "text" | "callout" | "code";
@@ -599,7 +690,22 @@ export type LessonPlayBodyDto =
   | LessonReadingBodyDto
   | LessonVideoBodyDto
   | LessonTaskBodyDto
-  | LessonQuizBodyDto;
+  | LessonQuizBodyDto
+  | LessonActiveBodyDto;
+
+export type LessonCheckActiveBlockResponse = {
+  blockId: string;
+  correct: boolean;
+  explanation?: string | null;
+  outcome?: string | null;
+  xpEligible?: boolean;
+};
+
+export type VariableRollOutcome =
+  | { kind: "bonus_xp"; bonusPercent: number; bonusXp: number }
+  | { kind: "bonus_gems"; gems: number }
+  | { kind: "mystery_unlock"; flag: boolean }
+  | { kind: "jackpot"; multiplier: number; bonusXp: number };
 
 export type LessonQuizAnswerValue = number | boolean;
 
@@ -685,7 +791,9 @@ export type LessonCompleteResponse = {
     badgeId?: string;
     badgeLabel?: string;
     arloLine: string;
+    variableRoll?: VariableRollOutcome | Record<string, unknown> | null;
   };
+  crossTrackNudge?: CrossTrackNudgeDto | null;
   wallet?: {
     lifetimeXp: number;
     gems: number;

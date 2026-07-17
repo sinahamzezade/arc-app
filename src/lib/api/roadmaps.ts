@@ -5,6 +5,7 @@ import type {
   RoadmapCompletionSummaryDto,
   RoadmapCurrentResponse,
   RoadmapJobDto,
+  RoadmapMapDto,
 } from "./types";
 
 export type RoadmapRetryResult = {
@@ -16,6 +17,12 @@ export type RoadmapRetryResult = {
 export const roadmapsApi = {
   getCurrent(accessToken?: string | null) {
     return apiFetch<RoadmapCurrentResponse>("/roadmaps/current", {
+      accessToken,
+    });
+  },
+
+  getCurrentMap(accessToken?: string | null) {
+    return apiFetch<RoadmapMapDto>("/roadmaps/current/map", {
       accessToken,
     });
   },

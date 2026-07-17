@@ -25,7 +25,7 @@ import PathGateScreen from "@/components/path/PathGateScreen";
 import { PathScreenSkeleton } from "@/components/path/PathScreenSkeleton";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { ApiError, messageForCode } from "@/lib/api/errors";
-import type { RoadmapCurrentResponse } from "@/lib/api/types";
+import type { CrossTrackNudgeDto, RoadmapCurrentResponse } from "@/lib/api/types";
 import { mapRoadmapToPathData } from "@/lib/path/map-roadmap";
 import {
   type PathIconName,
@@ -315,14 +315,42 @@ export default function PathScreen({
     );
   }
 
-  return <RoadMap data={mapRoadmapToPathData(roadmap)} />;
+  return <RoadMap data={mapRoadmapToPathData(roadmap)} crossTrackNudge={data?.crossTrackNudge ?? null} />;
+}
+
+function CrossTrackNudgeChip({ nudge }: { nudge: CrossTrackNudgeDto }) {
+  return (
+    <Link
+      href="/learn"
+      className="mx-4 mb-3 flex items-center gap-2 rounded-[14px] border border-arc-purple-200 bg-white px-3 py-2.5 shadow-[0_2px_0_rgba(107,78,255,0.08)]"
+    >
+      <Compass className="h-4 w-4 shrink-0 text-arc-purple-600" strokeWidth={2.25} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-black tracking-[0.1em] text-arc-purple-600 uppercase">
+          Try something new
+        </p>
+        <p className="truncate text-[13px] font-bold text-[#2b1b57]">
+          {nudge.title}
+        </p>
+      </div>
+      <span className="shrink-0 text-[11px] font-bold text-[#4a3d78]">
+        {nudge.estimatedMinutes}m
+      </span>
+    </Link>
+  );
 }
 
 /* ------------------------------------------------------------------ */
 /* Road map                                                            */
 /* ------------------------------------------------------------------ */
 
-function RoadMap({ data }: { data: PathData }) {
+function RoadMap({
+  data,
+  crossTrackNudge,
+}: {
+  data: PathData;
+  crossTrackNudge?: CrossTrackNudgeDto | null;
+}) {
   const reduceMotion = useReducedMotion();
   const coins = useEconomyStore((s) => s.coins);
   const progress =
@@ -358,6 +386,8 @@ function RoadMap({ data }: { data: PathData }) {
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
       <RouteHero data={data} progress={progress} coins={coins} />
+
+      {crossTrackNudge ? <CrossTrackNudgeChip nudge={crossTrackNudge} /> : null}
 
       {/* The atlas sheet */}
       <div

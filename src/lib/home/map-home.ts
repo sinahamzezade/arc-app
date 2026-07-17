@@ -13,6 +13,27 @@ export type NextMission = {
   ordinal: number;
 };
 
+/** Current phase narrative identity (engagement §9). */
+export function findPhaseIdentity(
+  roadmap: RoadmapTreeDto,
+): string | null {
+  const phases = [...roadmap.phases].sort(
+    (a, b) => a.orderIndex - b.orderIndex,
+  );
+
+  for (const phase of phases) {
+    const hasAvailable = phase.milestones.some((m) =>
+      m.lessons.some((l) => l.status === "available"),
+    );
+    if (hasAvailable) {
+      return phase.narrativeTitle?.trim() || phase.title || null;
+    }
+  }
+
+  const first = phases[0];
+  return first?.narrativeTitle?.trim() || first?.title || null;
+}
+
 /** First available lesson on the path (or first incomplete). */
 export function findNextMission(
   roadmap: RoadmapTreeDto,
@@ -126,10 +147,11 @@ export function mapHomeFromBackend(input: {
   coins?: number;
   notificationCount?: number;
   weeklyStreakWeeks?: number;
-}): { data: HomeData; unit: number } {
+}): { data: HomeData; unit: number; identityArc: string | null } {
   const base = input.base ?? emptyHomeData();
   let data: HomeData = { ...base };
   let unit = 1;
+  let identityArc: string | null = null;
 
   if (input.userName) {
     data = { ...data, userName: input.userName };
@@ -150,6 +172,7 @@ export function mapHomeFromBackend(input: {
   };
 
   if (input.roadmap) {
+    identityArc = findPhaseIdentity(input.roadmap);
     const next = findNextMission(input.roadmap);
     if (next) {
       unit = next.unit;
@@ -222,5 +245,5 @@ export function mapHomeFromBackend(input: {
     };
   }
 
-  return { data, unit };
+  return { data, unit, identityArc };
 }

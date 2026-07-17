@@ -3,14 +3,12 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
   ClipboardList,
-  Compass,
   Home,
   RefreshCw,
-  Route,
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import {
@@ -33,22 +31,28 @@ type PathGateScreenProps = {
   retryError?: string;
 };
 
+const TRAIL_STEPS = [
+  { key: "scan", label: "Scan" },
+  { key: "pool", label: "Pool" },
+  { key: "match", label: "Match" },
+  { key: "ink", label: "Ink" },
+  { key: "live", label: "Live" },
+] as const;
+
 const copy: Record<
   PathGateKind,
   {
-    stamp: string;
     eyebrow: string;
     title: ReactNode;
     subtitle: string;
     arlo: string;
     arloAlt: string;
-    dockEyebrow: string;
-    dockTitle: string;
-    trailLit: number;
+    status: string;
+    /** 1-based active step on the trail (0 = none lit) */
+    activeStep: number;
   }
 > = {
   loading: {
-    stamp: "SCAN",
     eyebrow: "Unfolding map",
     title: (
       <>
@@ -60,12 +64,10 @@ const copy: Record<
     subtitle: "Pulling the latest path from your goal.",
     arlo: assets.arlo.thinking,
     arloAlt: "Arlo thinking",
-    dockEyebrow: "Stand by",
-    dockTitle: "Charting coordinates",
-    trailLit: 1,
+    status: "Loading trail data",
+    activeStep: 1,
   },
   building: {
-    stamp: "DRAW",
     eyebrow: "Content pool live",
     title: (
       <>
@@ -77,12 +79,10 @@ const copy: Record<
     subtitle: "Arlo picks published lessons from the shared content pool.",
     arlo: assets.arlo.wand,
     arloAlt: "Arlo mapping",
-    dockEyebrow: "In flight",
-    dockTitle: "Trail under ink",
-    trailLit: 3,
+    status: "Traversing skill nodes",
+    activeStep: 3,
   },
   failed: {
-    stamp: "HOLD",
     eyebrow: "Trail blocked",
     title: (
       <>
@@ -94,12 +94,10 @@ const copy: Record<
     subtitle: "Something snagged while charting your path.",
     arlo: assets.arlo.thinking,
     arloAlt: "Arlo puzzled",
-    dockEyebrow: "Retry desk",
-    dockTitle: "Redraw the route",
-    trailLit: 0,
+    status: "Redraw the route",
+    activeStep: 0,
   },
   empty: {
-    stamp: "LOCK",
     eyebrow: "No trail yet",
     title: (
       <>
@@ -111,16 +109,15 @@ const copy: Record<
     subtitle: "Finish the questionnaire so Arlo can ink your learning path.",
     arlo: assets.arlo.waveHand,
     arloAlt: "Arlo waving",
-    dockEyebrow: "First step",
-    dockTitle: "Unlock the trail",
-    trailLit: 0,
+    status: "Unlock the trail",
+    activeStep: 0,
   },
 };
 
 /**
- * Path gate — cartographer desk.
- * Diagonal night trail + Arlo on a node + lavender action sheet.
- * Not a centered spinner. Not a 404 clone.
+ * Path gate — night cartographer.
+ * Full-bleed sky, ink trail as hero, Arlo on the route.
+ * Actions dock only when the user must act.
  */
 export default function PathGateScreen({
   kind,
@@ -129,74 +126,63 @@ export default function PathGateScreen({
   recipeMissing = false,
   retryError,
 }: PathGateScreenProps) {
+  const reduceMotion = useReducedMotion();
   const c = copy[kind];
   const detail =
     message && (kind === "failed" || kind === "empty") ? message : c.subtitle;
+  const needsActions = kind === "failed" || kind === "empty";
+  const isWorking = kind === "loading" || kind === "building";
 
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#f3effc] font-rounded">
-      <section className="relative overflow-hidden bg-[#0f1220] px-4 pb-[5.5rem] pt-[calc(env(safe-area-inset-top)+14px)] text-white">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-20 right-[-48px] h-64 w-64 rounded-full bg-arc-purple-500/35 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-0 left-[-40px] h-44 w-44 rounded-full bg-[#ffc928]/18 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-35"
-          style={{
-            backgroundImage:
-              "radial-gradient(1.5px 1.5px at 14% 24%, #fff, transparent), radial-gradient(1px 1px at 78% 16%, #fff, transparent), radial-gradient(1.5px 1px at 58% 58%, #fff, transparent), radial-gradient(1px 1px at 32% 72%, #fff, transparent)",
-          }}
-        />
+    <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-hidden bg-arc-navy-950 font-rounded">
+      {/* Atmosphere */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_18%_0%,rgba(107,78,255,0.42),transparent_52%),radial-gradient(ellipse_at_92%_12%,rgba(255,201,40,0.2),transparent_42%),radial-gradient(ellipse_at_50%_100%,rgba(107,78,255,0.18),transparent_55%)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.55]"
+        style={{
+          backgroundImage:
+            "radial-gradient(1.5px 1.5px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 72% 12%, #fff, transparent), radial-gradient(1.5px 1px at 48% 42%, #fff, transparent), radial-gradient(1px 1px at 28% 68%, #fff, transparent), radial-gradient(1px 1px at 88% 58%, #fff, transparent)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.06]"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        }}
+      />
 
-        <DiagonalTrail lit={c.trailLit} broken={kind === "failed"} />
-
-        <motion.div
-          className="absolute top-[calc(env(safe-area-inset-top)+12px)] right-3 z-20 rotate-[8deg]"
-          initial={{ opacity: 0, scale: 0.8, rotate: 18 }}
-          animate={{ opacity: 1, scale: 1, rotate: 8 }}
-          transition={{ ...softSpring, delay: 0.18 }}
-        >
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border-2 px-2.5 py-1 font-display text-[12px] font-bold tracking-[0.14em] uppercase",
-              kind === "failed"
-                ? "border-[#ff8a7a]/60 bg-[#ff8a7a]/15 text-[#ffb4a8]"
-                : kind === "empty"
-                  ? "border-white/25 bg-white/10 text-white/70"
-                  : "border-[#ffc928]/70 bg-[#ffc928]/15 text-[#ffc928]",
-            )}
-          >
-            <Compass className="size-3.5" aria-hidden />
-            {c.stamp}
-          </span>
-        </motion.div>
-
-        <div className="relative z-10 grid grid-cols-12 items-end gap-2 pt-6">
-          <div className="col-span-7 col-start-1 pb-2">
+      <div className="relative z-1 flex flex-1 flex-col px-5 pt-[calc(env(safe-area-inset-top)+18px)] pb-[calc(env(safe-area-inset-bottom)+20px)]">
+        {/* Brand + headline — one composition */}
+        <div className="grid grid-cols-[1fr_auto] items-start gap-2">
+          <div className="min-w-0 pt-1">
             <motion.p
-              className="text-[10px] font-black tracking-[0.16em] text-[#ffc928] uppercase"
-              initial={{ opacity: 0, x: -12 }}
+              className={cn(
+                "text-[11px] font-black tracking-[0.16em] uppercase",
+                kind === "failed" ? "text-[#ffb4a8]" : "text-[#ffc928]",
+              )}
+              initial={reduceMotion ? false : { opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ ...softSpring, delay: 0.04 }}
             >
               {c.eyebrow}
             </motion.p>
             <motion.h1
-              className="mt-2 font-display text-[36px] leading-[0.92] font-bold tracking-[-0.045em]"
-              initial={{ opacity: 0, y: 14 }}
+              className="mt-2 max-w-[12ch] font-display text-[36px] leading-[0.92] font-bold tracking-[-0.045em] text-white text-balance"
+              initial={reduceMotion ? false : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ...softSpring, delay: 0.1 }}
             >
               {c.title}
             </motion.h1>
             <motion.p
-              className="mt-3 max-w-[13.5rem] text-[13px] leading-snug font-semibold text-white/60"
-              initial={{ opacity: 0, y: 10 }}
+              className="mt-3 max-w-[22ch] text-[13px] leading-snug font-semibold text-white/55"
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ...softSpring, delay: 0.16 }}
             >
@@ -205,126 +191,161 @@ export default function PathGateScreen({
           </div>
 
           <motion.div
-            className="relative col-span-5 -mr-4 mb-[-1.25rem] h-[156px] w-full justify-self-end"
-            initial={{ opacity: 0, y: 28, rotate: 6 }}
-            animate={{ opacity: 1, y: [0, -7, 0], rotate: 2 }}
-            transition={{
-              opacity: { ...softSpring, delay: 0.14 },
-              rotate: { ...softSpring, delay: 0.14 },
-              y: {
-                duration: 3.4,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 0.45,
-              },
-            }}
+            className="relative -mr-2 h-[148px] w-[132px] shrink-0"
+            initial={reduceMotion ? false : { opacity: 0, y: 20, rotate: 8 }}
+            animate={
+              reduceMotion
+                ? { opacity: 1, y: 0, rotate: 2 }
+                : { opacity: 1, y: [0, -8, 0], rotate: 2 }
+            }
+            transition={
+              reduceMotion
+                ? softSpring
+                : {
+                    opacity: { ...softSpring, delay: 0.12 },
+                    rotate: { ...softSpring, delay: 0.12 },
+                    y: {
+                      duration: 3.2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: 0.4,
+                    },
+                  }
+            }
           >
             <Image
               src={c.arlo}
               alt={c.arloAlt}
               fill
               priority
-              className="object-contain object-bottom"
-              sizes="160px"
+              className="object-contain object-bottom drop-shadow-[0_12px_28px_rgba(0,0,0,0.45)]"
+              sizes="140px"
             />
           </motion.div>
         </div>
-      </section>
 
-      <motion.div
-        className="relative z-10 -mt-10 flex flex-1 flex-col rounded-t-[28px] bg-[#f3effc] px-4 pt-7 pb-[calc(env(safe-area-inset-bottom)+22px)] shadow-[0_-14px_40px_rgba(0,0,0,0.22)]"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={softSpring}
-      >
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-black tracking-[0.12em] text-arc-lavender-600 uppercase">
-              {c.dockEyebrow}
-            </p>
-            <h2 className="mt-1 font-display text-[22px] font-bold tracking-[-0.03em] text-[#0f1220]">
-              {c.dockTitle}
-            </h2>
-          </div>
-          <Route
-            className="mb-1 size-7 shrink-0 text-arc-purple-500/35"
-            strokeWidth={2.25}
-            aria-hidden
+        {/* Ink trail — dominant visual plane */}
+        <motion.div
+          className="relative mt-6 flex-1"
+          initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...softSpring, delay: 0.18 }}
+        >
+          <InkTrail
+            activeStep={c.activeStep}
+            broken={kind === "failed"}
+            sealed={kind === "empty"}
+            reduceMotion={!!reduceMotion}
           />
-        </div>
 
-        {(kind === "loading" || kind === "building") && (
-          <NodeMarch active={kind === "building"} className="mt-5" />
-        )}
+          <p
+            className="mt-5 text-center text-[11px] font-black tracking-[0.14em] text-white/40 uppercase"
+            role="status"
+            aria-live="polite"
+          >
+            {isWorking ? (
+              <>
+                <span className="text-[#ffc928]">
+                  Step {c.activeStep} of {TRAIL_STEPS.length}
+                </span>
+                <span className="mx-2 text-white/20">·</span>
+                <span>{c.status}</span>
+              </>
+            ) : (
+              c.status
+            )}
+          </p>
+        </motion.div>
 
-        <div className="mt-5 flex flex-col gap-3">
-          {kind === "failed" ? (
-            <>
-              <motion.div whileTap={{ scale: 0.98 }}>
-                <Button
-                  className={cn(
-                    authCtaClassName,
-                    "inline-flex items-center justify-center gap-2",
-                  )}
-                  onPress={() => onRetry?.()}
-                >
-                  <RefreshCw className="size-5" aria-hidden />
-                  Redraw map
-                </Button>
-              </motion.div>
-              {recipeMissing ? (
-                <motion.div whileTap={{ scale: 0.98 }}>
+        {/* Action dock — only when user must act */}
+        {needsActions ? (
+          <motion.div
+            className="mt-6 flex flex-col gap-3"
+            initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...softSpring, delay: 0.22 }}
+          >
+            {kind === "failed" ? (
+              <>
+                <motion.div whileTap={reduceMotion ? undefined : { scale: 0.98 }}>
+                  <Button
+                    className={cn(
+                      authCtaClassName,
+                      "inline-flex cursor-pointer items-center justify-center gap-2",
+                    )}
+                    onPress={() => onRetry?.()}
+                  >
+                    <RefreshCw className="size-5" aria-hidden />
+                    Redraw map
+                  </Button>
+                </motion.div>
+                {recipeMissing ? (
+                  <motion.div
+                    whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                  >
+                    <Link
+                      href="/questionnaire/1?change=1"
+                      className={`${authCtaClassName} inline-flex cursor-pointer items-center justify-center gap-2 !bg-white !text-[#0f1220] border border-[#d9d0f0]`}
+                    >
+                      <ClipboardList className="size-5" aria-hidden />
+                      Change goal
+                    </Link>
+                  </motion.div>
+                ) : null}
+                <SecondaryLink
+                  href="/home"
+                  icon={Home}
+                  label="Back home"
+                  reduceMotion={!!reduceMotion}
+                />
+                <p className="flex items-start gap-2 rounded-arc-md border-2 border-[#ff8a7a]/35 bg-[#ff8a7a]/10 px-3.5 py-3 text-[12px] font-bold text-[#ffb4a8]">
+                  <AlertTriangle
+                    className="mt-0.5 size-4 shrink-0"
+                    aria-hidden
+                  />
+                  <span>
+                    {retryError ||
+                      message ||
+                      (recipeMissing
+                        ? "That goal isn’t in the learning catalog yet — pick a role with a learning path, or add one in admin."
+                        : "Try again from home.")}
+                  </span>
+                </p>
+              </>
+            ) : null}
+
+            {kind === "empty" ? (
+              <>
+                <motion.div whileTap={reduceMotion ? undefined : { scale: 0.98 }}>
                   <Link
-                    href="/questionnaire/1?change=1"
-                    className={`${authCtaClassName} inline-flex items-center justify-center gap-2 !bg-white !text-[#0f1220] border border-[#d9d0f0]`}
+                    href="/questionnaire"
+                    className={`${authCtaClassName} inline-flex cursor-pointer items-center justify-center gap-2`}
                   >
                     <ClipboardList className="size-5" aria-hidden />
-                    Change goal
+                    Open questionnaire
                   </Link>
                 </motion.div>
-              ) : null}
-              <SecondaryLink href="/home" icon={Home} label="Back home" />
-            </>
-          ) : null}
-
-          {kind === "empty" ? (
-            <>
-              <motion.div whileTap={{ scale: 0.98 }}>
-                <Link
-                  href="/questionnaire"
-                  className={`${authCtaClassName} inline-flex items-center justify-center gap-2`}
-                >
-                  <ClipboardList className="size-5" aria-hidden />
-                  Open questionnaire
-                </Link>
-              </motion.div>
-              <SecondaryLink href="/home" icon={Home} label="Back home" />
-            </>
-          ) : null}
-        </div>
-
-        {kind === "failed" ? (
-          <p className="mt-5 flex items-start gap-2 rounded-[16px] border border-[#f5d0c8] bg-[#fff5f2] px-3.5 py-3 text-[12px] font-bold text-[#a65a4a]">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>
-              {retryError ||
-                message ||
-                (recipeMissing
-                  ? "That goal isn’t in the learning catalog yet — pick a role with a learning path, or add one in admin."
-                  : "Try again from home.")}
-            </span>
-          </p>
-        ) : null}
-
-        {(kind === "loading" || kind === "building") && (
-          <p className="mt-auto pt-8 text-[13px] font-bold text-[#7a6fa3]">
+                <SecondaryLink
+                  href="/home"
+                  icon={Home}
+                  label="Back home"
+                  reduceMotion={!!reduceMotion}
+                />
+              </>
+            ) : null}
+          </motion.div>
+        ) : (
+          <p className="mt-6 text-center text-[13px] font-bold text-white/40">
             While you wait —{" "}
-            <Link href="/home" className={authGhostLinkClassName}>
+            <Link
+              href="/home"
+              className={cn(authGhostLinkClassName, "text-[#ffc928]/90")}
+            >
               peek home
             </Link>
           </p>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -333,131 +354,156 @@ function SecondaryLink({
   href,
   icon: Icon,
   label,
+  reduceMotion,
 }: {
   href: string;
   icon: typeof Home;
   label: string;
+  reduceMotion: boolean;
 }) {
   return (
-    <motion.div whileTap={{ scale: 0.98 }}>
+    <motion.div whileTap={reduceMotion ? undefined : { scale: 0.98 }}>
       <Link
         href={href}
-        className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-[18px] border-2 border-[#ebe4f6] bg-white text-[15px] font-bold text-[#0f1220] shadow-[0_3px_0_#ebe4f6] transition-all active:translate-y-px active:shadow-[0_1px_0_#ebe4f6]"
+        className="inline-flex h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-arc-md border-2 border-white/15 bg-white/5 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-white/10"
       >
-        <Icon className="size-5 text-arc-purple-500" aria-hidden />
+        <Icon className="size-5 text-[#ffc928]" aria-hidden />
         {label}
       </Link>
     </motion.div>
   );
 }
 
-/** Diagonal night trail — breaks center symmetry */
-function DiagonalTrail({ lit, broken }: { lit: number; broken?: boolean }) {
+/** Large S-curve ink trail — progress lives on the path, not in a card */
+function InkTrail({
+  activeStep,
+  broken,
+  sealed,
+  reduceMotion,
+}: {
+  activeStep: number;
+  broken?: boolean;
+  sealed?: boolean;
+  reduceMotion: boolean;
+}) {
   const nodes = [
-    { cx: 28, cy: 168 },
-    { cx: 92, cy: 128 },
-    { cx: 168, cy: 108 },
-    { cx: 248, cy: 72 },
-    { cx: 318, cy: 48 },
+    { cx: 36, cy: 168, label: TRAIL_STEPS[0].label },
+    { cx: 108, cy: 128, label: TRAIL_STEPS[1].label },
+    { cx: 180, cy: 96, label: TRAIL_STEPS[2].label },
+    { cx: 252, cy: 64, label: TRAIL_STEPS[3].label },
+    { cx: 324, cy: 36, label: TRAIL_STEPS[4].label },
   ];
 
-  return (
-    <svg
-      aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-8 h-[210px] w-full opacity-90"
-      viewBox="0 0 360 200"
-      fill="none"
-    >
-      <motion.path
-        d="M20 176 C 70 150, 110 140, 160 112 S 250 70, 340 40"
-        stroke={broken ? "#ff8a7a55" : "#6b4eff66"}
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeDasharray={broken ? "8 10" : "0"}
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: 1, opacity: 1 }}
-        transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
-      />
-      {nodes.map((n, i) => {
-        const on = i < lit;
-        return (
-          <motion.circle
-            key={i}
-            cx={n.cx}
-            cy={n.cy}
-            r={on ? 7 : 5}
-            fill={on ? (i === lit - 1 ? "#ffc928" : "#6b4eff") : "#ffffff22"}
-            stroke="#0f1220"
-            strokeWidth="2"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{
-              scale: on && i === lit - 1 ? [1, 1.25, 1] : 1,
-              opacity: 1,
-            }}
-            transition={{
-              scale:
-                on && i === lit - 1
-                  ? { duration: 1.2, repeat: Infinity, ease: "easeInOut" }
-                  : { ...softSpring, delay: 0.2 + i * 0.08 },
-              opacity: { ...softSpring, delay: 0.2 + i * 0.08 },
-            }}
-            style={{ transformOrigin: `${n.cx}px ${n.cy}px` }}
-          />
-        );
-      })}
-    </svg>
-  );
-}
+  const stroke = broken
+    ? "#ff8a7a66"
+    : sealed
+      ? "#ffffff22"
+      : "#6b4eff88";
 
-function NodeMarch({
-  active,
-  className,
-}: {
-  active: boolean;
-  className?: string;
-}) {
   return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-[20px] border-2 border-[#ebe4f6] bg-white px-4 py-4 shadow-[0_3px_0_#ebe4f6]",
-        className,
-      )}
-      role="status"
-      aria-live="polite"
-    >
-      <div className="relative flex items-center justify-between px-1">
-        <span
-          aria-hidden
-          className="absolute top-1/2 right-1 left-1 h-[3px] -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,#6b4eff44,#ffc92844)]"
+    <div className="relative mx-auto w-full max-w-[360px]">
+      <svg
+        aria-hidden
+        className="h-[210px] w-full"
+        viewBox="0 0 360 200"
+        fill="none"
+      >
+        {/* Soft glow under path */}
+        <motion.path
+          d="M28 172 C 90 142, 130 132, 180 100 S 270 58, 332 34"
+          stroke={broken ? "#ff8a7a22" : "#6b4eff33"}
+          strokeWidth="14"
+          strokeLinecap="round"
+          initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{ duration: reduceMotion ? 0 : 1.15, ease: [0.22, 1, 0.36, 1] }}
         />
-        {[0, 1, 2, 3, 4].map((i) => (
-          <motion.span
-            key={i}
-            className={cn(
-              "relative z-[1] size-3.5 rounded-full border-2 border-white",
-              i === 0
-                ? "bg-arc-purple-500"
-                : i === 4
-                  ? "bg-[#ffc928]"
-                  : "bg-[#c9b8ff]",
-            )}
-            animate={
-              active
-                ? { y: [0, -6, 0], scale: [1, 1.2, 1] }
-                : { opacity: [0.45, 1, 0.45] }
-            }
-            transition={{
-              duration: active ? 0.9 : 1.5,
-              repeat: Infinity,
-              delay: i * 0.1,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </div>
-      <p className="mt-3 text-[11px] font-black tracking-[0.1em] text-[#7a6fa3] uppercase">
-        {active ? "Traversing skill nodes" : "Loading trail data"}
-      </p>
+        <motion.path
+          d="M28 172 C 90 142, 130 132, 180 100 S 270 58, 332 34"
+          stroke={stroke}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeDasharray={broken ? "9 11" : sealed ? "4 8" : "0"}
+          initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{
+            duration: reduceMotion ? 0 : 1.05,
+            ease: [0.22, 1, 0.36, 1],
+            delay: reduceMotion ? 0 : 0.05,
+          }}
+        />
+
+        {nodes.map((n, i) => {
+          const step = i + 1;
+          const done = activeStep > 0 && step < activeStep;
+          const current = activeStep > 0 && step === activeStep;
+          const fill = broken
+            ? "#ff8a7a55"
+            : sealed
+              ? "#ffffff18"
+              : current
+                ? "#ffc928"
+                : done
+                  ? "#6b4eff"
+                  : "#ffffff22";
+
+          return (
+            <g key={n.label}>
+              <motion.circle
+                cx={n.cx}
+                cy={n.cy}
+                r={current ? 9 : done ? 7 : 5.5}
+                fill={fill}
+                stroke="#100d22"
+                strokeWidth="2.5"
+                initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
+                animate={{
+                  scale:
+                    !reduceMotion && current ? [1, 1.22, 1] : 1,
+                  opacity: 1,
+                }}
+                transition={{
+                  scale:
+                    !reduceMotion && current
+                      ? {
+                          duration: 1.25,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }
+                      : { ...softSpring, delay: 0.22 + i * 0.07 },
+                  opacity: { ...softSpring, delay: 0.22 + i * 0.07 },
+                }}
+                style={{ transformOrigin: `${n.cx}px ${n.cy}px` }}
+              />
+              {/* Label under/near node — color not sole cue */}
+              <motion.text
+                x={n.cx}
+                y={n.cy + (i % 2 === 0 ? 22 : -16)}
+                textAnchor="middle"
+                fill={
+                  current
+                    ? "#ffc928"
+                    : done
+                      ? "#c9b8ff"
+                      : "rgba(255,255,255,0.35)"
+                }
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: "0.08em",
+                }}
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{
+                  opacity: current ? 0.95 : done ? 0.7 : 0.35,
+                }}
+                transition={{ ...softSpring, delay: 0.28 + i * 0.07 }}
+              >
+                {n.label.toUpperCase()}
+              </motion.text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }

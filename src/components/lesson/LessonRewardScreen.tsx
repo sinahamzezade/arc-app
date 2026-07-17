@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { assets } from "@/lib/assets";
-import type { LessonCompleteResponse } from "@/lib/api/types";
+import type { LessonCompleteResponse, VariableRollOutcome } from "@/lib/api/types";
 import { badgesApi } from "@/lib/api/badges";
 import { lessonsApi } from "@/lib/api/lessons";
 import { badgeImageFor, isBadgeUploadSrc } from "@/lib/badges/icons";
@@ -236,6 +236,29 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
             />
           </div>
 
+          {reward.variableRoll ? (
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="mt-4 rounded-[14px] border border-[#ffc928]/30 bg-[#ffc928]/10 px-3.5 py-2.5 text-[13px] font-bold text-[#ffc928]"
+            >
+              {formatVariableRoll(reward.variableRoll)}
+            </motion.p>
+          ) : null}
+
+          {result.crossTrackNudge ? (
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.34 }}
+              className="mt-3 text-[12px] font-semibold text-white/50"
+            >
+              Optional next: {result.crossTrackNudge.title} (
+              {result.crossTrackNudge.estimatedMinutes}m)
+            </motion.p>
+          ) : null}
+
           {badgeSrc && reward.badgeLabel ? (
             <motion.div
               initial={{ opacity: 0, x: -16 }}
@@ -356,4 +379,23 @@ function RewardChip({
       </p>
     </motion.div>
   );
+}
+
+function formatVariableRoll(
+  roll: VariableRollOutcome | Record<string, unknown>,
+): string {
+  const row = roll as Record<string, unknown>;
+  const kind = String(row.kind ?? "");
+  switch (kind) {
+    case "bonus_xp":
+      return `Bonus roll: +${Number(row.bonusXp ?? 0)} XP (${Number(row.bonusPercent ?? 0)}%)`;
+    case "bonus_gems":
+      return `Bonus roll: +${Number(row.gems ?? 0)} gems`;
+    case "mystery_unlock":
+      return "Mystery unlock — check your rewards!";
+    case "jackpot":
+      return `Jackpot! +${Number(row.bonusXp ?? 0)} bonus XP (×${Number(row.multiplier ?? 2)})`;
+    default:
+      return "Bonus reward unlocked!";
+  }
 }

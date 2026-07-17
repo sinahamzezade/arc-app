@@ -1,12 +1,17 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 import { useCurrentLeague } from "@/hooks/useCurrentLeague";
 import { useLeagueHistory } from "@/hooks/useLeagueHistory";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import {
+  leaguesApi,
+  type LeagueMeGoalScopeResponse,
+} from "@/lib/api/leagues";
 import type { LeaderboardData, LeaderboardTab } from "@/lib/leaderboard/types";
 import { cn } from "@/lib/utils";
 import { DivisionsPanel } from "@/components/leaderboard/DivisionsPanel";
@@ -96,6 +101,22 @@ export default function LeaderboardScreen({
 }
 
 function LeaderboardBoard({ data }: { data: LeaderboardData }) {
+  const { data: session } = useSession();
+  const accessToken = session?.accessToken;
+  const [leagueScope, setLeagueScope] = useState<"global" | "goal">("global");
+
+  const meScopeQuery = useQuery({
+    queryKey: ["leagues", "me", leagueScope, accessToken ?? "anon"],
+    enabled: Boolean(accessToken) && leagueScope === "goal",
+    queryFn: () => leaguesApi.getMe("goal", accessToken),
+    staleTime: 30_000,
+  });
+
+  const goalScope =
+    meScopeQuery.data && "standings" in meScopeQuery.data
+      ? (meScopeQuery.data as LeagueMeGoalScopeResponse)
+      : null;
+
   const you = data.entries.find((e) => e.isYou);
   const historyQuery = useLeagueHistory();
   const router = useRouter();
@@ -143,8 +164,26 @@ function LeaderboardBoard({ data }: { data: LeaderboardData }) {
                 transition={softSpring}
                 className="space-y-5"
               >
-                <StandingsTable data={data} />
-                {data.me ? (
+                <LeagueScopeToggle
+                  scope={leagueScope}
+                  onChange={setLeagueScope}
+                />
+                {leagueScope === "goal" ? (
+                  <GoalScopeStandings
+                    loading={meScopeQuery.isLoading}
+                    error={
+                      meScopeQuery.isError
+                        ? meScopeQuery.error instanceof Error
+                          ? meScopeQuery.error.message
+                          : "Could not load goal league"
+                        : null
+                    }
+                    data={goalScope}
+                  />
+                ) : (
+                  <StandingsTable data={data} />
+                )}
+                {data.me && leagueScope === "global" ? (
                   <div>
                     <h3 className="mb-2 px-0.5 font-display text-[16px] font-bold text-[#0f1220]">
                       Score sources
@@ -199,10 +238,109 @@ function LeaderboardBoard({ data }: { data: LeaderboardData }) {
       </div>
 
       <AnimatePresence>
-        {you && activeTab === "board" ? (
+        {you && activeTab === "board" && leagueScope === "global" ? (
           <YouDock key="you-dock" entry={you} daysLeft={data.stats.daysLeft} />
         ) : null}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function LeagueScopeToggle({
+  scope,
+  onChange,
+}: {
+  scope: "global" | "goal";
+  onChange: (scope: "global" | "goal") => void;
+}) {
+  return (
+    <div
+      className="flex rounded-[14px] bg-white p-1 shadow-[0_2px_0_rgba(15,18,32,0.06)]"
+      role="tablist"
+      aria-label="League scope"
+    >
+      {(["global", "goal"] as const).map((key) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={scope === key}
+          onClick={() => onChange(key)}
+          className={cn(
+            "flex-1 rounded-[10px] py-2 text-[12px] font-extrabold capitalize transition-colors",
+            scope === key
+              ? "bg-[#0f1220] text-white"
+              : "text-[#4a3d78] hover:bg-[#f3effc]",
+          )}
+        >
+          {key === "global" ? "Global" : "Your goal"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function GoalScopeStandings({
+  loading,
+  error,
+  data,
+}: {
+  loading: boolean;
+  error: string | null;
+  data: LeagueMeGoalScopeResponse | null;
+}) {
+  if (loading) {
+    return (
+      <p className="px-1 py-6 text-center text-[13px] font-semibold text-arc-lavender-600">
+        Loading goal cohort…
+      </p>
+    );
+  }
+
+  if (error) {
+    return (
+      <p className="rounded-[14px] bg-white px-4 py-5 text-center text-[13px] font-bold text-[#9a4a12]">
+        {error}
+      </p>
+    );
+  }
+
+  if (!data?.standings?.length) {
+    return (
+      <p className="rounded-[14px] bg-white px-4 py-5 text-center text-[13px] font-semibold text-[#4a3d78]">
+        No goal-scoped peers this week yet.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-[16px] bg-white shadow-[0_2px_0_rgba(15,18,32,0.06)]">
+      <div className="border-b border-[#f3effc] px-4 py-3">
+        <p className="text-[11px] font-black tracking-[0.1em] text-arc-purple-600 uppercase">
+          Goal cohort
+        </p>
+        <p className="text-[13px] font-bold text-[#4a3d78]">
+          {data.goalToken.replace(/-/g, " ")}
+        </p>
+      </div>
+      <ul className="divide-y divide-[#f3effc]">
+        {data.standings.map((row) => (
+          <li
+            key={`${row.rank}-${row.displayName}`}
+            className="flex items-center gap-3 px-4 py-3"
+          >
+            <span className="w-6 text-center font-display text-[14px] font-bold text-[#4a3d78]">
+              {row.rank}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-[#0f1220]">
+              {row.displayName}
+            </span>
+            <span className="text-[13px] font-bold tabular-nums text-arc-purple-600">
+              {row.weeklyXp.toLocaleString()} XP
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

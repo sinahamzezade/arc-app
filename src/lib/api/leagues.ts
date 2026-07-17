@@ -77,6 +77,20 @@ export type LeagueLeaderboardResponse = {
   nextCursor: string | null;
 };
 
+export type LeagueMeGoalScopeResponse = {
+  scope: "goal";
+  goalToken: string;
+  league: {
+    tier: LeagueTier;
+    weekStart: string;
+  };
+  standings: Array<{
+    rank: number;
+    displayName: string;
+    weeklyXp: number;
+  }>;
+};
+
 export type LeagueMeResponse = {
   serverTimestamp: string;
   seasonEndsAt: string;
@@ -119,6 +133,38 @@ export type LeagueUserResponse = {
   } | null;
 };
 
+async function fetchLeagueMe(
+  scope: "global" | "goal",
+  accessToken?: string | null,
+): Promise<LeagueMeResponse | LeagueMeGoalScopeResponse> {
+  const q = scope === "goal" ? "?scope=goal" : "";
+  return apiFetch<LeagueMeResponse | LeagueMeGoalScopeResponse>(
+    `/leagues/current/me${q}`,
+    { accessToken },
+  );
+}
+
+export function getLeagueMe(
+  accessToken?: string | null,
+): Promise<LeagueMeResponse>;
+export function getLeagueMe(
+  scope: "goal",
+  accessToken?: string | null,
+): Promise<LeagueMeGoalScopeResponse>;
+export function getLeagueMe(
+  scopeOrToken?: "goal" | string | null,
+  accessToken?: string | null,
+): Promise<LeagueMeResponse | LeagueMeGoalScopeResponse> {
+  if (scopeOrToken === "goal") {
+    return fetchLeagueMe("goal", accessToken) as Promise<LeagueMeGoalScopeResponse>;
+  }
+  const token =
+    scopeOrToken === "global" || scopeOrToken == null
+      ? scopeOrToken
+      : scopeOrToken;
+  return fetchLeagueMe("global", token) as Promise<LeagueMeResponse>;
+}
+
 export const leaguesApi = {
   getCurrent(accessToken?: string | null) {
     return apiFetch<LeagueCurrentResponse>("/leagues/current", {
@@ -153,9 +199,7 @@ export const leaguesApi = {
     return { entries: all, seasonEndsAt, cohortId };
   },
 
-  getMe(accessToken?: string | null) {
-    return apiFetch<LeagueMeResponse>("/leagues/current/me", { accessToken });
-  },
+  getMe: getLeagueMe,
 
   getHistory(cursor?: string, accessToken?: string | null) {
     const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";

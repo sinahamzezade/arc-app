@@ -9,6 +9,7 @@ type HomePortraitStageProps = {
   greeting: string;
   userName: HomeData["userName"];
   weekStreak?: number;
+  identityArc?: string | null;
 };
 
 /**
@@ -18,6 +19,7 @@ export function HomePortraitStage({
   greeting,
   userName,
   weekStreak = 0,
+  identityArc,
 }: HomePortraitStageProps) {
   const reduceMotion = useReducedMotion();
 
@@ -50,6 +52,12 @@ export function HomePortraitStage({
           </span>
         ) : null}
       </div>
+      {identityArc ? (
+        <p className="mt-2 text-[12px] font-bold text-white/55">
+          You are:{" "}
+          <span className="text-[#ffc928]/90">{identityArc}</span>
+        </p>
+      ) : null}
     </motion.section>
   );
 }

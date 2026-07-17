@@ -83,7 +83,7 @@ export default function HomeScreen({
       !roadmapRes &&
       !week);
 
-  const { data, unit } = useMemo(
+  const { data, unit, identityArc } = useMemo(
     () =>
       mapHomeFromBackend({
         base: dataProp ?? emptyHomeData(),
@@ -142,6 +142,7 @@ export default function HomeScreen({
             greeting={greeting}
             userName={data.userName}
             weekStreak={data.weeklyStreak.weeks}
+            identityArc={identityArc}
           />
         </div>
       </header>

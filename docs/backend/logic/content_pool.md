@@ -1,13 +1,16 @@
 # Arc Backend — Central Content Pool
 
-**Version:** 3.2 (stage-path selection + proof preservation)
+**Version:** 3.3 (active-format units + live-context injection + format-variety tie-breaker)
 **Canonical integration:** This is the detailed published-content layer behind the Skill Graph in doc 03. It never stores user progress or wallet state.
+
+**What changed in 3.4:** roadmap selection/order may be AI-proposed from the units allow-list with hard server validate/repair (`RoadmapUnitsOrchestratorService`); deterministic select+pack+narrator remains the fallback. See §7.6–7.7 and doc 03 §5.
 
 See [00 — System Integration Contract](./00-system-integration.md).
 
 **Stack:** NestJS + TypeORM + PostgreSQL
 **Consumers:** Questionnaire handoff, Roadmap Generator, Lesson Play, Battle question selection, Course Timing
 **Depends on:** `02-questionnaire.md`, `03-goals-and-roadmap.md`, `05-Learn_Lesson_Play_API.md`
+**Related:** [10 — Engagement Layer](./10-engagement-layer-active-learning.md) (active-format blocks, live-context injection, format-variety rule — product surface SoT; this doc owns pool data model)
 
 ---
 
@@ -23,7 +26,7 @@ Everything selectable or gradeable is decided by **deterministic backend code**,
 
 - **Ordering** comes from the prerequisite DAG via topological sort. It is repeatable and cannot violate prerequisites.
 - **Selection and budgeting** are arithmetic over compiled units, computed in code.
-- **The LLM only narrates.** It phrases teaching copy, Arlo lines, and roadmap framing. It never grades, orders, selects across skills, awards, or unlocks. Its output is validated against pool IDs and schemas before use.
+- **The LLM may propose unit include/order from the allow-list only.** Server validate/repair enforces coverage, prereqs, and budget; invented ids are dropped. Deterministic select+pack remains the fallback. It never grades or invents pool content.
 - **Determinism is validated, not hoped for.** DAG acyclicity, prerequisite resolution, budget feasibility, and version pinning are checked in code with tests.
 
 Invariant (unchanged, now enforced at both layers):
@@ -76,7 +79,9 @@ content-pool/
   content-publication.service.ts
   content-version.service.ts
   content-compiler.service.ts          # NEW: authoring graph → compiled units
-  content-personalization.service.ts   # deterministic selection pipeline (§7)
+  content-personalization.service.ts   # legacy personalization helpers
+  roadmap-pipeline.service.ts          # gap → allow-list → orchestrate|select+pack (§7)
+  roadmap-units-orchestrator.service.ts # AI propose + validate (§7.6)
   question-pool.service.ts
   admin/
   entities/
@@ -151,6 +156,8 @@ The compiler walks the authoring graph once per publish and emits one self-descr
 }
 ```
 
+`lesson_type` is not limited to passive formats. Alongside `reading | video | practice | quiz | project`, it also accepts the active-format values `scenario | visual_hotspot | debate | sandbox_simulation` (see [10 — Engagement Layer](./10-engagement-layer-active-learning.md) §2 for the corresponding block shapes). A `sandbox_simulation` unit additionally carries `simulation_asset_key` and `action_vocabulary[]`, pointing to an immutable stored snapshot the server resolves the outcome against — never live external data at grading time, keeping resolution deterministic and replayable like every other graded fact in this pool.
+
 `serves_stage` and `unit_role` let selection adapt to what a learner already knows (§7.1). `serves_stage` lists the learner stages (1–5) a unit is *for* — distinct from `difficulty` (how hard the lesson is): a refresher and a full foundation lesson can share a difficulty but serve different stages. `unit_role` is one of `foundation | refresher | checkpoint | project | proof`, so a partially-known skill can be served by a checkpoint or refresher rather than taught from scratch.
 
 Alongside the units, a **skills index** snapshots the DAG the topological sort runs on:
@@ -178,6 +185,8 @@ Alongside the units, a **skills index** snapshots the DAG the topological sort r
 | `serves_stage`      | authored on the lesson template (which learner stages the unit is for)       |
 | `unit_role`         | authored on the lesson template (`foundation` \| `refresher` \| `checkpoint` \| `project` \| `proof`) |
 | `level`             | **derived** — recipe phase → level (foundations = 1, core = 2, advanced = 3) |
+| `simulation_asset_key` | authored on the lesson template, `sandbox_simulation` units only — points to an immutable stored snapshot |
+| `action_vocabulary` | authored on the lesson template, `sandbox_simulation` units only — unit-scoped action strings |
 
 `level` intentionally does light work: the real sequencing comes from `prerequisites` through the topological sort. `level` is used only to match a learner's starting point and to break ordering ties, so a coarse per-phase constant is sufficient. Finer granularity, if ever needed, is derived from prerequisite-chain depth within a stack — never hand-tuned per lesson.
 
@@ -269,7 +278,7 @@ Structured body (compiled into a unit's `content`):
 
 The read model of §4.2. Derived rows, never hand-edited.
 
-`id` (unit slug), `skills_taught[]`, `prerequisites[]`, `level`, `difficulty`, `serves_stage[]`, `unit_role`, `estimated_minutes`, `formats[]`, `lesson_type`, `domain`, `stack`, `provider`, `url`, `xp`, `source_template_id`, `source_version_id`, `content` jsonb, `compiled_at`, `active`.
+`id` (unit slug), `skills_taught[]`, `prerequisites[]`, `level`, `difficulty`, `serves_stage[]`, `unit_role`, `estimated_minutes`, `formats[]`, `lesson_type`, `domain`, `stack`, `provider`, `url`, `xp`, `source_template_id`, `source_version_id`, `content` jsonb, `compiled_at`, `active`, `simulation_asset_key` nullable (3.3, `sandbox_simulation` units only), `action_vocabulary[]` (3.3).
 
 Query patterns the matcher uses: by `skills_taught`, by `stack`, filtered on `active` + `formats`. No joins to the authoring tree at request time.
 
@@ -296,20 +305,19 @@ Curated URLs only: provider, URL, type, language, free/paid, last checked, quali
 
 **Authoring requirement (role coverage).** Because stage-aware selection (§7.1, §7.3) substitutes a `checkpoint` or `refresher` for a partially-known skill, those units must *exist*. The course-authoring prompt requires every skill to include at least one `foundation` unit and at least one `checkpoint`/`refresher` spanning the stage range; a compiled skill lacking that coverage falls back to foundation-only and is flagged for authoring.
 
+### 6.12 `live_context_snippets` (NEW, 3.3)
+
+Curated, editorially-reviewed current-events content, deliberately kept **outside** the authoring graph and the `compiled_units` read model — it is not versioned curriculum, has no prerequisites, and is never selected by the Stage 1–6 pipeline in §7.
+
+`id`, `track_tag` (matches a `stack`/`domain` value, e.g. `crypto-trader`), `headline`, `body` (short, length-limited), `source_url`, `published_at`, `expires_at`, `related_skill_tags[]`, `active`.
+
+A unit references live context only through a `live_context` block referencing a `track_tag`, resolved to the freshest non-expired row at `GET /play` time (see [10 — Engagement Layer](./10-engagement-layer-active-learning.md) §8). If no row is fresh, the block is omitted — never backfilled with stale or fabricated content, matching the `resources` rule above that **AI may select but cannot invent** source content.
+
 ---
 
-## 7. Questionnaire → personalized selection (deterministic pipeline)
+## 7. Questionnaire → personalized selection (AI propose + server validate)
 
-The questionnaire (doc 02 v2) no longer forwards raw skill tokens. It emits a versioned **`RoadmapGenerationProfile`** — a stable snapshot the Content Personalization service consumes by id, never re-interpreting UI labels. Its relevant fields:
-
-- `primaryTrackSlug`, `targetStage`
-- `skillEstimates[]` — per-skill `{ skillSlug, stage (1–5), confidence }` (not a boolean known/unknown)
-- `capacity.effectiveWeeklyMinutes`, session length, days, timezone, `paceClass`
-- `preferences.learningStyleWeights`, `motivationTags`, `blockerTags`
-- `placement.required` + `reasonCodes`
-- `targetDeadline?`
-
-The pipeline is **five deterministic code stages plus one narration stage**. Ordering and budget are never delegated to the model.
+The questionnaire (doc 02 v2) emits a versioned **`RoadmapGenerationProfile`**. Personalization builds a deterministic **allow-list** (gap → topo → stage/role + style filters). By default the LLM **proposes** which allow-list units to include and their order; the server **validates/repairs**. Kill-switch / LLM failure → deterministic select+pack + narrator-only.
 
 ### 7.1 Stage 1 — Skill-gap calculation (stage-aware)
 
@@ -360,6 +368,8 @@ Hard filters (applied before scoring): published, correct language or fallback, 
 
 Preferences bias selection but never produce a single-format course. Every major skill normally retains: explanation, guided example, active practice, checkpoint, and recap/project evidence.
 
+**Consecutive-type tie-breaker (3.3).** Within that constraint, when two or more surviving candidates for a slot are otherwise tied on §7.3's `selection_score`, prefer the one whose `lesson_type` differs from the immediately preceding unit's `lesson_type`, and never allow more than 2 consecutive units in a phase to share the same `lesson_type`. This is a tie-breaker only: it never overrides a prerequisite edge, never drops the sole `checkpoint`/`proof` unit for a skill, and never violates the required-role coverage in §7.3 — it only chooses *which* equally-valid candidate goes next, so back-to-back readings or back-to-back quizzes don't dominate a phase.
+
 ### 7.5 Stage 5 — Budget packing
 
 ```text
@@ -370,15 +380,23 @@ budget_minutes = capacity.effectiveWeeklyMinutes × target_weeks × 0.85 (safety
 
 If required content exceeds budget, return a **feasibility result** to Course Timing rather than silently dropping required skills (`CONTENT_REQUIRED_BUDGET_EXCEEDED`).
 
-### 7.6 Stage 6 — Narration (LLM, validated)
+### 7.6 Stage 6 — AI unit orchestration (propose + validate)
 
-The ordered, selected, budgeted unit list is handed to the narrator model, whose only job is to group contiguous slices into 3–6 phases and write human titles, a description, and a one-sentence rationale. It must not add, drop, or reorder units. The response is validated in code:
+Default path (`roadmap_ai_orchestrator_enabled`): hand the allow-list + learner packet to `RoadmapUnitsOrchestratorService`. The model proposes a subset of unit indices/ids, study order, and 3–6 phase titles. It must not invent ids outside the allow-list.
 
-- every unit index appears exactly once (none added, none dropped);
-- no prerequisite appears after a unit that needs it;
-- total minutes ≤ `budget_minutes`.
+Server validate/repair before hydrate:
 
-On violation, the app repairs ordering from the DAG (trivial — it holds the graph) or issues one repair turn. If the learner's quit-reason is "no clear path", the narration must lead with the full visible roadmap so the learner sees the end-to-end journey up front.
+- drop unknown / duplicate ids;
+- ensure every **required** gap skill has ≥1 selected unit (insert cheapest allow-list match; prefer planned `unit_role`);
+- reorder for skill topo / unit prerequisites;
+- never drop the sole checkpoint/proof for a required skill when the allow-list has one;
+- trim trailing optionals over `budget_minutes`; required alone over budget → `CONTENT_REQUIRED_BUDGET_EXCEEDED`.
+
+Analytics: `content_orchestration_applied` / `content_orchestration_repaired` / `content_orchestration_fallback`.
+
+### 7.7 Fallback — deterministic select + narrator
+
+When the orchestrator is off or fails: Stages 3–5 style `selectUnitsPerSkill` + `packBudget`, then the narrator model groups contiguous slices into 3–6 phases and writes titles only (may not add/drop/reorder). Narrator repairs emit `content_narration_repaired`.
 
 ---
 
@@ -510,6 +528,7 @@ Do not auto-retire from a single metric — flag for review.
 - `CONTENT_VERSION_BLOCKED`
 - `CONTENT_ADMIN_FORBIDDEN`
 - `CONTENT_NARRATION_INVALID` _(new — LLM phasing added/dropped/reordered units)_
+- `LIVE_CONTEXT_NONE_FRESH` _(3.3 — no non-expired snippet for a track; block is omitted, not surfaced as a user-facing error)_
 
 ---
 
@@ -523,6 +542,8 @@ Do not auto-retire from a single metric — flag for review.
 - `content_resource_failed`
 - `content_quality_flagged`
 - `content_narration_repaired` _(new — DAG repair after invalid phasing)_
+- `content_live_context_served` _(3.3)_
+- `content_live_context_expired_skip` _(3.3)_
 - `battle_question_set_created`
 
 ---
@@ -535,7 +556,7 @@ Do not auto-retire from a single metric — flag for review.
 - [ ] required prerequisites form a validated acyclic DAG; a cycle or unresolved prerequisite blocks publication
 - [ ] lesson ordering is produced by topological sort over the skills index — deterministic and prerequisite-safe — not by model output or catalog index
 - [ ] `budget_minutes` is computed in code and never recomputed by the model
-- [ ] the LLM only narrates phases and copy; its output is validated to add/drop/reorder nothing, else repaired from the DAG
+- [ ] the LLM may propose include/order from the allow-list; server validate/repair enforces coverage/prereqs/budget; fallback is deterministic select+pack+narrator
 - [ ] user path instances preserve source template + version
 - [ ] selection consumes the versioned `RoadmapGenerationProfile` (per-skill entry stages), not raw skill tokens
 - [ ] a partially-known skill is served by a `checkpoint`/`refresher` unit at the learner's entry stage, not omitted wholesale or re-taught from scratch
@@ -545,6 +566,10 @@ Do not auto-retire from a single metric — flag for review.
 - [ ] Battle questions come from reviewed pool content
 - [ ] correct answers are never compiled into units, exposed in play payloads, or sent to the model
 - [ ] new careers can be added through content + recipes without generator code changes
+- [ ] (3.3) active-format `lesson_type` values (`scenario` \| `visual_hotspot` \| `debate` \| `sandbox_simulation`) are secret-stripped on read and graded only server-side, same as `quiz`/`practice`
+- [ ] (3.3) `sandbox_simulation` units resolve outcomes against an immutable `simulation_asset_key` snapshot and unit `action_vocabulary`, never live external data, keeping resolution deterministic and replayable
+- [ ] (3.3) `live_context_snippets` are curated, never model-invented, and omitted rather than fabricated when no fresh row exists
+- [ ] (3.3) the format-variety tie-breaker never overrides a prerequisite edge, drops a sole checkpoint/proof unit, or bypasses required-role coverage from §7.3
 
 ---
 
@@ -555,8 +580,9 @@ Do not auto-retire from a single metric — flag for review.
 | Shared pool + publication lifecycle          | `content-publication.service.ts`, `content-version.service.ts`                                              |
 | Authoring graph → compiled units             | `content-compiler.service.ts` → `compiled-unit.entity.ts`, `skills-index.entity.ts`                         |
 | Lesson/question versions                     | `entities/lesson-version.entity.ts`, `question-version.entity.ts`                                           |
-| Deterministic selection pipeline (§7)        | `content-personalization.service.ts` (gap → topo-sort → filter → budget)                                    |
-| Narration + validation/repair (§7.6)         | `roadmap-narrator.service.ts` (+ DAG repair)                                                                |
+| Deterministic allow-list + fallback select (§7) | `roadmap-pipeline.service.ts` (gap → topo → allow-list → select/pack) |
+| AI orchestrate + validate/repair (§7.6)         | `roadmap-units-orchestrator.service.ts` (+ `.validate.ts`)            |
+| Narration fallback (§7.7)                       | `roadmap-narrator.service.ts`                                         |
 | Battle pool                                  | `question-pool.service.ts` → battles                                                                        |
 | Courses / modules / datasets / prereqs       | `content-catalog.service.ts`, admin routes                                                                  |
 | Rolling window materialize                   | `ContentQueryService.materializeRoadmapContent` after roadmap assemble                                      |
