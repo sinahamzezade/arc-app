@@ -7,6 +7,8 @@ export type PublicSystemFlags = {
   arlo_ai_enabled: boolean;
   sso_enabled: boolean;
   avatar_studio_enabled: boolean;
+  video_call_enabled: boolean;
+  voice_call_enabled: boolean;
 };
 
 export const systemFlagsApi = {

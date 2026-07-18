@@ -30,7 +30,7 @@ import { CoinsClayChip } from "@/components/economy";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -154,9 +154,7 @@ export default function BattleHubScreen({
     (blocking.status !== "invited" || blocking.role === "challenger")
       ? blocking
       : null;
-  const liveRest = spotlight
-    ? live.filter((b) => b.id !== spotlight.id)
-    : live;
+  const liveRest = spotlight ? live.filter((b) => b.id !== spotlight.id) : live;
   const outgoingRest = spotlight
     ? outgoing.filter((b) => b.id !== spotlight.id)
     : outgoing;
@@ -215,88 +213,85 @@ export default function BattleHubScreen({
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
-      {/* Night arena masthead — matches home hero */}
-      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-14 text-white">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-14 -right-8 h-48 w-48 rounded-full bg-arc-purple-500/50 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute top-16 -left-12 h-36 w-36 rounded-full bg-[#ffc928]/12 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
-          style={{
-            backgroundImage:
-              "radial-gradient(1.5px 1.5px at 14% 22%, #fff, transparent), radial-gradient(1px 1px at 78% 12%, #fff, transparent), radial-gradient(1.5px 1.5px at 58% 48%, #fff, transparent), radial-gradient(1px 1px at 32% 70%, #fff, transparent)",
-          }}
-        />
+      {/* Arena plate — same clay language as home masthead */}
+      <header className="relative bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-12 text-white">
+        <div className="relative overflow-hidden rounded-[28px] border-[3px] border-[#0a0c16] bg-arc-purple-500 shadow-[0_7px_0_#35209d]">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-8 -right-6 h-28 w-28 rounded-full bg-[#ffc928]/25 blur-2xl"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-10 -left-8 h-24 w-24 rounded-full bg-[#0f1220]/35 blur-2xl"
+          />
 
-        <div className="relative flex items-end justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-extrabold tracking-[0.16em] text-[#ffc928] uppercase">
-              Arena
-            </p>
-            <h1 className="mt-1.5 font-display text-[36px] leading-[0.88] font-bold tracking-[-0.045em]">
-              Battle
-            </h1>
+          <div className="relative flex items-start justify-between gap-3 px-3.5 pt-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-extrabold tracking-[0.16em] text-white/55 uppercase">
+                Arena
+              </p>
+              <h1 className="mt-0.5 font-display text-[28px] leading-[0.95] font-bold tracking-[-0.045em]">
+                Battle
+              </h1>
+            </div>
+            <CoinsClayChip amount={coins} compact className="shrink-0" />
           </div>
 
-          <CoinsClayChip amount={coins} className="shrink-0" />
-        </div>
-
-        {/* Scoreboard — one clay panel, three columns */}
-        <div className="relative mt-4 grid grid-cols-3 divide-x divide-white/10 rounded-[20px] border border-white/12 bg-white/8 py-3">
-          <ScoreCol
-            label="Streak"
-            value={String(statsData.winStreak)}
-            icon={
-              <Flame
-                className="h-3.5 w-3.5 text-[#ff8a3d]"
-                fill="currentColor"
-                strokeWidth={1.5}
-              />
-            }
-            gold
-          />
-          <ScoreCol
-            label="Win rate"
-            value={`${statsData.winRate}%`}
-            icon={
-              <Trophy className="h-3.5 w-3.5 text-[#ffc928]" strokeWidth={2.5} />
-            }
-          />
-          <ScoreCol
-            label="Record"
-            value={`${statsData.wins}–${statsData.losses}`}
-            sub={`${statsData.draws}D · ${statsData.played} played`}
-          />
-        </div>
-
-        <div className="relative mt-3 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-3 text-[11px] font-extrabold text-white/65">
-            <span className="inline-flex items-center gap-1">
-              <Zap
-                className="h-3.5 w-3.5 text-[#ffc928]"
-                strokeWidth={2.5}
-                fill="currentColor"
-              />
-              {xp.toLocaleString()} XP
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Gem className="h-3.5 w-3.5 text-arc-purple-300" strokeWidth={2.5} />
-              {gems} gems
-            </span>
+          {/* Equal score stamps */}
+          <div className="relative mx-3.5 mt-3.5 grid grid-cols-3 gap-2">
+            <ScoreStamp
+              label="Streak"
+              value={String(statsData.winStreak)}
+              icon={
+                <Flame
+                  className="h-3.5 w-3.5 text-[#ff8a3d]"
+                  fill="currentColor"
+                  strokeWidth={1.5}
+                />
+              }
+            />
+            <ScoreStamp
+              label="Win %"
+              value={`${statsData.winRate}%`}
+              icon={
+                <Trophy
+                  className="h-3.5 w-3.5 text-[#ffc928]"
+                  strokeWidth={2.5}
+                />
+              }
+            />
+            <ScoreStamp
+              label="Record"
+              value={`${statsData.wins}–${statsData.losses}`}
+              sub={`${statsData.draws}D · ${statsData.played}`}
+            />
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-[#ffc928]/35 bg-[#ffc928]/15 px-2.5 py-1 text-[10px] font-extrabold tracking-[0.06em] text-[#ffc928] uppercase">
-            {statsData.favoriteSubject}
-          </span>
+
+          <div className="relative mx-3.5 mt-3 mb-3.5 flex items-center justify-between gap-2 border-t border-white/15 pt-2.5">
+            <div className="flex min-w-0 items-center gap-3 text-[11px] font-bold text-white/70">
+              <span className="inline-flex items-center gap-1">
+                <Zap
+                  className="h-3.5 w-3.5 text-[#7eb8ff]"
+                  strokeWidth={2.5}
+                  fill="currentColor"
+                />
+                {xp.toLocaleString()} XP
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Gem className="h-3.5 w-3.5 text-[#e4c4ff]" strokeWidth={2.5} />
+                {gems} gems
+              </span>
+            </div>
+            {statsData.favoriteSubject && statsData.favoriteSubject !== "—" ? (
+              <span className="max-w-[42%] truncate rounded-full border-[2px] border-[#0a0c16] bg-[#0f1220] px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-[#ffc928] uppercase shadow-[0_2px_0_#0a0c16]">
+                {statsData.favoriteSubject}
+              </span>
+            ) : null}
+          </div>
         </div>
       </header>
 
-      <div className="relative z-10 -mt-8 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+88px)]">
+      <div className="relative z-10 -mt-6 space-y-3.5 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+88px)]">
         <AnimatePresence>
           {showInviteEnded && inviteEnded ? (
             <motion.div
@@ -449,7 +444,10 @@ export default function BattleHubScreen({
                 : "Stake coins · timed quiz · winner takes pot"}
             </span>
           </span>
-          <ArrowRight className="h-5 w-5 shrink-0 opacity-80" strokeWidth={2.5} />
+          <ArrowRight
+            className="h-5 w-5 shrink-0 opacity-80"
+            strokeWidth={2.5}
+          />
         </Link>
 
         {/* Open matches */}
@@ -622,10 +620,7 @@ export default function BattleHubScreen({
               href="/friends"
               className="flex cursor-pointer flex-col items-center rounded-[20px] border-2 border-dashed border-[#d5ccec] bg-white px-4 py-6 text-center transition-colors hover:border-arc-purple-500/40 focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
             >
-              <Users
-                className="h-8 w-8 text-arc-purple-500"
-                strokeWidth={2}
-              />
+              <Users className="h-8 w-8 text-arc-purple-500" strokeWidth={2} />
               <p className="mt-3 font-display text-[15px] font-bold text-[#0f1220]">
                 No rivals online
               </p>
@@ -789,35 +784,30 @@ export default function BattleHubScreen({
   );
 }
 
-function ScoreCol({
+function ScoreStamp({
   label,
   value,
   sub,
   icon,
-  gold,
 }: {
   label: string;
   value: string;
   sub?: string;
-  icon?: React.ReactNode;
-  gold?: boolean;
+  icon?: ReactNode;
 }) {
   return (
-    <div className="min-w-0 px-3">
-      <p className="flex items-center gap-1 text-[9px] font-black tracking-[0.1em] text-white/45 uppercase">
+    <div className="min-w-0 rounded-lg border-[3px] border-[#0a0c16] bg-[#0f1220] px-2 py-2 shadow-[0_4px_0_#0a0c16]">
+      <p className="flex items-center gap-1 text-[9px] font-extrabold tracking-[0.1em] text-white/45 uppercase">
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </p>
-      <p
-        className={cn(
-          "mt-1 truncate font-display text-[20px] leading-none font-bold tracking-[-0.03em] tabular-nums",
-          gold ? "text-[#ffc928]" : "text-white",
-        )}
-      >
+      <p className="mt-1 truncate font-display text-[18px] leading-none font-bold tracking-[-0.03em] text-white tabular-nums">
         {value}
       </p>
       {sub ? (
-        <p className="mt-1 truncate text-[9px] font-bold text-white/40">{sub}</p>
+        <p className="mt-1 truncate text-[9px] font-bold text-white/40">
+          {sub}
+        </p>
       ) : null}
     </div>
   );

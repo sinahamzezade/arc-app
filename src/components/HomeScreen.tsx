@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Route } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -17,9 +16,10 @@ import { HomeExtras } from "@/components/home/HomeExtras";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { HomeMissionStage } from "@/components/home/HomeMissionStage";
 import { HomeQuestionnaireCta } from "@/components/home/HomeQuestionnaireCta";
-import { HomePortraitStage } from "@/components/home/HomePortraitStage";
 import { HomeSheetSkeleton } from "@/components/home/HomeSheetSkeleton";
 import { HomeWeekLockVault } from "@/components/home/HomeWeekLockVault";
+import { authCtaClassName } from "@/components/onboarding/AuthShell";
+import { Button } from "@/components/ui";
 import { useCourseTiming } from "@/hooks/useCourseTiming";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { useCurrentWeek } from "@/hooks/useCurrentWeek";
@@ -28,6 +28,7 @@ import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { useUnreadChatCount } from "@/hooks/useUnreadChatCount";
 import { paceMeta } from "@/lib/course-timing/format";
 import { useEconomyStore } from "@/store/useEconomyStore";
+import { cn } from "@/lib/utils";
 import type {
   RoadmapCurrentResponse,
   WeekCurrentResponse,
@@ -64,8 +65,7 @@ export default function HomeScreen({
   const economyHydrated = useEconomyStore((s) => s.hydrated);
 
   const qDone =
-    questionnaireComplete ||
-    isQuestionnaireComplete(session?.profile ?? null);
+    questionnaireComplete || isQuestionnaireComplete(session?.profile ?? null);
   const liveRoadmap = roadmapRes?.roadmap ?? null;
 
   useEffect(() => {
@@ -75,9 +75,7 @@ export default function HomeScreen({
   }, [sessionStatus, qDone, router]);
 
   const sheetLoading =
-    (sessionStatus === "loading" &&
-      !initialRoadmap &&
-      !initialWeek) ||
+    (sessionStatus === "loading" && !initialRoadmap && !initialWeek) ||
     (sessionStatus === "authenticated" &&
       (roadmapLoading || weekLoading) &&
       !roadmapRes &&
@@ -123,32 +121,25 @@ export default function HomeScreen({
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-hidden bg-[#f2eefb] font-rounded">
-      <header className="relative overflow-hidden bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+10px)] pb-8 text-white">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-20 right-0 h-40 w-40 rounded-full bg-arc-purple-500/25 blur-3xl"
-        />
-
-        <div className="relative">
-          <HomeHeader
+      <header className="relative bg-[#0f1220] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-7 text-white">
+        <HomeHeader
+          greeting={greeting}
+          userName={data.userName}
+          weekStreak={data.weeklyStreak.weeks}
+          identityArc={identityArc}
+          avatarUrl={session?.profile?.avatarUrl}
             xp={data.stats.xp}
             gems={data.stats.gems}
+            coins={data.stats.coins}
             notificationCount={data.notificationCount}
-            friendRequestCount={friendRequestCount ?? 0}
-            chatUnreadCount={chatUnreadCount ?? 0}
-            loading={sessionStatus === "authenticated" && !economyHydrated}
-          />
-          <HomePortraitStage
-            greeting={greeting}
-            userName={data.userName}
-            weekStreak={data.weeklyStreak.weeks}
-            identityArc={identityArc}
-          />
-        </div>
+          friendRequestCount={friendRequestCount ?? 0}
+          chatUnreadCount={chatUnreadCount ?? 0}
+          loading={sessionStatus === "authenticated" && !economyHydrated}
+        />
       </header>
 
       <motion.main
-        className="relative z-10 -mt-4 space-y-4 rounded-t-[24px] bg-[#f2eefb] px-4 pt-5 pb-8"
+        className="relative z-10 -mt-6 space-y-3.5 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-8"
         initial={reduceMotion || sheetLoading ? false : "hidden"}
         animate="visible"
         variants={{
@@ -167,24 +158,33 @@ export default function HomeScreen({
             ) : !qDone ? (
               <HomeQuestionnaireCta />
             ) : (
-              <section className="relative overflow-hidden rounded-[24px] border-2 border-[#0f1220] bg-white p-4 shadow-[0_6px_0_#0f1220]">
-                <p className="text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
-                  Path · Building
-                </p>
-                <h2 className="mt-1.5 font-display text-[22px] leading-[1.05] font-bold tracking-[-0.03em] text-[#1b1730]">
-                  Your trail is cooking
-                </h2>
-                <p className="mt-1.5 text-[13px] font-bold text-[#8a7cb8]">
-                  Open Path to watch generation or retry if it stalled.
-                </p>
-                <Link
-                  href="/path"
-                  className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_5px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:ring-offset-2"
-                >
-                  <Route className="h-4 w-4" strokeWidth={2.5} />
-                  Open path
-                  <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
-                </Link>
+              <section className="relative overflow-hidden rounded-[28px] border-[3px] border-[#0a0c16] bg-[#0f1220] shadow-[0_7px_0_#0a0c16]">
+                <div className="relative px-4 pt-4 pb-1">
+                  <p className="text-[10px] font-extrabold tracking-[0.16em] text-[#ffc928] uppercase">
+                    Path · Cooking
+                  </p>
+                  <h2 className="mt-2 font-display text-[22px] leading-[1.1] font-bold tracking-[-0.035em] text-white">
+                    Trail still baking
+                  </h2>
+                  <p className="mt-1.5 text-[13px] font-semibold text-white/50">
+                    Open Path to watch generation or retry if it stalled.
+                  </p>
+                </div>
+                <div className="relative px-3.5 pt-3 pb-3.5">
+                  <Button
+                    fullWidth
+                    variant="primary"
+                    onPress={() => router.push("/path")}
+                    className={cn(
+                      authCtaClassName,
+                      "inline-flex cursor-pointer items-center justify-center gap-2",
+                    )}
+                  >
+                    <Route className="size-5" strokeWidth={2.5} aria-hidden />
+                    Open path
+                    <ArrowRight className="size-5" strokeWidth={2.75} aria-hidden />
+                  </Button>
+                </div>
               </section>
             )}
             {liveRoadmap ? (

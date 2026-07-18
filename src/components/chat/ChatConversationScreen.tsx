@@ -32,6 +32,7 @@ import { useAppCall } from "@/components/CallHost";
 import { ChatVoiceBubble } from "@/components/chat/ChatVoiceBubble";
 import { chatApi, type ChatMessageDto } from "@/lib/api/chat";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import { socialApi, type SocialPrivacyDto } from "@/lib/api/social";
 import {
   decryptChatMessage,
   decryptIncomingBlob,
@@ -41,6 +42,7 @@ import {
 } from "@/lib/chat/e2e";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { useChatThread } from "@/hooks/useChatThread";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { useVisualViewportFrame } from "@/hooks/useVisualViewportFrame";
 import {
   formatVoiceDuration,
@@ -316,6 +318,34 @@ export default function ChatConversationScreen() {
   });
 
   const call = useAppCall();
+  const { flags } = useSystemFlags();
+  const [callPrivacy, setCallPrivacy] = useState<SocialPrivacyDto | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!token) {
+      setCallPrivacy(null);
+      return;
+    }
+    let cancelled = false;
+    void socialApi
+      .getPrivacy(token)
+      .then((p) => {
+        if (!cancelled) setCallPrivacy(p);
+      })
+      .catch(() => {
+        if (!cancelled) setCallPrivacy(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const showVideoCall =
+    flags.video_call_enabled && (callPrivacy?.allowVideoCalls ?? true);
+  const showVoiceCall =
+    flags.voice_call_enabled && (callPrivacy?.allowVoiceCalls ?? true);
 
   const displayError = error ?? call.error ?? threadError;
 
@@ -884,72 +914,76 @@ export default function ChatConversationScreen() {
               </div>
             </>
           )}
-          <button
-            type="button"
-            disabled={
-              conv?.type !== "direct" ||
-              call.uiState !== "idle" ||
-              !connected ||
-              peerBlockedByMe
-            }
-            title={
-              peerBlockedByMe
-                ? "Unblock to call"
-                : conv?.type !== "direct"
-                  ? "Calls only in direct chats"
-                  : !connected
-                    ? "Connecting…"
-                    : "Video call"
-            }
-            aria-label="Video call"
-            onClick={() => {
-              if (conversationId) void call.startCall(conversationId, "video");
-            }}
-            className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-              conv?.type === "direct" &&
-                call.uiState === "idle" &&
-                connected &&
-                !peerBlockedByMe
-                ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
-                : "cursor-not-allowed text-[#b3a8d6] opacity-50",
-            )}
-          >
-            <Video className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            disabled={
-              conv?.type !== "direct" ||
-              call.uiState !== "idle" ||
-              !connected ||
-              peerBlockedByMe
-            }
-            title={
-              peerBlockedByMe
-                ? "Unblock to call"
-                : conv?.type !== "direct"
-                  ? "Calls only in direct chats"
-                  : !connected
-                    ? "Connecting…"
-                    : "Voice call"
-            }
-            aria-label="Voice call"
-            onClick={() => {
-              if (conversationId) void call.startCall(conversationId, "audio");
-            }}
-            className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-              conv?.type === "direct" &&
-                call.uiState === "idle" &&
-                connected &&
-                !peerBlockedByMe
-                ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
-                : "cursor-not-allowed text-[#b3a8d6] opacity-50",
-            )}
-          >
-            <Phone className="h-5 w-5" />
-          </button>
+          {showVideoCall ? (
+            <button
+              type="button"
+              disabled={
+                conv?.type !== "direct" ||
+                call.uiState !== "idle" ||
+                !connected ||
+                peerBlockedByMe
+              }
+              title={
+                peerBlockedByMe
+                  ? "Unblock to call"
+                  : conv?.type !== "direct"
+                    ? "Calls only in direct chats"
+                    : !connected
+                      ? "Connecting…"
+                      : "Video call"
+              }
+              aria-label="Video call"
+              onClick={() => {
+                if (conversationId) void call.startCall(conversationId, "video");
+              }}
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                conv?.type === "direct" &&
+                  call.uiState === "idle" &&
+                  connected &&
+                  !peerBlockedByMe
+                  ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
+                  : "cursor-not-allowed text-[#b3a8d6] opacity-50",
+              )}
+            >
+              <Video className="h-5 w-5" />
+            </button>
+          ) : null}
+          {showVoiceCall ? (
+            <button
+              type="button"
+              disabled={
+                conv?.type !== "direct" ||
+                call.uiState !== "idle" ||
+                !connected ||
+                peerBlockedByMe
+              }
+              title={
+                peerBlockedByMe
+                  ? "Unblock to call"
+                  : conv?.type !== "direct"
+                    ? "Calls only in direct chats"
+                    : !connected
+                      ? "Connecting…"
+                      : "Voice call"
+              }
+              aria-label="Voice call"
+              onClick={() => {
+                if (conversationId) void call.startCall(conversationId, "audio");
+              }}
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                conv?.type === "direct" &&
+                  call.uiState === "idle" &&
+                  connected &&
+                  !peerBlockedByMe
+                  ? "cursor-pointer text-[#0f1220] hover:bg-[#f4f0ff]"
+                  : "cursor-not-allowed text-[#b3a8d6] opacity-50",
+              )}
+            >
+              <Phone className="h-5 w-5" />
+            </button>
+          ) : null}
           {conv?.peerUserId ? (
             <div className="relative">
               <button

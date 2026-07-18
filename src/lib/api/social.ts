@@ -50,6 +50,8 @@ export type SocialPrivacyDto = {
   showStudyActivity: boolean;
   allowFriendRequests: boolean;
   allowFollows: boolean;
+  allowVideoCalls: boolean;
+  allowVoiceCalls: boolean;
   allowBattleInvitesFrom: string;
   allowStudyInvitesFrom: string;
   leaderboardVisible: boolean;

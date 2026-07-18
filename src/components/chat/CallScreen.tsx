@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import type { useCallSession } from "@/hooks/useCallSession";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { cn } from "@/lib/utils";
 
 type CallSessionApi = ReturnType<typeof useCallSession>;
@@ -61,6 +62,7 @@ function initialOf(name: string) {
  */
 export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
   const reduceMotion = useReducedMotion();
+  const { flags } = useSystemFlags();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
@@ -273,18 +275,18 @@ export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
                     <Video className="h-5 w-5" />
                   )}
                 </DockBtn>
-              ) : call.uiState === "active" ? (
+              ) : flags.video_call_enabled && call.uiState === "active" ? (
                 <DockBtn
                   label="Video"
                   onClick={() => void call.upgradeToVideo()}
                 >
                   <Video className="h-5 w-5" />
                 </DockBtn>
-              ) : (
+              ) : flags.video_call_enabled ? (
                 <DockBtn label="Video" disabled>
                   <Video className="h-5 w-5 opacity-40" />
                 </DockBtn>
-              )}
+              ) : null}
 
               <button
                 type="button"

@@ -1,49 +1,66 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ClipboardList } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { Button } from "@/components/ui";
+import { authCtaClassName } from "@/components/onboarding/AuthShell";
+import { cn } from "@/lib/utils";
 import { pop, sectionVariants } from "./motion";
 
 /**
- * Shown on home when questionnaire reset / incomplete — replaces Next Stop.
+ * Onboarding gate — same night-ticket language as Next Drop.
  */
 export function HomeQuestionnaireCta() {
+  const router = useRouter();
   const reduceMotion = useReducedMotion();
 
   return (
     <motion.section
       variants={sectionVariants}
       aria-labelledby="start-q-title"
-      className="relative overflow-hidden rounded-[24px] border-2 border-[#0f1220] bg-white p-4 shadow-[0_6px_0_#0f1220]"
+      className="relative overflow-hidden rounded-[28px] border-[3px] border-[#0a0c16] bg-[#0f1220] shadow-[0_7px_0_#0a0c16]"
     >
-      <p className="text-[10px] font-black tracking-[0.1em] text-arc-purple-500 uppercase">
-        First stop · Onboarding
-      </p>
-      <h2
-        id="start-q-title"
-        className="mt-1.5 font-display text-[24px] leading-[1.05] font-bold tracking-[-0.03em] text-[#1b1730]"
-      >
-        Build your learning path
-      </h2>
-      <p className="mt-1.5 text-[13px] font-bold text-[#8a7cb8]">
-        Answer a few questions so Arlo can map your trail.
-      </p>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-8 right-0 h-28 w-28 rounded-full bg-arc-purple-500/30 blur-2xl"
+      />
 
-      <motion.div
-        className="relative mt-4"
-        whileTap={reduceMotion ? undefined : { scale: 0.98, y: 2 }}
-        transition={pop}
-      >
-        <Link
-          href="/questionnaire"
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-arc-purple-500 py-3.5 font-display text-[15px] font-semibold text-white shadow-[0_5px_0_#4b2fd6] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:ring-offset-2"
+      <div className="relative px-4 pt-4 pb-1">
+        <p className="text-[10px] font-extrabold tracking-[0.16em] text-[#ffc928] uppercase">
+          First stop
+        </p>
+        <h2
+          id="start-q-title"
+          className="mt-2 font-display text-[22px] leading-[1.1] font-bold tracking-[-0.035em] text-white"
         >
-          <ClipboardList className="h-4 w-4" strokeWidth={2.5} />
-          Start questionnaire
-          <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
-        </Link>
-      </motion.div>
+          Map your trail
+        </h2>
+        <p className="mt-1.5 text-[13px] font-semibold text-white/50">
+          A short intake so Arlo can build your path.
+        </p>
+      </div>
+
+      <div className="relative px-3.5 pt-3 pb-3.5">
+        <motion.div
+          whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+          transition={pop}
+        >
+          <Button
+            fullWidth
+            variant="primary"
+            onPress={() => router.push("/questionnaire")}
+            className={cn(
+              authCtaClassName,
+              "inline-flex cursor-pointer items-center justify-center gap-2",
+            )}
+          >
+            <ClipboardList className="size-5" strokeWidth={2.5} aria-hidden />
+            Start intake
+            <ArrowRight className="size-5" strokeWidth={2.75} aria-hidden />
+          </Button>
+        </motion.div>
+      </div>
     </motion.section>
   );
 }

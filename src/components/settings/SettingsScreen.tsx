@@ -13,14 +13,17 @@ import {
   Globe,
   Lock,
   LogOut,
+  Phone,
   Shield,
   User,
+  Video,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCourseTiming } from "@/hooks/useCourseTiming";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import { useCurrentLeague } from "@/hooks/useCurrentLeague";
+import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { leaguesApi } from "@/lib/api/leagues";
 import { socialApi, type SocialPrivacyDto } from "@/lib/api/social";
 import { formatEta, paceMeta } from "@/lib/course-timing/format";
@@ -41,6 +44,7 @@ type SettingsTab = "account" | "alerts" | "privacy";
 export default function SettingsScreen() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { flags } = useSystemFlags();
   const [tab, setTab] = useState<SettingsTab>("account");
   const [signingOut, setSigningOut] = useState(false);
   const prefsQuery = useNotificationPreferences();
@@ -120,7 +124,11 @@ export default function SettingsScreen() {
   };
 
   const toggleSocialFlag = async (
-    key: "allowFriendRequests" | "allowFollows",
+    key:
+      | "allowFriendRequests"
+      | "allowFollows"
+      | "allowVideoCalls"
+      | "allowVoiceCalls",
   ) => {
     if (privacyBusy || !socialPrivacy) return;
     setPrivacyBusy(true);
@@ -369,46 +377,74 @@ export default function SettingsScreen() {
               </button>
               {(
                 [
-                  ["allowFriendRequests", "Allow friend requests"] as const,
-                  ["allowFollows", "Allow follows"] as const,
+                  [
+                    "allowFriendRequests",
+                    "Allow friend requests",
+                    "Friends can send requests",
+                    Shield,
+                    true,
+                  ] as const,
+                  [
+                    "allowFollows",
+                    "Allow follows",
+                    "Others can follow you",
+                    Shield,
+                    true,
+                  ] as const,
+                  [
+                    "allowVideoCalls",
+                    "Video call",
+                    "Friends can video call you",
+                    Video,
+                    flags.video_call_enabled,
+                  ] as const,
+                  [
+                    "allowVoiceCalls",
+                    "Voice call",
+                    "Friends can voice call you",
+                    Phone,
+                    flags.voice_call_enabled,
+                  ] as const,
                 ] as const
-              ).map(([key, label]) => {
-                const on = socialPrivacy?.[key] ?? true;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => void toggleSocialFlag(key)}
-                    disabled={privacyBusy || !socialPrivacy}
-                    className="flex w-full items-center gap-3 rounded-[18px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 text-left shadow-[0_6px_16px_rgba(70,40,150,0.04)] disabled:opacity-60"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f6f2ff] text-arc-purple-500">
-                      <Shield className="h-5 w-5" strokeWidth={2.25} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-display text-[14px] font-semibold text-[#1b1730]">
-                        {label}
-                      </p>
-                      <p className="mt-0.5 text-[12px] font-semibold text-[#8a7cb8]">
-                        {on ? "On" : "Off"}
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-                        on ? "bg-[#6b4eff]" : "bg-[#e8e2f4]",
-                      )}
+              )
+                .filter(([, , , , visible]) => visible)
+                .map(([key, label, detail, Icon]) => {
+                  const on = socialPrivacy?.[key] ?? true;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => void toggleSocialFlag(key)}
+                      disabled={privacyBusy || !socialPrivacy}
+                      className="flex w-full items-center gap-3 rounded-[18px] border border-[#ebe4f6] bg-white px-3.5 py-3.5 text-left shadow-[0_6px_16px_rgba(70,40,150,0.04)] disabled:opacity-60"
                     >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f6f2ff] text-arc-purple-500">
+                        <Icon className="h-5 w-5" strokeWidth={2.25} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display text-[14px] font-semibold text-[#1b1730]">
+                          {label}
+                        </p>
+                        <p className="mt-0.5 text-[12px] font-semibold text-[#8a7cb8]">
+                          {on ? detail : "Off"}
+                        </p>
+                      </div>
                       <span
                         className={cn(
-                          "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform",
-                          on ? "left-5" : "left-0.5",
+                          "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                          on ? "bg-[#6b4eff]" : "bg-[#e8e2f4]",
                         )}
-                      />
-                    </span>
-                  </button>
-                );
-              })}
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform",
+                            on ? "left-5" : "left-0.5",
+                          )}
+                        />
+                      </span>
+                    </button>
+                  );
+                })}
               <SettingsRow
                 icon={Lock}
                 title="Password"

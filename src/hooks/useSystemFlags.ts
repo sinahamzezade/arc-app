@@ -15,6 +15,9 @@ const DEFAULTS: PublicSystemFlags = {
   // Fail closed — never flash SSO before public flags resolve.
   sso_enabled: false,
   avatar_studio_enabled: true,
+  // Fail closed — hide call chrome until flags resolve true.
+  video_call_enabled: false,
+  voice_call_enabled: false,
 };
 
 /**
@@ -42,7 +45,7 @@ export function useSystemFlags() {
     placeholderData: keepPreviousData,
   });
 
-  const flags = query.data ?? DEFAULTS;
+  const flags: PublicSystemFlags = { ...DEFAULTS, ...query.data };
 
   return {
     flags,

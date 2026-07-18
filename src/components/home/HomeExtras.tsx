@@ -23,6 +23,9 @@ type HomeExtrasProps = {
   badges: HomeData["badges"];
 };
 
+/**
+ * Boost + track — compact rails under the week board.
+ */
 export function HomeExtras({
   stats,
   dailyBonus,
@@ -55,14 +58,14 @@ export function HomeExtras({
     <>
       <motion.div variants={sectionVariants} className="space-y-2">
         <SectionLabel>Boost</SectionLabel>
-        <div className="grid grid-cols-2 gap-2.5">
-          <RankInfo
+        <div className="grid grid-cols-2 gap-2">
+          <RankRail
             title={rankTitle}
             nextTitle={rankNext}
             xp={rankXp}
             pct={rankPct}
           />
-          <WheelInfo
+          <WheelRail
             spins={wheelSpins}
             hoursLeft={wheelHours}
             maxGems={wheelGems}
@@ -76,18 +79,16 @@ export function HomeExtras({
         className="space-y-2"
       >
         <SectionLabel>Track</SectionLabel>
-        <div className="divide-y divide-[#f0ecf7] overflow-hidden rounded-[22px] border-2 border-[#ebe4f6] bg-white shadow-[0_4px_0_#ebe4f6]">
-          <QuietRow
+        <div className="overflow-hidden rounded-[20px] border border-[#ebe4f6] bg-white">
+          <TrackLink
             href={milestone.href ?? "/path"}
             icon={Medal}
-            iconClass="bg-[#f0ecf7] text-arc-purple-500"
             title={milestone.subtitle || "Current milestone"}
-            sub={`Milestone ${milestone.stepsDone}/${milestone.stepsTotal} · +${milestone.rewardXp} XP · +${milestone.rewardGems} gems`}
+            sub={`${milestone.stepsDone}/${milestone.stepsTotal} · +${milestone.rewardXp} XP`}
           />
-          <QuietRow
+          <TrackLink
             href="/leaderboard"
             icon={Trophy}
-            iconClass="bg-[#fff3d0] text-[#c79a2e]"
             title={
               leagueCard.league
                 ? `${leagueCard.league} · #${leagueCard.yourPlace}`
@@ -95,20 +96,20 @@ export function HomeExtras({
             }
             sub={
               leagueCard.endsIn
-                ? `${leagueCard.endsIn} · ${leagueCard.xpToNext} XP to climb`
+                ? `${leagueCard.endsIn} · ${leagueCard.xpToNext} XP up`
                 : "See where you rank"
             }
             trailing={
               leagueCard.peers.length > 0 ? (
-                <span className="mr-1 flex -space-x-2" aria-hidden>
+                <span className="mr-0.5 flex -space-x-1.5" aria-hidden>
                   {leagueCard.peers.map((r, i) => (
                     <UserAvatar
                       key={`${r.initial}-${r.color}-${i}`}
                       initial={r.initial}
                       color={r.color}
                       avatarUrl={r.avatarUrl}
-                      className="h-6 w-6 rounded-full text-[10px] ring-2 ring-white"
-                      textClassName="text-[10px] font-extrabold"
+                      className="h-5 w-5 rounded-full text-[9px] ring-2 ring-white"
+                      textClassName="text-[9px] font-extrabold"
                       alt=""
                     />
                   ))}
@@ -116,12 +117,12 @@ export function HomeExtras({
               ) : undefined
             }
           />
-          <QuietRow
+          <TrackLink
             href="/badges"
             icon={Award}
-            iconClass="bg-[#f0ecf7] text-[#8a7cb8]"
             title="Badges"
             sub={`${badgeCard.earned}/${badgeCard.total} unlocked`}
+            last
           />
         </div>
       </motion.section>
@@ -131,13 +132,13 @@ export function HomeExtras({
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="px-0.5 text-[10px] font-black tracking-[0.14em] text-[#8a7cb8] uppercase">
+    <p className="px-0.5 text-[10px] font-extrabold tracking-[0.14em] text-arc-lavender-600 uppercase">
       {children}
     </p>
   );
 }
 
-function RankInfo({
+function RankRail({
   title,
   nextTitle,
   xp,
@@ -149,63 +150,47 @@ function RankInfo({
   pct: number;
 }) {
   const reduceMotion = useReducedMotion();
-  const r = 18;
-  const c = 2 * Math.PI * r;
 
   return (
     <Link
       href="/rank"
       aria-label="Rank"
-      className="flex h-full min-w-0 cursor-pointer items-center gap-2.5 rounded-[20px] border-2 border-[#ebe4f6] bg-white px-3 py-3 text-[#1b1730] shadow-[0_4px_0_#ebe4f6] transition-colors hover:border-[#0f1220]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
+      className="flex cursor-pointer flex-col gap-2 rounded-[18px] border border-[#ebe4f6] bg-white px-3 py-2.5 transition-colors hover:border-arc-purple-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
     >
-      <div className="relative h-11 w-11 shrink-0">
-        <svg viewBox="0 0 44 44" className="h-11 w-11 -rotate-90" aria-hidden>
-          <circle
-            cx="22"
-            cy="22"
-            r={r}
-            fill="none"
-            stroke="#ebe4f6"
-            strokeWidth="5"
-          />
-          <motion.circle
-            cx="22"
-            cy="22"
-            r={r}
-            fill="none"
-            stroke="#ffc928"
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeDasharray={c}
-            initial={
-              reduceMotion
-                ? { strokeDashoffset: c * (1 - pct / 100) }
-                : { strokeDashoffset: c }
-            }
-            animate={{ strokeDashoffset: c * (1 - pct / 100) }}
-            transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-          />
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center font-display text-[11px] font-bold text-[#1b1730]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[9px] font-extrabold tracking-[0.12em] text-arc-lavender-600 uppercase">
+          Rank
+        </span>
+        <span className="font-display text-[12px] font-bold tabular-nums text-[#0f1220]">
           {pct}%
         </span>
       </div>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[9px] font-black tracking-[0.12em] text-arc-purple-500 uppercase">
-          Rank
-        </span>
-        <span className="mt-0.5 block truncate font-display text-[14px] leading-tight font-bold tracking-[-0.02em]">
-          {title || "—"}
-        </span>
-        <span className="mt-0.5 block truncate text-[10px] font-bold text-[#8a7cb8]">
-          {xp} XP → {nextTitle || "next"}
-        </span>
+      <span className="truncate font-display text-[14px] font-bold tracking-[-0.02em] text-[#0f1220]">
+        {title || "—"}
+      </span>
+      <div
+        className="h-1 overflow-hidden rounded-full bg-[#ebe4f6]"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Rank progress"
+      >
+        <motion.div
+          className="h-full rounded-full bg-[#ffc928]"
+          initial={reduceMotion ? false : { width: 0 }}
+          animate={{ width: `${Math.max(pct, 4)}%` }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+        />
+      </div>
+      <span className="truncate text-[10px] font-semibold text-arc-lavender-600">
+        {xp} XP → {nextTitle || "next"}
       </span>
     </Link>
   );
 }
 
-function WheelInfo({
+function WheelRail({
   spins,
   hoursLeft,
   maxGems,
@@ -218,65 +203,69 @@ function WheelInfo({
     <Link
       href="/lucky-wheel"
       aria-label="Lucky wheel"
-      className="relative flex h-full min-w-0 cursor-pointer items-center gap-2.5 rounded-[20px] bg-[#ffc928] px-3 py-3 text-[#0f1220] shadow-[0_5px_0_#c79a2e] transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c79a2e]"
+      className={cn(
+        "flex cursor-pointer flex-col justify-between gap-2 rounded-[18px] border-[3px] border-[#0a0c16] bg-[#ffc928] px-3 py-2.5",
+        "text-[#0f1220] shadow-[0_4px_0_#c79a2e] transition-[transform,box-shadow] duration-200",
+        "hover:translate-y-px hover:shadow-[0_3px_0_#c79a2e]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f1220]",
+      )}
     >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0f1220] text-[#ffc928] shadow-[0_3px_0_#000]">
-        <FerrisWheel className="h-5 w-5" strokeWidth={2.25} />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[9px] font-extrabold tracking-[0.1em] text-[#0f1220]/55 uppercase">
+          Bonus
+        </span>
+        <FerrisWheel className="h-4 w-4" strokeWidth={2.25} />
+      </div>
+      <span className="font-display text-[14px] font-bold tracking-[-0.02em]">
+        Lucky Wheel
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[9px] font-black tracking-[0.08em] text-[#0f1220]/55 uppercase">
-          Bonus{hoursLeft ? ` · ${hoursLeft.replace(" ", "·")}` : ""}
-        </span>
-        <span className="mt-0.5 block truncate font-display text-[14px] leading-tight font-bold tracking-[-0.02em]">
-          Lucky Wheel
-        </span>
-        <span className="mt-0.5 block truncate text-[10px] font-bold text-[#0f1220]/55">
-          {spins} spin · ≤{maxGems} gems
-        </span>
+      <span className="text-[10px] font-bold text-[#0f1220]/60">
+        {spins} spin
+        {hoursLeft ? ` · ${hoursLeft}` : ""} · ≤{maxGems}g
       </span>
     </Link>
   );
 }
 
-function QuietRow({
+function TrackLink({
   href,
   icon: Icon,
-  iconClass,
   title,
   sub,
   trailing,
+  last,
 }: {
   href: string;
   icon: LucideIcon;
-  iconClass: string;
   title: string;
   sub: string;
   trailing?: ReactNode;
+  last?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="flex cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[#faf8ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-arc-purple-500 first:rounded-t-[20px] last:rounded-b-[20px]"
+      className={cn(
+        "flex cursor-pointer items-center gap-2.5 px-3 py-3 transition-colors hover:bg-[#faf8ff]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-arc-purple-500",
+        !last && "border-b border-[#f0ecf7]",
+      )}
     >
-      <span
-        className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-          iconClass,
-        )}
-      >
-        <Icon className="h-5 w-5" strokeWidth={2.25} />
-      </span>
+      <Icon
+        className="h-4 w-4 shrink-0 text-arc-lavender-500"
+        strokeWidth={2.25}
+      />
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-display text-[15px] font-semibold text-[#1b1730]">
+        <span className="block truncate text-[13px] font-bold text-[#0f1220]">
           {title}
         </span>
-        <span className="block truncate text-[11px] font-bold text-[#8a7cb8]">
+        <span className="block truncate text-[10px] font-semibold text-arc-lavender-600">
           {sub}
         </span>
       </span>
       {trailing}
       <ChevronRight
-        className="h-4 w-4 shrink-0 text-[#c6bce0]"
+        className="h-3.5 w-3.5 shrink-0 text-arc-lavender-400"
         strokeWidth={2.5}
       />
     </Link>
