@@ -111,9 +111,9 @@ function ReadingContent({ lesson }: { lesson: PlayableLesson }) {
   return (
     <LessonShell
       lessonId={lesson.id}
+      lessonType={lesson.lessonType}
       stepLabel={`Read · ${step + 1}/${total}`}
       progress={progress}
-      showArlo={false}
       onBack={() => {
         if (step > 0) {
           goTo(step - 1);
