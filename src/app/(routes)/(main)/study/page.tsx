@@ -1,5 +1,7 @@
-import StudyHubScreen from "@/components/study/StudyHubScreen";
-
+/**
+ * Route registration only — UI kept alive by `MainTabShell`.
+ * Avoids remount flash on every tab press.
+ */
 export default function StudyPage() {
-  return <StudyHubScreen />;
+  return null;
 }

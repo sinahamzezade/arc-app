@@ -103,14 +103,9 @@ export async function ensureIdentityPublished(
   }
   setE2eUserId(uid);
   const identity = await loadOrCreateIdentity(uid);
-  if (
-    publishedForUser?.userId === uid &&
-    publishedForUser.publicKeyB64 === identity.publicKeyB64
-  ) {
-    return identity;
-  }
 
-  // Prefer existing server key when it matches local — avoids wipe storms.
+  // Always reconcile with server — never trust in-memory publish flag alone.
+  // Another tab/device can overwrite chat_user_keys and leave wraps unopenable.
   try {
     const { keys } = await chatApi.getPublicKeys([uid], accessToken);
     const serverKey = keys.find((k) => k.userId === uid)?.publicKey;
@@ -140,6 +135,19 @@ async function openOrThrow(
   return copyKey(key);
 }
 
+async function sealWrapsForMembers(
+  conversationKey: Uint8Array,
+  memberIds: string[],
+  byUser: Map<string, string>,
+): Promise<Array<{ userId: string; wrappedKey: string }>> {
+  return Promise.all(
+    memberIds.map(async (id) => ({
+      userId: id,
+      wrappedKey: await sealConversationKey(conversationKey, byUser.get(id)!),
+    })),
+  );
+}
+
 async function createWraps(
   conversationId: string,
   memberIds: string[],
@@ -153,6 +161,8 @@ async function createWraps(
 
   const { keys } = await chatApi.getPublicKeys(memberIds, accessToken);
   const byUser = new Map(keys.map((k) => [k.userId, k.publicKey]));
+  // Self must seal to local identity — server row can lag another tab's publish.
+  byUser.set(uid, identity.publicKeyB64);
   const missing = memberIds.filter((id) => !byUser.has(id));
   if (missing.length) {
     throw new E2eNotReadyError("Peer has not enabled secure chat yet");
@@ -161,24 +171,36 @@ async function createWraps(
   const conversationKey = existingKey
     ? copyKey(existingKey)
     : await generateConversationKey();
-  const wraps = await Promise.all(
-    memberIds.map(async (id) => ({
-      userId: id,
-      wrappedKey: await sealConversationKey(conversationKey, byUser.get(id)!),
-    })),
-  );
-  await chatApi.putKeyWraps(conversationId, { epoch, wraps }, accessToken);
 
-  const refreshed = await chatApi.getKeyWraps(conversationId, accessToken);
-  if (!refreshed.wrappedKey || refreshed.epoch == null) {
-    throw new E2eNotReadyError("Conversation key wrap missing after setup");
-  }
-  const key = await openOrThrow(refreshed.wrappedKey, identity);
-  return rememberSession(uid, conversationId, {
-    key,
-    epoch: refreshed.epoch,
-    wrapFp: wrapFingerprint(refreshed.wrappedKey),
-  });
+  const tryPutAndOpen = async (keyEpoch: number): Promise<ConvSession | null> => {
+    const wraps = await sealWrapsForMembers(conversationKey, memberIds, byUser);
+    await chatApi.putKeyWraps(
+      conversationId,
+      { epoch: keyEpoch, wraps },
+      accessToken,
+    );
+    const refreshed = await chatApi.getKeyWraps(conversationId, accessToken);
+    if (!refreshed.wrappedKey || refreshed.epoch == null) return null;
+    const opened = await openConversationKey(refreshed.wrappedKey, identity);
+    if (!opened) return null;
+    return rememberSession(uid, conversationId, {
+      key: copyKey(opened),
+      epoch: refreshed.epoch,
+      wrapFp: wrapFingerprint(refreshed.wrappedKey),
+    });
+  };
+
+  const first = await tryPutAndOpen(epoch);
+  if (first) return first;
+
+  // Dual-bootstrap / stale wraps: wipe and republish once with same plaintext key.
+  await chatApi.resetKeyWraps(conversationId, accessToken);
+  const retry = await tryPutAndOpen(epoch);
+  if (retry) return retry;
+
+  throw new E2eNotReadyError(
+    "Could not open conversation key on this device",
+  );
 }
 
 /**
@@ -294,14 +316,38 @@ async function ensureConversationReadyInner(
     await new Promise((r) => setTimeout(r, 40 + Math.floor(Math.random() * 80)));
     const again = await chatApi.getKeyWraps(conversationId, accessToken);
     if (again.wrappedKey && again.epoch != null) {
-      const key = await openOrThrow(again.wrappedKey, identity);
-      return rememberSession(uid, conversationId, {
-        key,
-        epoch: again.epoch,
-        wrapFp: wrapFingerprint(again.wrappedKey),
-      });
+      const opened = await openConversationKey(again.wrappedKey, identity);
+      if (opened) {
+        return rememberSession(uid, conversationId, {
+          key: copyKey(opened),
+          epoch: again.epoch,
+          wrapFp: wrapFingerprint(again.wrappedKey),
+        });
+      }
+      // Peer sealed to a stale identity — fall through to create/reset.
+      if (opts.allowReset) {
+        await chatApi.resetKeyWraps(conversationId, accessToken);
+        return createWraps(
+          conversationId,
+          again.memberIds.length ? again.memberIds : wrapInfo.memberIds,
+          accessToken,
+          (again.epoch ?? 0) + 1,
+        );
+      }
+      throw new E2eNotReadyError(
+        "Could not open conversation key on this device",
+      );
     }
     if (again.hasWraps && !again.wrappedKey) {
+      if (opts.allowReset) {
+        await chatApi.resetKeyWraps(conversationId, accessToken);
+        return createWraps(
+          conversationId,
+          again.memberIds.length ? again.memberIds : wrapInfo.memberIds,
+          accessToken,
+          1,
+        );
+      }
       throw new E2eNotReadyError(
         "Secure chat keys exist but this device is not wrapped yet",
       );
@@ -391,17 +437,13 @@ export async function rewrapConversationKeys(
   const memberIds = wrapInfo.memberIds;
   const { keys } = await chatApi.getPublicKeys(memberIds, accessToken);
   const byUser = new Map(keys.map((k) => [k.userId, k.publicKey]));
+  byUser.set(uid, identity.publicKeyB64);
   const missing = memberIds.filter((id) => !byUser.has(id));
   if (missing.length) {
     throw new E2eNotReadyError("New member has not enabled secure chat yet");
   }
 
-  const wraps = await Promise.all(
-    memberIds.map(async (id) => ({
-      userId: id,
-      wrappedKey: await sealConversationKey(session!.key, byUser.get(id)!),
-    })),
-  );
+  const wraps = await sealWrapsForMembers(session.key, memberIds, byUser);
   await chatApi.putKeyWraps(
     conversationId,
     { epoch: session.epoch, wraps },

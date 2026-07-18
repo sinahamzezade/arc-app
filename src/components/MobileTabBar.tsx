@@ -42,14 +42,24 @@ export function MobileTabBar() {
         <ul className="pointer-events-auto relative flex items-stretch gap-0.5 rounded-[24px] border border-[#ebe4f6] bg-white/95 p-1.5 shadow-[0_12px_36px_rgba(70,40,150,0.12)] backdrop-blur-xl">
           {tabs.map((tab) => {
             const active = isActive(pathname, tab.href);
+            const exactTab = pathname === tab.href;
             const Icon = tab.icon;
 
             return (
               <li key={tab.href} className="relative min-w-0 flex-1">
                 <Link
                   href={tab.href}
+                  prefetch
+                  scroll={!exactTab}
                   aria-current={active ? "page" : undefined}
                   aria-label={tab.label}
+                  onClick={(e) => {
+                    // Already on this tab root — skip navigation (keep-alive stays warm).
+                    if (exactTab) {
+                      e.preventDefault();
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
+                  }}
                   className={cn(
                     "relative flex h-[52px] flex-col items-center justify-center gap-0.5 rounded-[18px]",
                     active ? "text-white" : "text-[#b3a8d6]",

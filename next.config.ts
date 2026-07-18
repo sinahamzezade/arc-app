@@ -14,12 +14,11 @@ const nextConfig: NextConfig = {
     root: path.join(__dirname),
   },
   experimental: {
-    // Client router cache: revisiting a tab within 30s reuses the RSC
-    // payload instead of re-running server prefetch (React Query keeps
-    // data fresh client-side anyway).
+    // Main tabs stay mounted client-side (`MainTabShell`); longer RSC
+    // cache still helps nested (main) routes like leaderboard.
     staleTimes: {
-      dynamic: 30,
-      static: 180,
+      dynamic: 300,
+      static: 600,
     },
   },
   images: {
