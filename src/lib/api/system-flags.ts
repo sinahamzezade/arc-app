@@ -5,6 +5,8 @@ export type PublicSystemFlags = {
   intake_chat_enabled: boolean;
   intake_default_mode: string;
   arlo_ai_enabled: boolean;
+  /** CSV allowlist of lesson types where Ask Arlo is shown. */
+  arlo_ai_lesson_types: string;
   sso_enabled: boolean;
   avatar_studio_enabled: boolean;
   video_call_enabled: boolean;

@@ -22,6 +22,7 @@ import type { LessonPlayDto } from "@/lib/api/types";
 import { startHrefFor } from "@/lib/lesson/map-play";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
+import { isArloVisibleForLessonType } from "@/lib/lesson/arlo-visibility";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton } from "./LessonShell";
 import { LessonLoadState } from "./LessonLoadState";
@@ -36,6 +37,10 @@ const START_LABELS: Record<string, string> = {
   practice: "Start practice",
   mini_project: "Start project",
   interactive: "Start practice",
+  scenario: "Start scenario",
+  visual_hotspot: "Start hotspot",
+  debate: "Start debate",
+  sandbox_simulation: "Start simulation",
 };
 
 const REVIEW_LABELS: Record<string, string> = {
@@ -45,6 +50,10 @@ const REVIEW_LABELS: Record<string, string> = {
   practice: "Review practice",
   mini_project: "Review project",
   interactive: "Review practice",
+  scenario: "Review scenario",
+  visual_hotspot: "Review hotspot",
+  debate: "Review debate",
+  sandbox_simulation: "Review simulation",
 };
 
 const TYPE_TAGS: Record<string, string> = {
@@ -54,7 +63,22 @@ const TYPE_TAGS: Record<string, string> = {
   practice: "Practice",
   mini_project: "Mini project",
   interactive: "Interactive",
+  scenario: "Scenario",
+  visual_hotspot: "Hotspot",
+  debate: "Debate",
+  sandbox_simulation: "Simulation",
 };
+
+/** Fallback for unknown API types — `visual_hotspot` → `Visual hotspot`. */
+function prettyLessonType(raw: string): string {
+  const tagged = TYPE_TAGS[raw];
+  if (tagged) return tagged;
+  return raw
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 /**
  * Lesson launch — night-hero family (Home / Learn desk).
@@ -148,7 +172,7 @@ export default function LessonOverviewScreen({
               />
             </div>
           </div>
-          {flags.arlo_ai_enabled ? (
+          {isArloVisibleForLessonType(flags, lesson.lessonType) ? (
             <button
               type="button"
               aria-label="Ask Arlo"
@@ -186,8 +210,8 @@ export default function LessonOverviewScreen({
               <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold ring-1 ring-white/15">
                 +{lesson.reward.gems} gems · +{lesson.reward.coins} coins
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold ring-1 ring-white/15">
-                {TYPE_TAGS[lesson.lessonType] ?? lesson.lessonType}
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1.5 text-[11px] font-extrabold tracking-[-0.01em] ring-1 ring-white/15">
+                {prettyLessonType(lesson.lessonType)}
               </span>
             </div>
           </div>
@@ -269,7 +293,7 @@ export default function LessonOverviewScreen({
         </div>
       </div>
 
-      {flags.arlo_ai_enabled ? (
+      {isArloVisibleForLessonType(flags, lesson.lessonType) ? (
         <LessonArloSheet
           open={arloOpen}
           onClose={() => setArloOpen(false)}

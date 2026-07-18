@@ -106,6 +106,7 @@ export default function LessonPracticeScreen({
   return (
     <LessonShell
       lessonId={lesson.id}
+      lessonType={lesson.lessonType}
       stepLabel={stepLabel}
       progress={progress}
       onBack={() => router.push(`/learn/${lesson.id}`)}

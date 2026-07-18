@@ -6,12 +6,14 @@ import {
   systemFlagsApi,
   type PublicSystemFlags,
 } from "@/lib/api/system-flags";
+import { ARLO_LESSON_TYPES_DEFAULT } from "@/lib/lesson/arlo-visibility";
 
 const DEFAULTS: PublicSystemFlags = {
   otp_verification_enabled: true,
   intake_chat_enabled: true,
   intake_default_mode: "form",
   arlo_ai_enabled: true,
+  arlo_ai_lesson_types: ARLO_LESSON_TYPES_DEFAULT,
   // Fail closed — never flash SSO before public flags resolve.
   sso_enabled: false,
   avatar_studio_enabled: true,

@@ -125,6 +125,7 @@ export default function LessonQuizScreen({ lessonId }: { lessonId: string }) {
   return (
     <LessonShell
       lessonId={lesson.id}
+      lessonType={lesson.lessonType}
       stepLabel={`Quiz · ${index + 1}/${total}`}
       progress={progress}
       onBack={() => {

@@ -156,6 +156,7 @@ export default function LessonActiveBlockScreen({
   return (
     <LessonShell
       lessonId={lesson.id}
+      lessonType={lesson.lessonType}
       stepLabel="Active lesson"
       progress={progress}
       onBack={() => router.push(`/learn/${lesson.id}`)}
@@ -307,6 +308,7 @@ export default function LessonActiveBlockScreen({
 
         <ReadingArloAssist
           lessonId={lesson.id}
+          lessonType={lesson.lessonType}
           focusTitle={lesson.title}
         />
 

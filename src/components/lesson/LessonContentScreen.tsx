@@ -172,6 +172,7 @@ function ReadingContent({ lesson }: { lesson: PlayableLesson }) {
           <ReadingArloAssist
             key={step}
             lessonId={lesson.id}
+            lessonType={lesson.lessonType}
             focusTitle={
               isTakeaways
                 ? "Key takeaways"
@@ -210,6 +211,7 @@ function VideoContent({ lesson }: { lesson: PlayableLesson }) {
   return (
     <LessonShell
       lessonId={lesson.id}
+      lessonType={lesson.lessonType}
       stepLabel="Watch"
       progress={50}
       onBack={() => router.push(`/learn/${lesson.id}`)}

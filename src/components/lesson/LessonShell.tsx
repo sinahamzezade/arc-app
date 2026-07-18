@@ -7,6 +7,7 @@ import { MessageCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
+import { isArloVisibleForLessonType } from "@/lib/lesson/arlo-visibility";
 import { cn } from "@/lib/utils";
 import { LessonArloSheet } from "./LessonArloSheet";
 
@@ -14,12 +15,13 @@ const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Shared lesson chrome — night step bar over lavender sheet.
- * Ask Arlo button respects `arlo_ai_enabled` feature flag unless forced off.
+ * Ask Arlo button respects master + per-type flags unless forced off.
  * Opens a bottom sheet (not full-screen navigation).
  */
 export function LessonShell({
   children,
   lessonId,
+  lessonType,
   stepLabel,
   progress,
   showArlo,
@@ -27,9 +29,11 @@ export function LessonShell({
 }: {
   children: React.ReactNode;
   lessonId: string;
+  /** Used with feature flags when `showArlo` is omitted. */
+  lessonType?: string;
   stepLabel: string;
   progress: number;
-  /** Force show/hide. Omit to follow `arlo_ai_enabled` flag. */
+  /** Force show/hide. Omit to follow Arlo feature flags + lesson type. */
   showArlo?: boolean;
   onBack?: () => void;
 }) {
@@ -41,7 +45,7 @@ export function LessonShell({
       ? false
       : showArlo === true
         ? true
-        : flags.arlo_ai_enabled;
+        : isArloVisibleForLessonType(flags, lessonType);
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-hidden bg-[#0f1220] font-rounded">

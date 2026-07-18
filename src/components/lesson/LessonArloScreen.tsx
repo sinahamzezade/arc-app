@@ -12,6 +12,7 @@ import { sanitizeArloReply } from "@/lib/lesson/arlo-reply";
 import { lessonsApi } from "@/lib/api/lessons";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
+import { isArloVisibleForLessonType } from "@/lib/lesson/arlo-visibility";
 import { LessonLoadState } from "./LessonLoadState";
 
 type ChatMsg = { role: "user" | "arlo"; text: string };
@@ -39,12 +40,18 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const arloAllowed =
+    !flagsLoading &&
+    !isLoading &&
+    Boolean(lesson) &&
+    isArloVisibleForLessonType(flags, lesson?.lessonType);
+
   useEffect(() => {
-    if (flagsLoading) return;
-    if (!flags.arlo_ai_enabled) {
+    if (flagsLoading || isLoading) return;
+    if (!lesson || !isArloVisibleForLessonType(flags, lesson.lessonType)) {
       router.replace(`/learn/${lessonId}`);
     }
-  }, [flags.arlo_ai_enabled, flagsLoading, lessonId, router]);
+  }, [flags, flagsLoading, isLoading, lesson, lessonId, router]);
 
   const scrollEnd = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -62,11 +69,7 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
     el.style.height = `${next}px`;
   };
 
-  if (flagsLoading || !flags.arlo_ai_enabled) {
-    return <ArloBootShell message="Loading Arlo…" />;
-  }
-
-  if (isLoading) {
+  if (flagsLoading || isLoading) {
     return <ArloBootShell message="Loading Arlo…" />;
   }
 
@@ -77,6 +80,10 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
         onRetry={isError ? () => refetch() : undefined}
       />
     );
+  }
+
+  if (!arloAllowed) {
+    return <ArloBootShell message="Loading Arlo…" />;
   }
 
   const thread =

@@ -20,6 +20,7 @@ import { sanitizeArloReply } from "@/lib/lesson/arlo-reply";
 import { assets } from "@/lib/assets";
 import { lessonsApi } from "@/lib/api/lessons";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
+import { isArloVisibleForLessonType } from "@/lib/lesson/arlo-visibility";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const squishSpring = { type: "spring" as const, stiffness: 500, damping: 22 };
@@ -54,6 +55,7 @@ const READING_ARLO_OPTIONS = [
 
 type ReadingArloAssistProps = {
   lessonId: string;
+  lessonType: string;
   focusTitle: string;
 };
 
@@ -69,6 +71,7 @@ type AskState =
  */
 export function ReadingArloAssist({
   lessonId,
+  lessonType,
   focusTitle,
 }: ReadingArloAssistProps) {
   const { data: session } = useSession();
@@ -76,7 +79,7 @@ export function ReadingArloAssist({
   const [isOpen, setIsOpen] = useState(false);
   const [ask, setAsk] = useState<AskState>({ phase: "idle" });
 
-  if (!flags.arlo_ai_enabled) return null;
+  if (!isArloVisibleForLessonType(flags, lessonType)) return null;
 
   const sending = ask.phase === "sending";
   const activeLabel = ask.phase === "idle" ? null : ask.label;
