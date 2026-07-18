@@ -35,6 +35,7 @@ export default function StudyPathScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [duration, setDuration] = useState<(typeof DURATIONS)[number]>(25);
+  const [selectedStep, setSelectedStep] = useState(0);
   const [startMode] = useState<StudyStartModeDto>("now");
 
   const load = useCallback(async () => {
@@ -42,6 +43,12 @@ export default function StudyPathScreen() {
     try {
       const dto = await studyApi.path(pathId);
       setPath(dto);
+      setSelectedStep(
+        Math.min(
+          Math.max(dto.contentStep, 0),
+          Math.max((dto.steps?.length ?? dto.stepCount) - 1, 0),
+        ),
+      );
       setError(null);
     } catch (err) {
       setError(
@@ -86,6 +93,7 @@ export default function StudyPathScreen() {
       const session = await studyApi.createEpisode(pathId, {
         durationMinutes: duration,
         startMode,
+        contentStep: selectedStep,
       });
       router.push(`/study/room?id=${session.id}`);
     } catch (err) {
@@ -255,7 +263,81 @@ export default function StudyPathScreen() {
 
         {canStart ? (
           <div className="rounded-[22px] border border-[#ebe4f6] bg-white p-4 shadow-[0_10px_24px_rgba(70,40,150,0.06)]">
-            <p className="flex items-center gap-2 text-[11px] font-extrabold tracking-widest text-arc-lavender-600 uppercase">
+            {!path.activeSessionId ? (
+              <>
+                <p className="flex items-center gap-2 text-[11px] font-extrabold tracking-widest text-arc-lavender-600 uppercase">
+                  <BookOpen className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  Path step
+                </p>
+                <p className="mt-1 text-[12px] font-bold text-arc-lavender-600">
+                  Pick which reading to study this session.
+                </p>
+                <ul className="mt-2 max-h-52 space-y-1.5 overflow-y-auto overscroll-contain pr-0.5">
+                  {(path.steps && path.steps.length > 0
+                    ? path.steps
+                    : Array.from({ length: Math.max(path.stepCount, 1) }, (_, i) => ({
+                        index: i,
+                        unitId: String(i),
+                        title: `Step ${i + 1}`,
+                        estimatedMinutes: 0,
+                      }))
+                  ).map((step) => {
+                    const active = selectedStep === step.index;
+                    const current = path.contentStep === step.index;
+                    return (
+                      <li key={step.unitId || step.index}>
+                        <button
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setSelectedStep(step.index)}
+                          className={cn(
+                            "flex w-full cursor-pointer items-center gap-2.5 rounded-[14px] border-2 px-3 py-2.5 text-left transition-colors",
+                            active
+                              ? "border-arc-purple-500 bg-arc-purple-500/8"
+                              : "border-[#ebe4f6] bg-[#faf8ff] hover:border-[#0f1220]/15",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-black",
+                              active
+                                ? "bg-arc-purple-500 text-white"
+                                : "bg-[#0f1220] text-[#ffc928]",
+                            )}
+                          >
+                            {step.index + 1}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] font-extrabold text-[#1b1730]">
+                              {step.title?.trim() || `Step ${step.index + 1}`}
+                            </span>
+                            <span className="mt-0.5 block text-[10px] font-bold text-arc-lavender-600">
+                              {current ? "Current" : `Step ${step.index + 1}`}
+                              {step.estimatedMinutes
+                                ? ` · ${step.estimatedMinutes}m`
+                                : null}
+                            </span>
+                          </span>
+                          {active ? (
+                            <Check
+                              className="h-4 w-4 shrink-0 text-arc-purple-500"
+                              strokeWidth={3}
+                            />
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            ) : null}
+
+            <p
+              className={cn(
+                "flex items-center gap-2 text-[11px] font-extrabold tracking-widest text-arc-lavender-600 uppercase",
+                !path.activeSessionId && "mt-4",
+              )}
+            >
               <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
               Session length
             </p>
@@ -291,7 +373,7 @@ export default function StudyPathScreen() {
               ) : (
                 <>
                   <BookOpen className="h-4 w-4" strokeWidth={2.5} />
-                  Start session
+                  Start step {selectedStep + 1}
                 </>
               )}
             </motion.button>

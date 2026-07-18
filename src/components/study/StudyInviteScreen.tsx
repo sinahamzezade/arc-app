@@ -22,6 +22,7 @@ import { socialApi, type SocialFriendDto } from "@/lib/api/social";
 import {
   studyApi,
   type StudyPathDto,
+  type StudyPickableLessonDto,
   type StudyPickableUnitDto,
 } from "@/lib/api/study";
 import { useRankMe } from "@/hooks/useRanks";
@@ -35,7 +36,7 @@ type InviteStep = 0 | 1 | 2;
 
 const STEPS = [
   { key: "partner", label: "Partner" },
-  { key: "unit", label: "Unit" },
+  { key: "lesson", label: "Lesson" },
   { key: "setup", label: "Invite" },
 ] as const;
 
@@ -59,8 +60,10 @@ export default function StudyInviteScreen() {
   const [step, setStep] = useState<InviteStep>(0);
   const [friends, setFriends] = useState<SocialFriendDto[]>([]);
   const [pathInvites, setPathInvites] = useState<StudyPathDto[]>([]);
+  const [lessons, setLessons] = useState<StudyPickableLessonDto[]>([]);
   const [units, setUnits] = useState<StudyPickableUnitDto[]>([]);
   const [partnerId, setPartnerId] = useState(preselect ?? "");
+  const [lessonId, setLessonId] = useState("");
   const [stack, setStack] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -71,9 +74,12 @@ export default function StudyInviteScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const [crew, paths, unitRes] = await Promise.all([
+        const [crew, paths, lessonRes, unitRes] = await Promise.all([
           socialApi.friends(),
           studyApi.paths().catch(() => ({ items: [] as StudyPathDto[] })),
+          studyApi
+            .lessons()
+            .catch(() => ({ items: [] as StudyPickableLessonDto[] })),
           studyApi.units().catch(() => ({ items: [] as StudyPickableUnitDto[] })),
         ]);
         if (cancelled) return;
@@ -85,10 +91,15 @@ export default function StudyInviteScreen() {
               (p.role === "partner" || p.role === "creator"),
           ),
         );
+        setLessons(lessonRes.items);
         setUnits(unitRes.items);
-        const firstStack =
-          unitRes.items[0]?.stack || unitRes.items[0]?.unitId;
-        if (firstStack) setStack(firstStack);
+        if (lessonRes.items[0]) {
+          setLessonId(lessonRes.items[0].lessonId);
+        } else {
+          const firstStack =
+            unitRes.items[0]?.stack || unitRes.items[0]?.unitId;
+          if (firstStack) setStack(firstStack);
+        }
         const fromQuery = preselect
           ? crew.items.find((f) => f.userId === preselect)
           : null;
@@ -114,11 +125,18 @@ export default function StudyInviteScreen() {
     [friends, partnerId],
   );
 
+  const lesson = useMemo(
+    () => lessons.find((l) => l.lessonId === lessonId) ?? null,
+    [lessons, lessonId],
+  );
+
   const unit = useMemo(
     () =>
       units.find((u) => (u.stack || u.unitId) === stack) ?? null,
     [units, stack],
   );
+
+  const useLessonPicker = lessons.length > 0;
 
   const sortedFriends = useMemo(() => {
     return [...friends].sort((a, b) => {
@@ -128,24 +146,36 @@ export default function StudyInviteScreen() {
   }, [friends]);
 
   const partnerOk = Boolean(partnerId && UUID_RE.test(partnerId));
-  const unitOk = Boolean(stack);
+  const pickOk = useLessonPicker
+    ? Boolean(lessonId && lesson)
+    : Boolean(stack && unit);
 
   const incoming = pathInvites.filter((p) => p.role === "partner");
   const outgoing = pathInvites.filter((p) => p.role === "creator");
 
   const canAdvance =
-    step === 0 ? partnerOk : step === 1 ? unitOk : partnerOk && unitOk;
+    step === 0 ? partnerOk : step === 1 ? pickOk : partnerOk && pickOk;
 
   async function sendInvite() {
-    if (!partnerOk || !unitOk || busy || !partner || !unit) return;
+    if (!partnerOk || !pickOk || busy || !partner) return;
+    if (useLessonPicker && !lesson) return;
+    if (!useLessonPicker && !unit) return;
     setBusy(true);
     setError(null);
     try {
-      const path = await studyApi.createPath({
-        partnerId: partner.userId,
-        stack: unit.stack || unit.unitId,
-        message: message.trim() || undefined,
-      });
+      const path = await studyApi.createPath(
+        useLessonPicker && lesson
+          ? {
+              partnerId: partner.userId,
+              lessonId: lesson.lessonId,
+              message: message.trim() || undefined,
+            }
+          : {
+              partnerId: partner.userId,
+              stack: unit!.stack || unit!.unitId,
+              message: message.trim() || undefined,
+            },
+      );
       router.push(`/study/path?id=${path.id}`);
     } catch (err) {
       const msg =
@@ -162,7 +192,7 @@ export default function StudyInviteScreen() {
 
   function goNext() {
     if (step === 0 && partnerOk) setStep(1);
-    else if (step === 1 && unitOk) setStep(2);
+    else if (step === 1 && pickOk) setStep(2);
     else if (step === 2) void sendInvite();
   }
 
@@ -171,15 +201,16 @@ export default function StudyInviteScreen() {
     else setStep((s) => (s - 1) as InviteStep);
   }
 
+  const pickTitle = lesson?.title ?? unit?.title;
   const ctaLabel =
     step === 0
       ? partner
         ? `Continue with ${partner.name.split(" ")[0]}`
         : "Pick a partner"
       : step === 1
-        ? unit
+        ? pickOk
           ? "Continue to invite"
-          : "Pick a unit"
+          : "Pick a lesson"
         : busy
           ? "Sending…"
           : partner
@@ -359,19 +390,28 @@ export default function StudyInviteScreen() {
             ) : null}
 
             {step === 1 ? (
-              <UnitStep
-                units={units}
-                stack={stack}
-                onSelect={setStack}
-                partnerName={partner?.name.split(" ")[0]}
-              />
+              useLessonPicker ? (
+                <LessonStep
+                  lessons={lessons}
+                  lessonId={lessonId}
+                  onSelect={setLessonId}
+                  partnerName={partner?.name.split(" ")[0]}
+                />
+              ) : (
+                <UnitStep
+                  units={units}
+                  stack={stack}
+                  onSelect={setStack}
+                  partnerName={partner?.name.split(" ")[0]}
+                />
+              )
             ) : null}
 
             {step === 2 ? (
               <SetupStep
                 message={message}
                 onMessage={setMessage}
-                unitTitle={unit?.title}
+                unitTitle={pickTitle}
                 partnerName={partner?.name.split(" ")[0]}
               />
             ) : null}
@@ -482,7 +522,7 @@ function PartnerStep({
           Pick your study partner
         </h2>
         <p className="mt-1 text-[13px] font-bold text-arc-lavender-600">
-          One unit. Shared progress. Sessions when you both show up.
+          One lesson. Shared progress. Sessions when you both show up.
         </p>
       </div>
 
@@ -566,6 +606,99 @@ function PartnerStep({
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#ffc928] text-[#0f1220]">
                       <Check className="h-4 w-4" strokeWidth={3} />
                     </span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function LessonStep({
+  lessons,
+  lessonId,
+  onSelect,
+  partnerName,
+}: {
+  lessons: StudyPickableLessonDto[];
+  lessonId: string;
+  onSelect: (id: string) => void;
+  partnerName?: string;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-3">
+        <p className="text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
+          Step 2 · What
+        </p>
+        <h2 className="mt-1 font-display text-[22px] leading-tight font-bold tracking-[-0.03em] text-[#0f1220]">
+          Choose a lesson
+        </h2>
+        <p className="mt-1 text-[13px] font-bold text-arc-lavender-600">
+          {partnerName
+            ? `You and ${partnerName} can study this together — even if you haven’t finished it yet.`
+            : "Unfinished reading lessons are fine. Shared progress across every session."}
+        </p>
+      </div>
+
+      {lessons.length === 0 ? (
+        <div className="rounded-[20px] border-2 border-dashed border-[#d5ccec] bg-white px-4 py-6 text-center">
+          <BookOpen
+            className="mx-auto h-8 w-8 text-arc-purple-500"
+            strokeWidth={2}
+          />
+          <p className="mt-3 font-display text-[16px] font-bold text-[#0f1220]">
+            No lessons yet
+          </p>
+          <p className="mt-1 text-[13px] font-bold text-arc-lavender-600">
+            Unlock a reading lesson on your path, then invite a friend.
+          </p>
+        </div>
+      ) : (
+        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pb-2">
+          {lessons.map((l) => {
+            const active = lessonId === l.lessonId;
+            return (
+              <li key={l.lessonId}>
+                <button
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onSelect(l.lessonId)}
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-3 rounded-[18px] border-2 px-3.5 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none",
+                    active
+                      ? "border-arc-purple-500 bg-arc-purple-500/8 shadow-[0_4px_0_#4b2fd6]/25"
+                      : "border-[#ebe4f6] bg-white shadow-[0_4px_0_#ebe4f6] hover:border-[#0f1220]/20",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
+                      active
+                        ? "bg-arc-purple-500 text-white"
+                        : "bg-[#0f1220] text-[#ffc928]",
+                    )}
+                  >
+                    <BookOpen className="h-5 w-5" strokeWidth={2.5} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-display text-[15px] font-bold text-[#0f1220]">
+                      {l.title}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] font-bold text-arc-lavender-600">
+                      {l.status === "completed" ? "Done" : "In progress"} ·{" "}
+                      {l.estimatedMinutes}m
+                      {l.category ? ` · ${l.category}` : null}
+                    </span>
+                  </span>
+                  {active ? (
+                    <Check
+                      className="h-5 w-5 shrink-0 text-arc-purple-500"
+                      strokeWidth={3}
+                    />
                   ) : null}
                 </button>
               </li>
@@ -719,7 +852,7 @@ function SetupStep({
           onChange={(e) => onMessage(e.target.value.slice(0, 160))}
           rows={3}
           maxLength={160}
-          placeholder="Let's learn this unit together…"
+          placeholder="Let's learn this lesson together…"
           className="w-full resize-none rounded-xl bg-[#f6f2ff] px-3 py-2.5 text-[14px] font-semibold text-[#0f1220] outline-none placeholder:text-arc-lavender-400 focus-visible:ring-2 focus-visible:ring-arc-purple-500"
         />
         <p className="mt-1 text-right text-[10px] font-bold text-arc-lavender-400">

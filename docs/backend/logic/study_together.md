@@ -1,6 +1,6 @@
 # Arlo Backend — Study Together
 
-**Version:** 3.0 co-roadmap  
+**Version:** 3.1 co-roadmap (lesson pick; unfinished OK)  
 **Canonical integration:** Normal lesson completion stays in doc 05; verified shared time updates Course Timing/Weekly Plan and shared bonuses use the Gamification ledger.
 
 See [00 — System Integration Contract](./00-system-integration.md).
@@ -33,9 +33,12 @@ Path invite / episode create:
 - no block exists
 - inviter not rate-limited
 - both accounts active
-- unit is a reading unit present on the creator’s ready roadmap (or `lessonId` resolves to such a unit)
+- creator picks a **reading lesson** on their ready roadmap with status `available` **or** `completed`
+  - unfinished lessons are allowed — creator need not complete the lesson first
+  - `locked` lessons are not pickable
+  - optional create inputs `stack` / `unitId` still resolve a stack when no `lessonId`
 - soft caps: `STUDY_MAX_ACTIVE_PATHS` (20) non-terminal paths per user; `STUDY_MAX_CONCURRENT_ROOMS` live episodes
-- at most one non-terminal path per `(pair, unitId)` (either user ordering)
+- at most one non-terminal path per `(pair, stack)` (either user ordering)
 
 Episode start additionally:
 
@@ -48,7 +51,9 @@ Episode start additionally:
 
 ## 3. Co-roadmap options
 
-**Bind:** content-pool `unitId` (slug). Optional create input `lessonId` resolves unit via creator lesson.
+**Bind:** content-pool **stack** slug (co-roadmap identity). Preferred create input: `lessonId` (creator’s reading lesson) → resolves stack + starting unit index. Fallback: `stack` / legacy `unitId`.
+
+**Lesson pick:** `GET /study-together/lessons` returns reading lessons with status `available` | `completed` (unfinished OK). Invite UI step “Lesson” uses this list.
 
 **Category:** denormalized from `Unit.domain` or `Unit.stack` at create — hub grouping.
 
@@ -116,18 +121,20 @@ Unchanged for episodes. Do not trust client-reported total time.
 
 ### Path invite
 
-1. Creator picks partner + unit (or lesson → unit)
+1. Creator picks partner + **lesson** (`lessonId`; available or completed — unfinished OK). Fallback: stack/unit when no path lessons.
 2. `SocialPermissionService` validates
-3. Soft path-cap + pair+unit uniqueness
-4. Create `study_paths` (`status = invited`), notify partner
+3. Soft path-cap + pair+stack uniqueness
+4. Create `study_paths` (`status = invited`): bind stack from lesson’s unit; set `creator_lesson_id` to picked lesson; set `content_step` to that unit’s index in the stack’s reading list; notify partner
 5. Partner accept → `active`; decline → `declined`; creator cancel → `cancelled`
 
 ### Episode start
 
 1. Either participant on an **active** path calls `POST …/paths/:id/episodes`
-2. Session copies path `content_step` / `step_count` (resume, not reset to 0)
-3. Sets `path_id`; room invite / ready / timer flow as before
-4. Live list via `GET /study-together/rooms`
+2. Optional body `contentStep` (0-based path unit index) — user can pick any reading step before start; updates path `content_step` + progress, then binds episode to that unit
+3. Without `contentStep`, resume current path `content_step`
+4. Sets `path_id`; room invite / ready / timer flow as before
+5. Live list via `GET /study-together/rooms`
+6. Path detail includes `steps[]` (`index`, `unitId`, `title`, `estimatedMinutes`) for the step picker
 
 ### Progress write-through
 
@@ -210,13 +217,15 @@ For scheduled episodes:
 
 | Method | Path | Role |
 |---|---|---|
-| `POST` | `/study-together/paths` | Create path invite (`partnerId`, `unitId` and/or `lessonId`, optional message) |
+| `GET` | `/study-together/lessons` | Pickable reading lessons (`available` \| `completed`; unfinished OK) |
+| `GET` | `/study-together/units` | Pickable stacks (fallback when no path lessons) |
+| `POST` | `/study-together/paths` | Create path invite (`partnerId`, preferred `lessonId`, or `stack`/`unitId`, optional message) |
 | `GET` | `/study-together/paths` | List my paths (active + invited) + partner, category, progress, optional `activeSessionId` |
 | `GET` | `/study-together/paths/:id` | Path detail + recent episodes |
 | `POST` | `/study-together/paths/:id/accept` | Partner accepts |
 | `POST` | `/study-together/paths/:id/decline` | Partner declines |
 | `POST` | `/study-together/paths/:id/cancel` | Creator cancels |
-| `POST` | `/study-together/paths/:id/episodes` | Start episode room (duration + startMode) |
+| `POST` | `/study-together/paths/:id/episodes` | Start episode room (`durationMinutes`, `startMode`, optional `contentStep`) |
 
 ### Episodes / rooms
 
@@ -312,9 +321,9 @@ Examples:
 
 ## 19. Acceptance criteria
 
-- invite a friend onto a Unit; path shows on hub grouped by category with progress
+- invite a friend by picking a **reading lesson** (available or completed — need not be finished); path shows on hub grouped by category with progress
 - accept/decline/cancel at path level
-- start episode from active path; new episode resumes path `content_step`
+- before start, pick any path step (`contentStep`); episode binds that unit; omit → resume current path step
 - `ackRead` advances shared path progress; last beat completes the path
 - second episode resumes mid-path step
 - timer is server-authoritative; shared bonuses require both to qualify
@@ -331,9 +340,9 @@ Examples:
 | Entities | `study_paths`, `study_sessions` (+ `path_id`), participants, events |
 | Migration | `arc-backend/scripts/migrations/20260716-study-paths.sql` |
 | Caps | `STUDY_MAX_ACTIVE_PATHS`, `STUDY_MAX_CONCURRENT_ROOMS` |
-| REST | path CRUD/accept + episodes; room routes unchanged; `ack-read` → path |
+| REST | `GET …/lessons` + `GET …/units`; path CRUD/accept + episodes; `ack-read` → path |
 | WS | `/study` gateway; ack advances path then emits step |
 | Ledger | `RewardReasonType.StudyTogether` — 15 coins + 2 gems; weekly 3 / pair daily 2 |
-| FE | `lib/api/study.ts`, `pickableStudyUnits`, `StudyHubScreen`, `StudyInviteScreen`, `StudyPathScreen`, `StudyRoomScreen` |
+| FE | `lib/api/study.ts` (`lessons`), `pickableStudyLessons`, `StudyHubScreen`, `StudyInviteScreen` (Lesson step), `StudyPathScreen`, `StudyRoomScreen` |
 
-**Out of scope (this pass):** multi-friend paths; invitee must own unit; Redis multi-replica sticky; backfill all historical sessions into paths.
+**Out of scope (this pass):** multi-friend paths; invitee must own unit; Redis multi-replica sticky; backfill all historical sessions into paths; locked-path lessons.

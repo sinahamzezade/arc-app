@@ -686,6 +686,8 @@ export default function StudyRoomScreen() {
             messages={messages}
             partnerTyping={partnerTyping}
             partnerName={session.partner.name}
+            partnerInitial={session.partner.initial}
+            partnerAvatarUrl={session.partner.avatarUrl}
             youUserId={session.you.userId}
             sessionId={sessionId}
             onSend={onSendChat}

@@ -80,6 +80,13 @@ export type StudyPathStatusDto =
   | "cancelled"
   | "abandoned";
 
+export type StudyPathStepDto = {
+  index: number;
+  unitId: string;
+  title: string;
+  estimatedMinutes: number;
+};
+
 export type StudyPathDto = {
   id: string;
   status: StudyPathStatusDto;
@@ -102,6 +109,8 @@ export type StudyPathDto = {
     initial: string;
     avatarUrl: string | null;
   };
+  /** Reading units on this stack — pick before starting a session. */
+  steps?: StudyPathStepDto[];
   activeSessionId: string | null;
   episodes: {
     id: string;
@@ -210,9 +219,22 @@ export type StudyPickableUnitDto = {
   source: "path" | "pool";
 };
 
+/** Reading lesson on creator path — available (unfinished) or completed. */
+export type StudyPickableLessonDto = {
+  lessonId: string;
+  unitId: string | null;
+  stack: string | null;
+  title: string;
+  estimatedMinutes: number;
+  status: "available" | "completed";
+  category: string;
+};
+
 export type CreateStudyEpisodeInput = {
   durationMinutes: number;
   startMode: StudyStartModeDto;
+  /** 0-based path unit index to start on. */
+  contentStep?: number;
   scheduledStartAt?: string;
 };
 
@@ -236,6 +258,13 @@ export const studyApi = {
   units(accessToken?: string | null) {
     return apiFetch<{ items: StudyPickableUnitDto[] }>(
       "/study-together/units",
+      { accessToken },
+    );
+  },
+
+  lessons(accessToken?: string | null) {
+    return apiFetch<{ items: StudyPickableLessonDto[] }>(
+      "/study-together/lessons",
       { accessToken },
     );
   },

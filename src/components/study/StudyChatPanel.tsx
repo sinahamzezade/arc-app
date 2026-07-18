@@ -1,19 +1,18 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
-  Camera,
-  Check,
-  CheckCheck,
   Mic,
   MessageSquare,
   Pause,
   Play,
-  Send,
+  Plus,
+  SendHorizontal,
   Square,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { ChatImageLightbox } from "@/components/study/ChatImageLightbox";
 import { studyApi, type StudyMessageDto } from "@/lib/api/study";
 import {
@@ -28,6 +27,8 @@ export function StudyChatPanel({
   messages,
   partnerTyping,
   partnerName,
+  partnerInitial,
+  partnerAvatarUrl,
   youUserId,
   sessionId,
   onSend,
@@ -40,6 +41,8 @@ export function StudyChatPanel({
   messages: StudyMessageDto[];
   partnerTyping: boolean;
   partnerName: string;
+  partnerInitial?: string;
+  partnerAvatarUrl?: string | null;
   youUserId: string;
   sessionId: string;
   onSend: (body: string) => Promise<void>;
@@ -105,6 +108,16 @@ export function StudyChatPanel({
   const unread = open ? 0 : Math.max(0, messages.length - seenCount);
   const lastMessage = messages[messages.length - 1] ?? null;
   const busy = disabled || sending || recording;
+  const lastOwnId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]?.senderId === youUserId) return messages[i]!.id;
+    }
+    return null;
+  }, [messages, youUserId]);
+  const avatarInitial =
+    partnerInitial?.trim() ||
+    partnerName.trim().charAt(0).toUpperCase() ||
+    "?";
 
   async function submit() {
     const text = draft.trim();
@@ -255,37 +268,33 @@ export function StudyChatPanel({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full cursor-pointer items-center gap-2.5 rounded-[18px] border-2 border-[#ebe4f6] bg-white px-3.5 py-3 text-left shadow-[0_4px_0_#ebe4f6] transition-colors hover:border-[#0f1220]/20 focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
+        className="flex w-full cursor-pointer items-center gap-2 rounded-xl border border-[#f0ebf8] bg-white px-2.5 py-1.5 text-left transition-colors hover:bg-[#faf8ff] focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
       >
-        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#0f1220] text-[#ffc928]">
-          <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
+        <span className="relative shrink-0">
+          <UserAvatar
+            initial={avatarInitial}
+            avatarUrl={partnerAvatarUrl}
+            className="h-8 w-8 rounded-full text-[12px]"
+            textClassName="text-[12px]"
+          />
           {unread > 0 ? (
-            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-arc-purple-500 px-1 text-[9px] font-extrabold text-white shadow-[0_2px_0_#4b2fd6]">
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-arc-purple-600 px-0.5 text-[8px] font-extrabold text-white">
               {unread > 9 ? "9+" : unread}
             </span>
           ) : null}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-black tracking-[0.12em] text-arc-lavender-500 uppercase">
-            Chat with {partnerFirst}
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate text-[13px] font-extrabold tracking-tight text-[#0f1220]">
+            {partnerFirst}
           </span>
-          <span className="mt-0.5 block h-5 truncate text-[13px] leading-5 font-bold text-[#0f1220]">
-            {partnerTyping
-              ? `${partnerFirst} is typing…`
-              : previewLine(lastMessage)}
+          <span className="mt-px block truncate text-[11px] font-semibold text-[#8a82a8]">
+            {partnerTyping ? "typing…" : previewLine(lastMessage)}
           </span>
         </span>
-        <span
-          className={cn(
-            "flex h-4 w-6 shrink-0 items-center justify-center gap-0.5",
-            !partnerTyping && "invisible",
-          )}
-          aria-hidden
-        >
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-purple-500 [animation-delay:0ms]" />
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-purple-500 [animation-delay:120ms]" />
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-purple-500 [animation-delay:240ms]" />
-        </span>
+        <MessageSquare
+          className="h-3.5 w-3.5 shrink-0 text-[#b3a8d6]"
+          strokeWidth={2.25}
+        />
       </button>
 
       <AnimatePresence>
@@ -310,25 +319,26 @@ export function StudyChatPanel({
               exit={{ y: "100%" }}
               transition={softSpring}
               onClick={(e) => e.stopPropagation()}
-              className="relative flex h-[min(72dvh,640px)] max-h-[72dvh] flex-col overflow-hidden rounded-t-[28px] bg-[#f3effc] shadow-[0_-16px_48px_rgba(15,18,32,0.28)]"
+              className="relative flex h-[min(78dvh,720px)] max-h-[78dvh] flex-col overflow-hidden rounded-t-[28px] bg-[#faf8ff] shadow-[0_-16px_48px_rgba(15,18,32,0.28)]"
             >
-              <span
-                aria-hidden
-                className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-[#d9d0ef]"
-              />
-
-              <div className="flex shrink-0 items-center gap-3 border-b border-[#ebe4f6] px-4 pt-5 pb-3">
+              <header className="relative z-10 flex shrink-0 items-center gap-2 border-b border-[#f0ebf8] bg-white/95 px-3 pt-4 pb-3 backdrop-blur-md">
+                <UserAvatar
+                  initial={avatarInitial}
+                  avatarUrl={partnerAvatarUrl}
+                  className="h-10 w-10 shrink-0 rounded-full"
+                />
                 <div className="min-w-0 flex-1">
                   <p
                     id={titleId}
-                    className="font-display text-[16px] font-bold text-[#0f1220]"
+                    className="truncate text-[15px] font-extrabold tracking-tight text-[#0f1220]"
                   >
-                    Chat
+                    {partnerFirst}
                   </p>
-                  <p className="h-4 text-[11px] leading-4 font-bold text-arc-lavender-600">
-                    {partnerTyping
-                      ? `${partnerFirst} typing…`
-                      : `with ${partnerFirst}`}
+                  <p
+                    className="text-[12px] font-semibold text-[#8a82a8]"
+                    aria-live="polite"
+                  >
+                    {partnerTyping ? "typing…" : "In study room"}
                   </p>
                 </div>
                 <button
@@ -338,75 +348,53 @@ export function StudyChatPanel({
                     if (recording) stopRecorder(false);
                     setOpen(false);
                   }}
-                  className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-2xl border-2 border-[#ebe4f6] bg-white text-[#0f1220] transition-colors hover:border-[#0f1220]/25 focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
+                  className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#0f1220] transition-colors hover:bg-[#f4f0ff] focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
                 >
-                  <X className="h-4 w-4" strokeWidth={2.5} />
+                  <X className="h-5 w-5" strokeWidth={2.25} />
                 </button>
-              </div>
+              </header>
 
-              <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-4 py-4">
+              <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain px-4 py-3">
                 {messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0f1220] text-[#ffc928]">
-                      <MessageSquare className="h-5 w-5" strokeWidth={2.5} />
-                    </span>
-                    <p className="font-display text-[15px] font-bold text-[#0f1220]">
-                      Quiet room so far
+                  <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                    <UserAvatar
+                      initial={avatarInitial}
+                      avatarUrl={partnerAvatarUrl}
+                      className="h-14 w-14 rounded-full"
+                    />
+                    <p className="text-[15px] font-extrabold tracking-tight text-[#0f1220]">
+                      Chat with {partnerFirst}
                     </p>
-                    <p className="max-w-[16rem] text-[12px] font-bold text-arc-lavender-600">
-                      Text, voice, or a quick photo — wiped when the room ends.
+                    <p className="max-w-[16rem] text-[12px] font-semibold text-[#8a82a8]">
+                      Text, voice, or a photo — cleared when the room ends.
                     </p>
                   </div>
                 ) : (
                   messages.map((m) => {
                     const isMe = m.senderId === youUserId;
+                    const isLastOwn = m.id === lastOwnId;
                     return (
                       <div
                         key={m.id}
                         className={cn(
-                          "flex",
-                          isMe ? "justify-end" : "justify-start",
+                          "flex max-w-[82%] flex-col",
+                          isMe ? "ml-auto items-end" : "items-start",
                         )}
                       >
                         <div
                           className={cn(
-                            "max-w-[82%] rounded-[18px] px-3.5 py-2.5 text-[13px] leading-snug font-bold",
+                            "relative rounded-[22px] px-3.5 py-2 text-[14px] leading-snug",
                             isMe
-                              ? "rounded-br-md bg-arc-purple-500 text-white shadow-[0_3px_0_#4b2fd6]"
-                              : "rounded-bl-md border-2 border-[#ebe4f6] bg-white text-[#0f1220] shadow-[0_3px_0_#ebe4f6]",
+                              ? "rounded-br-md bg-arc-purple-600 text-white"
+                              : "rounded-bl-md bg-[#efeaff] text-[#0f1220]",
                             m.kind === "image" && "p-1.5",
                           )}
                         >
-                          {m.kind !== "image" ? (
-                            <div className="mb-0.5 flex items-baseline justify-between gap-3 px-0.5">
-                              {!isMe ? (
-                                <p className="text-[9px] font-black tracking-[0.1em] text-arc-lavender-500 uppercase">
-                                  {m.senderName.split(" ")[0]}
-                                </p>
-                              ) : (
-                                <span />
-                              )}
-                              <time
-                                dateTime={m.createdAt}
-                                className={cn(
-                                  "shrink-0 text-[9px] font-extrabold tabular-nums",
-                                  isMe
-                                    ? "text-white/70"
-                                    : "text-arc-lavender-500",
-                                )}
-                              >
-                                {formatMessageTime(m.createdAt)}
-                              </time>
-                            </div>
-                          ) : null}
-
                           {m.kind === "image" ? (
                             <AuthChatImage
                               sessionId={sessionId}
                               messageId={m.id}
                               isMe={isMe}
-                              senderName={m.senderName}
-                              createdAt={m.createdAt}
                             />
                           ) : m.kind === "voice" ? (
                             <AuthChatVoice
@@ -416,45 +404,28 @@ export function StudyChatPanel({
                               isMe={isMe}
                             />
                           ) : (
-                            m.body
+                            <p className="whitespace-pre-wrap font-medium">
+                              {m.body}
+                            </p>
                           )}
 
                           {m.kind !== "text" && m.body ? (
                             <p
                               className={cn(
-                                "mt-1.5 px-1 text-[12px] font-bold",
+                                "mt-1.5 px-1 text-[12px] font-medium",
                                 isMe ? "text-white/90" : "text-[#0f1220]",
                               )}
                             >
                               {m.body}
                             </p>
                           ) : null}
-
-                          {isMe ? (
-                            <p
-                              className={cn(
-                                "mt-1 flex items-center justify-end gap-1 px-0.5 text-[9px] font-extrabold tracking-wide uppercase",
-                                m.seen ? "text-[#ffc928]" : "text-white/55",
-                              )}
-                              aria-label={m.seen ? "Seen" : "Sent"}
-                            >
-                              {m.seen ? (
-                                <>
-                                  <CheckCheck
-                                    className="h-3 w-3"
-                                    strokeWidth={2.75}
-                                  />
-                                  Seen
-                                </>
-                              ) : (
-                                <>
-                                  <Check className="h-3 w-3" strokeWidth={2.75} />
-                                  Sent
-                                </>
-                              )}
-                            </p>
-                          ) : null}
                         </div>
+
+                        {isMe && isLastOwn ? (
+                          <p className="mt-0.5 px-1 text-[11px] font-bold text-[#8a82a8]">
+                            {m.seen ? "Seen" : "Sent"}
+                          </p>
+                        ) : null}
                       </div>
                     );
                   })
@@ -466,15 +437,10 @@ export function StudyChatPanel({
                     aria-live="polite"
                     aria-atomic="true"
                   >
-                    <div className="flex items-center gap-2 rounded-[18px] rounded-bl-md border-2 border-[#ebe4f6] bg-white px-3.5 py-2.5 shadow-[0_3px_0_#ebe4f6]">
-                      <div className="flex items-center gap-1">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:0ms]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:120ms]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-arc-lavender-600 [animation-delay:240ms]" />
-                      </div>
-                      <span className="text-[12px] font-bold text-arc-lavender-600">
-                        {partnerFirst} typing…
-                      </span>
+                    <div className="flex items-center gap-1 rounded-[20px] rounded-bl-md bg-[#efeaff] px-3.5 py-2.5">
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#8a82a8] [animation-delay:0ms]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#8a82a8] [animation-delay:120ms]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#8a82a8] [animation-delay:240ms]" />
                     </div>
                   </div>
                 ) : null}
@@ -485,14 +451,14 @@ export function StudyChatPanel({
               {recordError ? (
                 <p
                   role="alert"
-                  className="shrink-0 px-4 pt-1 text-[11px] font-bold text-[#c0392b]"
+                  className="shrink-0 bg-white px-4 pt-1 text-[11px] font-semibold text-red-700"
                 >
                   {recordError}
                 </p>
               ) : null}
 
               <form
-                className="flex shrink-0 items-center gap-2 border-t border-[#ebe4f6] bg-[#f3effc] px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                className="relative z-10 shrink-0 border-t border-[#f0ebf8] bg-white px-3 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)]"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void submit();
@@ -501,7 +467,7 @@ export function StudyChatPanel({
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
                   capture="environment"
                   className="hidden"
                   onChange={(e) =>
@@ -509,44 +475,42 @@ export function StudyChatPanel({
                   }
                 />
 
-                <button
-                  type="button"
-                  aria-label="Send photo"
-                  disabled={busy}
-                  onClick={() => fileRef.current?.click()}
-                  className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl border-2 border-[#ebe4f6] bg-white text-[#0f1220] transition-opacity disabled:opacity-35 focus-visible:ring-2 focus-visible:ring-arc-purple-500 focus-visible:outline-none"
-                >
-                  <Camera className="h-5 w-5" strokeWidth={2.5} />
-                </button>
-
                 {recording ? (
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       aria-label="Cancel recording"
                       onClick={() => stopRecorder(false)}
-                      className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl border-2 border-[#ebe4f6] bg-white text-[#0f1220]"
+                      className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#8a82a8] transition-colors hover:bg-[#f4f0ff] hover:text-[#0f1220]"
                     >
-                      <X className="h-5 w-5" strokeWidth={2.5} />
+                      <X className="h-5 w-5" />
                     </button>
-                    <div className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-[#e5484d]/40 bg-[#fdecef] px-3 py-3">
-                      <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#e5484d]" />
+                    <div className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-[#fdecef] px-4 py-3 ring-1 ring-[#e5484d]/30">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-[#e5484d]" />
                       <span className="font-display text-[14px] font-bold tabular-nums text-[#c0392b]">
                         {formatDuration(recordMs)}
                       </span>
                     </div>
-                    <motion.button
+                    <button
                       type="button"
-                      whileTap={{ scale: 0.92 }}
                       aria-label="Stop and send voice"
                       onClick={() => stopRecorder(true)}
-                      className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl border-2 border-[#e5484d] bg-[#e5484d] text-white"
+                      className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#e5484d] text-white transition-opacity hover:opacity-90"
                     >
                       <Square className="h-4 w-4 fill-current" strokeWidth={2.5} />
-                    </motion.button>
+                    </button>
                   </div>
                 ) : (
-                  <>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      aria-label="Attach"
+                      disabled={busy}
+                      onClick={() => fileRef.current?.click()}
+                      className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#0f1220] transition-colors hover:bg-[#f4f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:opacity-40"
+                    >
+                      <Plus className="h-6 w-6" strokeWidth={2.25} />
+                    </button>
                     <input
                       ref={inputRef}
                       value={draft}
@@ -555,34 +519,32 @@ export function StudyChatPanel({
                         setDraft(e.target.value);
                         onTyping();
                       }}
-                      placeholder="Message…"
+                      placeholder="Message"
                       aria-label="Chat message"
                       enterKeyHint="send"
-                      className="min-w-0 flex-1 rounded-2xl border-2 border-[#0f1220]/10 bg-white px-3.5 py-3 text-[14px] font-bold text-[#0f1220] outline-none transition-[border-color] placeholder:text-arc-lavender-500 focus:border-[#0f1220] focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:opacity-60"
+                      className="min-h-12 min-w-0 flex-1 rounded-full bg-[#f4f0ff] px-4 py-3 text-sm font-medium text-[#0f1220] outline-none placeholder:text-[#8a82a8] focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:opacity-60"
                     />
                     {draft.trim() ? (
-                      <motion.button
+                      <button
                         type="submit"
-                        whileTap={{ scale: 0.92 }}
                         disabled={disabled || sending}
-                        aria-label="Send message"
-                        className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl border-2 border-[#0f1220] bg-[#0f1220] text-[#ffc928] transition-opacity disabled:opacity-35"
+                        aria-label="Send"
+                        className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#0f1220] text-white transition-colors hover:bg-[#1a1f35] disabled:opacity-40"
                       >
-                        <Send className="h-5 w-5" strokeWidth={2.5} />
-                      </motion.button>
+                        <SendHorizontal className="h-4.5 w-4.5" />
+                      </button>
                     ) : (
-                      <motion.button
+                      <button
                         type="button"
-                        whileTap={{ scale: 0.92 }}
                         disabled={disabled || sending}
                         aria-label="Record voice message"
                         onClick={() => void toggleRecord()}
-                        className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl border-2 border-[#0f1220] bg-[#0f1220] text-[#ffc928] transition-opacity disabled:opacity-35"
+                        className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-arc-gold text-arc-gold transition-colors hover:bg-[#1a1f35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500 disabled:opacity-40"
                       >
-                        <Mic className="h-5 w-5" strokeWidth={2.5} />
-                      </motion.button>
+                        <Mic className="h-5 w-5" strokeWidth={2.25} />
+                      </button>
                     )}
-                  </>
+                  </div>
                 )}
               </form>
             </motion.div>
@@ -597,14 +559,10 @@ function AuthChatImage({
   sessionId,
   messageId,
   isMe,
-  senderName,
-  createdAt,
 }: {
   sessionId: string;
   messageId: string;
   isMe: boolean;
-  senderName: string;
-  createdAt: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -629,31 +587,13 @@ function AuthChatImage({
   }, [sessionId, messageId]);
 
   return (
-    <div className="overflow-hidden rounded-[14px]">
-      <div className="mb-1 flex items-baseline justify-between gap-3 px-2 pt-1">
-        {!isMe ? (
-          <p className="text-[9px] font-black tracking-[0.1em] text-arc-lavender-500 uppercase">
-            {senderName.split(" ")[0]}
-          </p>
-        ) : (
-          <span />
-        )}
-        <time
-          dateTime={createdAt}
-          className={cn(
-            "shrink-0 text-[9px] font-extrabold tabular-nums",
-            isMe ? "text-white/70" : "text-arc-lavender-500",
-          )}
-        >
-          {formatMessageTime(createdAt)}
-        </time>
-      </div>
+    <div className="overflow-hidden rounded-xl">
       {url ? (
         <button
           type="button"
           aria-label="Open photo full screen"
           onClick={() => setViewerOpen(true)}
-          className="block w-full cursor-zoom-in overflow-hidden rounded-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928] focus-visible:ring-offset-2"
+          className="block w-full cursor-zoom-in overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500"
         >
           {/* Blob URL — next/image not applicable */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -664,7 +604,12 @@ function AuthChatImage({
           />
         </button>
       ) : (
-        <div className="flex h-36 items-center justify-center bg-[#0f1220]/8 text-[11px] font-bold text-arc-lavender-600">
+        <div
+          className={cn(
+            "flex h-36 items-center justify-center text-[11px] font-semibold",
+            isMe ? "bg-white/15 text-white/70" : "bg-white/50 text-[#8a82a8]",
+          )}
+        >
           Loading…
         </div>
       )}
@@ -738,14 +683,14 @@ function AuthChatVoice({
       onClick={() => void toggle()}
       disabled={!url}
       className={cn(
-        "flex w-full min-w-[10rem] cursor-pointer items-center gap-2.5 rounded-xl px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc928]",
+        "flex w-full min-w-[10rem] cursor-pointer items-center gap-2.5 rounded-xl px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arc-purple-500",
         !url && "opacity-60",
       )}
     >
       <span
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-          isMe ? "bg-white/20 text-white" : "bg-[#0f1220] text-[#ffc928]",
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+          isMe ? "bg-white/20 text-white" : "bg-white text-arc-purple-600",
         )}
       >
         {playing ? (
@@ -755,11 +700,11 @@ function AuthChatVoice({
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[12px] font-extrabold">Voice message</span>
+        <span className="block text-[12px] font-semibold">Voice message</span>
         <span
           className={cn(
             "block text-[10px] font-bold tabular-nums",
-            isMe ? "text-white/70" : "text-arc-lavender-600",
+            isMe ? "text-white/70" : "text-[#8a82a8]",
           )}
         >
           {formatDuration(durationMs ?? 0)}
@@ -767,12 +712,6 @@ function AuthChatVoice({
       </span>
     </button>
   );
-}
-
-function formatMessageTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function formatDuration(ms: number): string {
