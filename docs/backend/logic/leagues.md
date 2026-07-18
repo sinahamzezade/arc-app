@@ -1,4 +1,4 @@
-# Arc Backend — Weekly Leagues & Leaderboards
+# Arlo Backend — Weekly Leagues & Leaderboards
 
 **Version:** 2.0 integrated  
 **Canonical integration:** Consumes only qualified League XP from the Gamification ledger/outbox. PostgreSQL is authoritative; Redis is a projection.

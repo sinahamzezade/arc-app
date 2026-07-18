@@ -142,7 +142,7 @@ export default function WelcomeScreen() {
             },
           }}
         >
-          {/* Arc title + orbit */}
+          {/* Arlo title + orbit */}
           <div className="relative mx-auto inline-block">
             <OrbitSvg />
             <motion.h1
@@ -162,7 +162,7 @@ export default function WelcomeScreen() {
                 ease: [0.22, 1, 0.36, 1],
               }}
             >
-              Arc
+              Arlo
             </motion.h1>
           </div>
 

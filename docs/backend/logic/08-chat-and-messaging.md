@@ -2,11 +2,11 @@
 
 **Version:** 1.1
 **Stack:** NestJS + TypeORM + PostgreSQL + WebSocket (socket.io) + Redis (presence/pubsub)
-**Consumers:** Arc Next.js PWA (`arc-app`)
+**Consumers:** Arlo Next.js PWA (`arc-app`)
 **Depends on:** [00](./00-system-integration.md), auth/users module, social presence, [gamification](./gamification.md) (presence hooks)
 **Feeds:** notifications, homepage header (unread badge)
 
-Real-time chat inside Arc — direct messages and group conversations. Product UI follows a clean inbox + thread pattern (Mengobrol-style layout) painted in **Arc tokens** (navy text, lavender surfaces, gold `#FFC928` / `arc-gold` accents, purple focus). This doc covers the MVP surface: text messaging, groups, presence, replies, and the safety layer.
+Real-time chat inside Arlo — direct messages and group conversations. Product UI follows a clean inbox + thread pattern (Mengobrol-style layout) painted in **Arlo tokens** (navy text, lavender surfaces, gold `#FFC928` / `arc-gold` accents, purple focus). This doc covers the MVP surface: text messaging, groups, presence, replies, and the safety layer.
 
 **Core principle:** the message list is user-generated data. The server is the single authority for identity, membership, delivery state, and moderation. The client is never trusted for who sent a message, who is in a conversation, or whether a message was read.
 
@@ -269,7 +269,7 @@ Client                     Server                        Recipients
 - **Typing** is Redis `typing:{conversationId}:{userId}` TTL 5s. `typing.start` / `typing.stop`; self-expires on drop.
 - **Privacy:** `presence_visibility` (`everyone` \| `contacts` \| `nobody`); minors default `nobody`. `canSeePresence` gates all online displays.
 
-## 7b. Client UI contract (Arc × Mengobrol)
+## 7b. Client UI contract (Arlo × Mengobrol)
 
 **Inbox (`/chat`)** — light surface (`#fff` / lavender tint), not the night-hero pattern:
 - Title **Messages** + search affordance
@@ -394,7 +394,7 @@ Analytics events carry ids and metadata only — never message bodies. Event emi
 - [ ] Analytics events and logs never contain message bodies
 - [ ] REST send works as a fallback when the socket is down, with the same idempotency
 - [ ] Multi-instance delivery works via the Redis adapter (message on instance A reaches a socket on B)
-- [ ] Chat UI matches §7b (Mengobrol layout + Arc colors)
+- [ ] Chat UI matches §7b (Mengobrol layout + Arlo colors)
 
 ---
 

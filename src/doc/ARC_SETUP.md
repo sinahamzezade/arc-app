@@ -1,6 +1,6 @@
-# Arc Project Setup Instructions
+# Arlo Project Setup Instructions
 
-You are setting up **Arc**, an AI personal coach app (not a course PWA) that helps
+You are setting up **Arlo**, an AI personal coach app (not a course PWA) that helps
 working adults complete a career transformation.
 
 The Next.js app has already been created with `npx create-next-app@latest arc-app`
@@ -261,9 +261,9 @@ Add a minimal `public/manifest.json`:
 
 ```json
 {
-  "name": "Arc",
-  "short_name": "Arc",
-  "description": "Arc is an AI personal coach for career transformation.",
+  "name": "Arlo",
+  "short_name": "Arlo",
+  "description": "Arlo is an AI personal coach for career transformation.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -276,8 +276,8 @@ Reference it in `src/app/layout.tsx` metadata:
 
 ```tsx
 export const metadata = {
-  title: "Arc",
-  description: "Arc is an AI personal coach for career transformation.",
+  title: "Arlo",
+  description: "Arlo is an AI personal coach for career transformation.",
   manifest: "/manifest.json",
 };
 ```

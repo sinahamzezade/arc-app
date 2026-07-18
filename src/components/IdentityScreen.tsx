@@ -189,7 +189,7 @@ export default function IdentityScreen({
               Identity
             </p>
             <p className="truncate text-[13px] font-bold text-white/45">
-              How you show up in Arc
+              How you show up in Arlo
             </p>
           </div>
         </div>
@@ -214,7 +214,7 @@ export default function IdentityScreen({
                   ) : null}
                 </>
               ) : (
-                <span>How you show up in Arc</span>
+                <span>How you show up in Arlo</span>
               )}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">

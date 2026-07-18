@@ -1,8 +1,8 @@
 
-# Arc MVP — Full Technical, Product, Feature & Business Roadmap
+# Arlo MVP — Full Technical, Product, Feature & Business Roadmap
 
 **Version:** 1.0  
-**Product:** Arc — AI Career Coach  
+**Product:** Arlo — AI Career Coach  
 **MVP Focus:** “Office worker → Data Analyst”  
 **Platform:** iOS first  
 **Document purpose:** Single source of truth for founders, product designers, iOS developers, backend developers, AI engineers, and future investors.
@@ -11,7 +11,7 @@
 
 ## 1. Executive Summary
 
-Arc is not a course app. Arc is an AI personal coach that helps working adults complete a career transformation by combining:
+Arlo is not a course app. Arlo is an AI personal coach that helps working adults complete a career transformation by combining:
 
 1. Personalized roadmap generation
 2. AI coaching
@@ -23,7 +23,7 @@ Arc is not a course app. Arc is an AI personal coach that helps working adults c
 
 The MVP should prove one thing:
 
-> Can Arc help users keep learning for 8 weeks better than normal online courses?
+> Can Arlo help users keep learning for 8 weeks better than normal online courses?
 
 The first MVP should avoid trying to become a full education marketplace, job platform, social network, or bootcamp. It should prove the core loop:
 
@@ -35,7 +35,7 @@ The first MVP should avoid trying to become a full education marketplace, job pl
 
 ### One-line Pitch
 
-Arc turns a career goal into a living weekly plan and coaches you until you finish.
+Arlo turns a career goal into a living weekly plan and coaches you until you finish.
 
 ### Target Persona
 
@@ -53,7 +53,7 @@ Working professional, age 25–45, wants to become a data analyst but has limite
 
 ### Core Promise
 
-> “Tell Arc your goal and your available time. Arc builds your roadmap, teaches you, keeps you accountable, adapts when life happens, and shows your progress toward job-readiness.”
+> “Tell Arlo your goal and your available time. Arlo builds your roadmap, teaches you, keeps you accountable, adapts when life happens, and shows your progress toward job-readiness.”
 
 ---
 
@@ -62,7 +62,7 @@ Working professional, age 25–45, wants to become a data analyst but has limite
 The MVP should validate:
 
 1. Users trust AI to create a personalized career roadmap.
-2. Users come back weekly because Arc gives them clear next steps.
+2. Users come back weekly because Arlo gives them clear next steps.
 3. Gamification increases completion.
 4. AI coaching reduces frustration.
 5. Users are willing to pay for structured career transformation.
@@ -115,7 +115,7 @@ MVP Acceptance Criteria:
 
 ### 2. AI Goal Interview
 
-Instead of a long static form, Arc interviews the user in a conversational format.
+Instead of a long static form, Arlo interviews the user in a conversational format.
 
 Questions:
 - What do you want to become?
@@ -148,7 +148,7 @@ Acceptance Criteria:
 
 ### 3. Personalized Roadmap
 
-Arc generates a learning roadmap for one initial track: **Data Analyst**.
+Arlo generates a learning roadmap for one initial track: **Data Analyst**.
 
 MVP roadmap structure:
 - 6 phases
@@ -242,7 +242,7 @@ Acceptance Criteria:
 
 ### 6. Weekly Planner
 
-Arc turns roadmap into weekly commitments.
+Arlo turns roadmap into weekly commitments.
 
 Planner includes:
 - Weekly study goal
@@ -452,12 +452,12 @@ These are Phase 2+.
 5. User earns reward
 6. Progress updates
 7. End of week recap
-8. Arc replans next week
+8. Arlo replans next week
 
 ### Failure Recovery Loop
 
 1. User misses sessions
-2. Arc detects missed plan
+2. Arlo detects missed plan
 3. App shows “No guilt” recovery message
 4. User chooses:
    - Keep plan
@@ -476,7 +476,7 @@ Purpose:
 - Fast loading
 
 Elements:
-- Arc logo
+- Arlo logo
 - Arlo animation
 - Short tagline
 
@@ -527,7 +527,7 @@ Technical:
 ## 6.4 Roadmap Preview
 
 Purpose:
-- Show the user that Arc understood them
+- Show the user that Arlo understood them
 
 Elements:
 - Target role
@@ -833,7 +833,7 @@ Future:
 
 ## 9.1 AI Components
 
-Arc needs multiple AI agents/modules:
+Arlo needs multiple AI agents/modules:
 
 1. Goal Interview Agent
 2. Skill Gap Agent
@@ -1996,17 +1996,17 @@ Those are attractive but dangerous before retention is proven.
 
 ## 27. Key Product Philosophy
 
-Arc should never feel like:
+Arlo should never feel like:
 
 - A boring course list
 - A chatbot that prints a plan
 - A childish game with no career value
 - A stressful productivity app
 
-Arc should feel like:
+Arlo should feel like:
 
 > A funny, intelligent AI coach that turns your real career transformation into a clear, rewarding adventure.
 
-The MVP wins if the user opens Arc and immediately thinks:
+The MVP wins if the user opens Arlo and immediately thinks:
 
 > “I know exactly what to do next, and I feel motivated to do it.”

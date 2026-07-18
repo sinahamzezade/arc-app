@@ -155,7 +155,7 @@ export default function ProfileScreen({
         <div className="relative flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-black tracking-[0.14em] text-[#ffc928] uppercase">
-              Your Arc
+              Your Arlo
             </p>
             <p className="mt-0.5 truncate text-[13px] font-bold text-white/45">
               Day {day} · LVL {level}
@@ -201,7 +201,7 @@ export default function ProfileScreen({
                 {becoming ? <span className="text-white">{becoming}</span> : null}
               </>
             ) : (
-              <span>Keep climbing your Arc</span>
+              <span>Keep climbing with Arlo</span>
             )}
           </p>
 

@@ -27,7 +27,7 @@ export function HomeQuestionnaireCta() {
         Build your learning path
       </h2>
       <p className="mt-1.5 text-[13px] font-bold text-[#8a7cb8]">
-        Answer a few questions so Arc can map your trail.
+        Answer a few questions so Arlo can map your trail.
       </p>
 
       <motion.div

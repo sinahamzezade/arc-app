@@ -2,7 +2,7 @@ import { avatarSvgProps, type AvatarSvgProps } from "./shared";
 
 const OUTLINE = "#1B1730";
 
-/** Arc purple hoodie. */
+/** Arlo purple hoodie. */
 export function ShirtHoodie({ accent = "#6B4EFF", ...props }: AvatarSvgProps) {
   return (
     <svg {...avatarSvgProps(props)} aria-hidden>
@@ -122,7 +122,7 @@ export function ShirtTee({ accent = "#2D8CFF", ...props }: AvatarSvgProps) {
         strokeWidth="3"
         strokeLinejoin="round"
       />
-      {/* Arc mark */}
+      {/* Arlo mark */}
       <circle
         cx="100"
         cy="190"

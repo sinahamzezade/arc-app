@@ -1,8 +1,8 @@
-# Arc — Battle, Social, XP, Gems, Coins & Referral System
+# Arlo — Battle, Social, XP, Gems, Coins & Referral System
 
 ## 1. Scope
 
-This document defines only the following Arc systems:
+This document defines only the following Arlo systems:
 
 - Daily streak protection and recovery
 - Gems: earning, pricing, store items, and restrictions
@@ -13,13 +13,13 @@ This document defines only the following Arc systems:
 - Referral links, milestone rewards, and referral tracking
 - Abuse prevention and server-side economy rules
 
-This continues the existing Arc product. It must keep the same Arlo mascot, purple visual system, iOS-first layout, terminology, and friendly career-focused tone.
+This continues the existing Arlo product. It must keep the same Arlo mascot, purple visual system, iOS-first layout, terminology, and friendly career-focused tone.
 
 Core economy rule:
 
 > XP proves learning, Gems protect momentum, and Coins express identity and power social competition.
 
-Arc must never become pay-to-win:
+Arlo must never become pay-to-win:
 
 - XP cannot be purchased directly.
 - Gems cannot buy correct answers, required project completion, boss-challenge passes, leaderboard position, or Battle wins.
@@ -43,11 +43,11 @@ Arc must never become pay-to-win:
 
 ## 3.1 Two Separate Streaks
 
-Arc should use two streaks so daily habit does not replace the earlier weekly commitment logic.
+Arlo should use two streaks so daily habit does not replace the earlier weekly commitment logic.
 
 ### Daily Activity Streak
 
-The Daily Activity Streak increases when the user opens Arc and completes one meaningful action before the local-day deadline.
+The Daily Activity Streak increases when the user opens Arlo and completes one meaningful action before the local-day deadline.
 
 Meaningful actions:
 
@@ -59,7 +59,7 @@ Meaningful actions:
 - Complete a Study Together session
 - Complete a Recovery Quest
 
-Opening the app alone should not create a streak day. However, not opening Arc guarantees that the daily streak is missed.
+Opening the app alone should not create a streak day. However, not opening Arlo guarantees that the daily streak is missed.
 
 ### Weekly Commitment Streak
 
@@ -83,8 +83,8 @@ The weekly streak is the more important consistency measure. The daily streak is
 
 1. User buys a Streak Freeze with Gems.
 2. Freeze stays in inventory until required.
-3. At the daily deadline, Arc checks whether a meaningful action was completed.
-4. If not, Arc automatically consumes the oldest valid freeze.
+3. At the daily deadline, Arlo checks whether a meaningful action was completed.
+4. If not, Arlo automatically consumes the oldest valid freeze.
 5. The streak remains active.
 6. The protected date is marked as **Protected**, not **Completed**.
 7. User receives: “Your streak was protected. Arlo used one Streak Freeze.”
@@ -477,7 +477,7 @@ These are initial values and should be adjusted after real usage data.
 
 | Item | Color | Price |
 |---|---|---:|
-| Arc Beanie | Deep Purple | 500 Coins |
+| Arlo Beanie | Deep Purple | 500 Coins |
 | SQL Cap | Royal Blue | 650 Coins |
 | Data Detective Hat | Brown + Gold | 850 Coins |
 | Wizard of Data Hat | Purple + Gold Stars | 1,100 Coins |
@@ -495,7 +495,7 @@ These are initial values and should be adjusted after real usage data.
 | Golden Headphones | Gold + Black | 1,200 Coins |
 | Study Scarf | Purple + White | 550 Coins |
 | Mini Backpack | Violet | 750 Coins |
-| Laptop Sticker Pack | Mixed Arc Colors | 400 Coins |
+| Laptop Sticker Pack | Mixed Arlo Colors | 400 Coins |
 
 ### Profile and App Cosmetics
 
@@ -841,7 +841,7 @@ https://arc.app/invite/ALEX42
 |---|---|
 | 1 | Standard rewards |
 | 3 | +500 Coins |
-| 5 | +1,500 Coins + 150 Gems + Arc Connector badge |
+| 5 | +1,500 Coins + 150 Gems + Arlo Connector badge |
 | 10 | +3,000 Coins + 300 Gems + exclusive profile frame |
 | 20 | +7,500 Coins + 500 Gems + exclusive Arlo cosmetic |
 
@@ -935,10 +935,10 @@ Recommended holds:
 
 ## Referral
 
-- “Someone opened your Arc invite.”
+- “Someone opened your Arlo invite.”
 - “Your friend signed up.”
 - “Your referral completed the first lesson. 20 Gems are pending.”
-- “Five friends joined Arc — milestone reward unlocked.”
+- “Five friends joined Arlo — milestone reward unlocked.”
 
 ---
 

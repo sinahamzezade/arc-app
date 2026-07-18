@@ -6,7 +6,7 @@
 **Engine:** Roadmap Generator (3 of 4 — see [README](./README.md))
 **Orchestration stack:** NestJS + TypeORM + PostgreSQL (`roadmaps/` module)
 **Planning stack:** Python 3.12 planning service (`roadmap-engine/`, FastAPI + NetworkX + NumPy), invoked as an internal worker
-**Consumers:** Course Timing, AI Coach, Lesson Play (via materialized instances), Arc Next.js PWA (`arc-app`)
+**Consumers:** Course Timing, AI Coach, Lesson Play (via materialized instances), Arlo Next.js PWA (`arc-app`)
 **Depends on:** [`02-questionnaire.md`](./02-questionnaire.md), [`content_pool.md`](./content_pool.md), [`03-goals-and-roadmap.md`](./03-goals-and-roadmap.md)
 **Source of truth for content:** Content Pool (published versions only). The engine holds **no** curriculum.
 

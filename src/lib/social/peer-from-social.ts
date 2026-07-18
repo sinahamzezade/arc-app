@@ -24,7 +24,7 @@ export function peerFromSocial(
     avatarBg: profile.color || "#7c5cbf",
     avatarColor: "#ffffff",
     avatarUrl: profile.avatarUrl,
-    leagueName: profile.league || "Arc",
+    leagueName: profile.league || "Arlo",
     leagueTier: "bronze",
     weekLabel: "Social",
     cohortLabel: "Crew",
@@ -33,11 +33,11 @@ export function peerFromSocial(
     demoteBottom: 5,
     daysLeft: 0,
     fromRole: "Learner",
-    becoming: "On Arc",
-    rankTitle: profile.league ? String(profile.league) : "Arc learner",
+    becoming: "On Arlo",
+    rankTitle: profile.league ? String(profile.league) : "Arlo learner",
     bio: profile.username
       ? `@${profile.username}`
-      : "Find them on Arc — follow or add as friend.",
+      : "Find them on Arlo — follow or add as friend.",
     badgesEarned: stats.badgesEarned,
     badgesTotal: stats.badgesTotal,
     lessonsThisWeek: stats.lessonsThisWeek,
@@ -46,7 +46,7 @@ export function peerFromSocial(
     recent: [
       {
         id: "r1",
-        label: profile.online ? "Active on Arc" : "Last seen recently",
+        label: profile.online ? "Active on Arlo" : "Last seen recently",
         when: "Now",
       },
     ],

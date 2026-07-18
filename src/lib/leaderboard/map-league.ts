@@ -242,7 +242,7 @@ export function mapLeagueUserToPeer(
       ? daysLeftUntil(user.league.seasonEndsAt)
       : (board?.stats.daysLeft ?? 0),
     fromRole: "Learner",
-    becoming: "On Arc",
+    becoming: "On Arlo",
     rankTitle: `${TIER_LABEL[tier]} ${user.league.division}`,
     bio: "Climbing the weekly league.",
     badgesEarned: 0,

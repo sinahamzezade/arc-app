@@ -55,7 +55,7 @@ function initialOf(name: string) {
 }
 
 /**
- * Arc call overlay — OLED night stage, gold/purple atmosphere.
+ * Arlo call overlay — OLED night stage, gold/purple atmosphere.
  * Incoming: centered identity + open accept/decline rail.
  * Active: video-first with glass chrome.
  */
@@ -128,7 +128,7 @@ export function CallScreen({ call, peerName = "Contact" }: CallScreenProps) {
       {/* Top chrome */}
       <header className="relative z-20 flex flex-col items-center px-5 pt-[calc(env(safe-area-inset-top)+16px)]">
         <p className="font-display text-[13px] font-bold tracking-[0.28em] text-white/40 uppercase">
-          Arc
+          Arlo
         </p>
         {isIncoming ? (
           <motion.div
@@ -378,7 +378,7 @@ function IncomingStage({
           {peerName}
         </h1>
         <p className="mt-3 max-w-[15rem] text-[15px] font-semibold text-white/50">
-          Wants to {mode === "video" ? "see" : "talk with"} you on Arc
+          Wants to {mode === "video" ? "see" : "talk with"} you on Arlo
         </p>
         {error ? (
           <p className="mt-4 text-sm font-bold text-[#ff8a96]">{error}</p>

@@ -1,7 +1,7 @@
-# Arc Tailwind Design System
+# Arlo Tailwind Design System
 
-**File purpose:** Tailwind-ready design tokens for the Arc MVP web/iOS-style interface.  
-**Product:** Arc — AI Career Coach  
+**File purpose:** Tailwind-ready design tokens for the Arlo MVP web/iOS-style interface.  
+**Product:** Arlo — AI Career Coach  
 **Visual direction:** Premium, playful, clean, Duolingo-inspired, Linear/Notion-level polish.  
 **Mascot:** Arlo, funny eagle coach.
 
@@ -9,7 +9,7 @@
 
 ## 1. Brand Foundations
 
-Arc should feel:
+Arlo should feel:
 
 - Playful, but not childish
 - Premium, but not cold
@@ -280,7 +280,7 @@ fontSize: {
 
 ## 7. Spacing System
 
-Use Tailwind default spacing plus these Arc-specific values.
+Use Tailwind default spacing plus these Arlo-specific values.
 
 ```js
 spacing: {
@@ -995,7 +995,7 @@ Before development, prepare these minimum assets:
 7. Gems should always use violet/pink tones.
 8. Success states use green.
 9. Error states use coral/red.
-10. Avoid gray-heavy UI; Arc should feel alive.
+10. Avoid gray-heavy UI; Arlo should feel alive.
 
 ---
 

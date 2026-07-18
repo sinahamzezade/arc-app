@@ -1,4 +1,4 @@
-# Arc Backend — Integrated Implementation Specs
+# Arlo Backend — Integrated Implementation Specs
 
 **Version:** 2.0  
 **Frontend:** Next.js PWA (`arc-app`)  
@@ -10,7 +10,7 @@ Start with [00 — System Integration Contract](./00-system-integration.md). It 
 
 ## Architecture
 
-Arc uses four personalization engines plus cross-cutting product services.
+Arlo uses four personalization engines plus cross-cutting product services.
 
 | Engine / service | Owns | Main docs |
 |---|---|---|

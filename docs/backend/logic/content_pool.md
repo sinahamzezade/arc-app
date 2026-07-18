@@ -1,4 +1,4 @@
-# Arc Backend — Central Content Pool
+# Arlo Backend — Central Content Pool
 
 **Version:** 3.3 (active-format units + live-context injection + format-variety tie-breaker)
 **Canonical integration:** This is the detailed published-content layer behind the Skill Graph in doc 03. It never stores user progress or wallet state.

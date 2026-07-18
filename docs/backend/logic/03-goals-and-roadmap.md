@@ -9,14 +9,14 @@
 
 **Engines:** Skill Graph Engine · Roadmap Generator · AI Coach (see [README](./README.md) four-engine map)  
 **Stack:** NestJS + TypeORM + PostgreSQL  
-**Consumers:** Arc Next.js PWA (`arc-app`)  
+**Consumers:** Arlo Next.js PWA (`arc-app`)  
 **Product source:** `src/doc/Arc_MVP_Full_Technical_Roadmap.md` § Personalized Roadmap, § Resource Discovery, § DB `goals` / `roadmaps` / phases / milestones / lessons / resources, § `generate_roadmap`  
 **Depends on:** [00](./00-system-integration.md), [02](./02-questionnaire.md), [content_pool](./content_pool.md)  
 **Feeds:** [course_timing](./course_timing.md), [04](./04-weekly-plan-and-lessons.md), [05](./05-Learn_Lesson_Play_API.md), [gamification](./gamification.md)
 
 This doc covers three engines that turn a submitted goal into a **per-user learning path** and keep it fresh.
 
-**Core product rule:** Arc keeps one shared **Learning Document Pool** (customizable content for every category / job). Questionnaire answers do **not** invent curriculum — they **select + order + prune** documents from that pool into a personal path.
+**Core product rule:** Arlo keeps one shared **Learning Document Pool** (customizable content for every category / job). Questionnaire answers do **not** invent curriculum — they **select + order + prune** documents from that pool into a personal path.
 
 Domain content (Marketing, SEO, React, DevOps, AI, …) lives in the **Skill Graph / pool only** — generator / coach code stays domain-agnostic.
 

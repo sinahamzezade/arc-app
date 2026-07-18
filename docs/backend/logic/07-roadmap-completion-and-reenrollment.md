@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Stack:** NestJS + TypeORM + PostgreSQL
-**Consumers:** Arc Next.js PWA (`arc-app`)
+**Consumers:** Arlo Next.js PWA (`arc-app`)
 **Depends on:** [00](./00-system-integration.md), [02](./02-questionnaire.md), [03](./03-goals-and-roadmap.md), [05](./05-Learn_Lesson_Play_API.md), [gamification](./gamification.md)
 **Feeds:** [03](./03-goals-and-roadmap.md) (new roadmap generation), [02](./02-questionnaire.md) (re-enrollment), [gamification](./gamification.md) (graduation rewards)
 

@@ -4,7 +4,7 @@
 **Integration:** Follow [00 — System Integration Contract](./00-system-integration.md). Profile economy/rank/streak fields in this document are compatibility mirrors; their canonical owners are Gamification and Ranking.
 
 **Stack:** NestJS + TypeORM + PostgreSQL  
-**Consumers:** Arc Next.js PWA (`arc-app`)  
+**Consumers:** Arlo Next.js PWA (`arc-app`)  
 **Product source:** `src/doc/Arc_MVP_Full_Technical_Roadmap.md` § Authentication, § Database Schema (`users`, `profiles`)
 
 This doc is what frontend needs from backend for account creation, login, session, password recovery, OAuth, and the core user/profile records.
@@ -352,7 +352,7 @@ Product requires both for MVP.
 | `GET /auth/google` or `POST /auth/google` | Start / exchange Google ID token |
 | `GET /auth/apple` or `POST /auth/apple` | Start / exchange Apple identity token |
 
-**Web-friendly approach:** client obtains IdP ID token (Google One Tap / Apple JS) → `POST` token to backend → backend verifies with Google/Apple → upsert user + identity → issue Arc tokens.
+**Web-friendly approach:** client obtains IdP ID token (Google One Tap / Apple JS) → `POST` token to backend → backend verifies with Google/Apple → upsert user + identity → issue Arlo tokens.
 
 **Response:** same as login.
 
@@ -417,7 +417,7 @@ Today these screens log to console / use mocks — they are waiting on this API.
 - HTTPS only in production
 - Rate limit: login, register, forgot-password, OTP verify (per IP + per email)
 - Constant-time password compare
-- CORS allow Arc web origin only
+- CORS allow Arlo web origin only
 - Helmet / secure headers
 - No password in logs
 - Refresh rotation + reuse detection (optional but preferred)

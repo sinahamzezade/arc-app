@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { BackButton } from "@/components/BackButton";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { cn } from "@/lib/utils";
+import { LessonArloSheet } from "./LessonArloSheet";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
 /**
  * Shared lesson chrome — night step bar over lavender sheet.
  * Ask Arlo button respects `arlo_ai_enabled` feature flag unless forced off.
+ * Opens a bottom sheet (not full-screen navigation).
  */
 export function LessonShell({
   children,
@@ -32,6 +35,7 @@ export function LessonShell({
 }) {
   const router = useRouter();
   const { flags } = useSystemFlags();
+  const [arloOpen, setArloOpen] = useState(false);
   const arloVisible =
     showArlo === false
       ? false
@@ -70,13 +74,14 @@ export function LessonShell({
             </div>
           </div>
           {arloVisible ? (
-            <Link
-              href={`/learn/${lessonId}/arlo`}
+            <button
+              type="button"
               aria-label="Ask Arlo"
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]"
+              onClick={() => setArloOpen(true)}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]"
             >
               <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
-            </Link>
+            </button>
           ) : null}
         </div>
       </header>
@@ -84,6 +89,14 @@ export function LessonShell({
       <div className="relative z-10 flex flex-1 flex-col rounded-t-[24px] bg-[#f3effc] px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+20px)] shadow-[0_-8px_28px_rgba(0,0,0,0.18)]">
         {children}
       </div>
+
+      {arloVisible ? (
+        <LessonArloSheet
+          open={arloOpen}
+          onClose={() => setArloOpen(false)}
+          lessonId={lessonId}
+        />
+      ) : null}
     </div>
   );
 }

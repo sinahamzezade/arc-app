@@ -1,4 +1,4 @@
-# Arc Backend — Referral System
+# Arlo Backend — Referral System
 
 **Version:** 1.0 integrated  
 **Stack:** NestJS + TypeORM + PostgreSQL; Redis/queue recommended for analytics and notifications  
@@ -13,7 +13,7 @@
 
 ## 1. Purpose and Ownership
 
-The Referral System lets an authenticated Arc user create a shareable invitation link, send it through WhatsApp or another app, and track the invitation from link click through qualified signup and reward settlement.
+The Referral System lets an authenticated Arlo user create a shareable invitation link, send it through WhatsApp or another app, and track the invitation from link click through qualified signup and reward settlement.
 
 The module owns:
 
@@ -79,7 +79,7 @@ A referred account qualifies when all conditions are true:
 9. neither account is blocked, deleted, disabled, or under confirmed fraud
 10. the attribution has not already rewarded another inviter
 
-The first lesson requirement prevents mass fake-account signup while still rewarding a friend early in the Arc journey.
+The first lesson requirement prevents mass fake-account signup while still rewarding a friend early in the Arlo journey.
 
 ### 2.3 Referral milestone bonuses
 
@@ -91,7 +91,7 @@ Milestones are based on **qualified and rewarded** friends, not clicks or raw si
 | 3 | +300 Coins |
 | 5 | +750 Coins, +10 Gems, `Connector` badge |
 | 10 | +1,500 Coins, +25 Gems, `Violet Connector Frame` |
-| 25 | +4,000 Coins, +50 Gems, `Arc Ambassador` badge |
+| 25 | +4,000 Coins, +50 Gems, `Arlo Ambassador` badge |
 
 Milestone rewards use the Gamification ledger and are idempotent. A user receives each milestone once.
 
@@ -129,7 +129,7 @@ Important privacy rule:
 - before signup, show only aggregate anonymous click counts
 - after signup, show the friend’s display name/avatar only when privacy allows
 - never expose email address, IP address, device fingerprint, or exact location
-- if the users are not friends, a masked label such as `S*** joined Arc` is acceptable
+- if the users are not friends, a masked label such as `S*** joined Arlo` is acceptable
 
 ---
 
@@ -183,7 +183,7 @@ A generated link can store:
 - optional destination variant
 - created timestamp
 
-This lets Arc compare which share channels produce qualified users.
+This lets Arlo compare which share channels produce qualified users.
 
 ### 4.3 WhatsApp and other apps
 
@@ -193,8 +193,8 @@ The backend returns a share payload. The frontend chooses the best platform beha
 {
   "linkId": "uuid",
   "url": "https://arc.app/r/4Tx8kPzQ...",
-  "title": "Join me on Arc",
-  "text": "I’m learning with Arlo on Arc. Join with my link and we’ll both earn rewards.",
+  "title": "Join me on Arlo",
+  "text": "I’m learning with Arlo. Join with my link and we’ll both earn rewards.",
   "channel": "whatsapp"
 }
 ```
@@ -211,7 +211,7 @@ Frontend behavior:
 
 Tracking limitation:
 
-> Arc can know that the share button was tapped and whether the referral link was later clicked. Arc cannot reliably know whether a WhatsApp message was actually sent, delivered, opened, or read.
+> Arlo can know that the share button was tapped and whether the referral link was later clicked. Arlo cannot reliably know whether a WhatsApp message was actually sent, delivered, opened, or read.
 
 Do not display “message delivered” unless a future platform integration explicitly provides that fact.
 
@@ -267,7 +267,7 @@ For multiple eligible clicks before signup:
 
 ### 5.5 Existing users
 
-If an existing Arc account opens a referral link:
+If an existing Arlo account opens a referral link:
 
 - do not create a referral attribution
 - do not grant rewards
@@ -370,7 +370,7 @@ Store the raw public token only when returning it once, or derive it from a sign
 
 ### 8.3 `referral_share_events`
 
-Tracks what the Arc client knows:
+Tracks what the Arlo client knows:
 
 | Column | Notes |
 |---|---|
@@ -652,8 +652,8 @@ Response:
   "referralCode": "ALEX-A7K2",
   "url": "https://arc.app/r/4Tx8kPzQ...",
   "share": {
-    "title": "Join me on Arc",
-    "text": "Learn with Arlo on Arc. Use my link and we’ll both earn rewards."
+    "title": "Join me on Arlo",
+    "text": "Learn with Arlo. Use my link and we’ll both earn rewards."
   },
   "rewardPreview": {
     "inviterCoins": 300,
@@ -743,7 +743,7 @@ Recommended types:
 
 Suggested copy:
 
-- “Priya joined Arc with your link. One first mission unlocks your 300 Coins.”
+- “Priya joined Arlo with your link. One first mission unlocks your 300 Coins.”
 - “Referral reward unlocked: +300 Coins.”
 - “Welcome reward unlocked: +150 Coins and +50 XP.”
 - “Five friends qualified — Connector badge unlocked.”
@@ -764,7 +764,7 @@ referral_milestone:{inviterId}:{count}
 
 A referral attribution is not a social relationship.
 
-After the friend signs up, Arc may show explicit actions:
+After the friend signs up, Arlo may show explicit actions:
 
 - `Follow inviter`
 - `Send friend request`

@@ -63,7 +63,7 @@ function previewText(c: ConversationListItemDto) {
 type ComposeMode = "dm" | "group";
 
 /**
- * Inbox — Mengobrol layout, Arc colors (gold / navy / lavender).
+ * Inbox — Mengobrol layout, Arlo colors (gold / navy / lavender).
  */
 export default function ChatListScreen() {
   const router = useRouter();

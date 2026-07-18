@@ -1,4 +1,4 @@
-# Arc Backend Integrated Package
+# Arlo Backend Integrated Package
 
 Read in this order:
 

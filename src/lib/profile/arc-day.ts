@@ -1,4 +1,4 @@
-/** Calendar days on Arc since start ISO (Day 1 = start day). */
+/** Calendar days on Arlo since start ISO (Day 1 = start day). */
 export function arcDayNumber(iso: string | null | undefined): number | null {
   if (!iso) return null;
   const start = new Date(iso);

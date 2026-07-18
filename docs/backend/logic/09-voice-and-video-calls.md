@@ -2,11 +2,11 @@
 
 **Version:** 1.0
 **Stack:** NestJS + WebSocket signaling (reuses doc 07 gateway) + WebRTC (browser) + self-hosted coturn (STUN/TURN)
-**Consumers:** Arc Next.js PWA (`arc-app`)
+**Consumers:** Arlo Next.js PWA (`arc-app`)
 **Depends on:** [00](./00-system-integration.md), [07](./07-chat-and-messaging.md) (conversation membership, signaling transport, safety layer)
 **Feeds:** [07](./07-chat-and-messaging.md) (call events as chat system messages), notifications
 
-1:1 voice and video calling inside Arc, launched from the chat header (the video/phone icons already in the conversation view). Calls are **peer-to-peer WebRTC** — media flows directly between the two browsers; the server only brokers the handshake and relays media when a direct path is impossible.
+1:1 voice and video calling inside Arlo, launched from the chat header (the video/phone icons already in the conversation view). Calls are **peer-to-peer WebRTC** — media flows directly between the two browsers; the server only brokers the handshake and relays media when a direct path is impossible.
 
 **MVP scope (locked):** 1:1 only · voice + video · self-hosted STUN/TURN. **Not in MVP:** group calls (would need an SFU), screen share, recording, PSTN.
 

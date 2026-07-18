@@ -28,27 +28,27 @@ const READING_ARLO_OPTIONS = [
   {
     label: "Summarize it",
     icon: ListChecks,
-    prompt: "Summarize this reading beat in 3 short, memorable bullets.",
+    prompt: "Summarize this lesson beat in 3 short, memorable bullets.",
   },
   {
     label: "Give me an example",
     icon: BookOpenText,
-    prompt: "Give me one concrete, everyday example of this reading beat.",
+    prompt: "Give me one concrete, everyday example of this lesson beat.",
   },
   {
     label: "Explain it simply",
     icon: Lightbulb,
-    prompt: "Explain this reading beat in very simple language without jargon.",
+    prompt: "Explain this lesson beat in very simple language without jargon.",
   },
   {
     label: "Why does it matter?",
     icon: Target,
-    prompt: "Explain why this reading beat matters and when I would use it.",
+    prompt: "Explain why this lesson beat matters and when I would use it.",
   },
   {
     label: "Use an analogy",
     icon: Shapes,
-    prompt: "Explain this reading beat with one clear, memorable analogy.",
+    prompt: "Explain this lesson beat with one clear, memorable analogy.",
   },
 ] as const;
 
@@ -88,7 +88,7 @@ export function ReadingArloAssist({
     try {
       const response = await lessonsApi.arloChat(
         lessonId,
-        `${prompt}\n\nFocus only on the current reading beat: “${focusTitle}”.`,
+        `${prompt}\n\nFocus only on the current lesson beat: “${focusTitle}”.`,
         session?.accessToken,
       );
       const reply = sanitizeArloReply(response.reply);
@@ -293,6 +293,7 @@ export function ReadingArloAssist({
                       as="p"
                       text={ask.reply}
                       className="mt-2 whitespace-pre-line text-[14px] leading-relaxed font-bold text-[#0f1220] text-pretty"
+                      dir="auto"
                     />
                   </div>
                 </motion.div>

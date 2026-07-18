@@ -1,4 +1,4 @@
-# Arc Backend — Badges & Achievements System
+# Arlo Backend — Badges & Achievements System
 
 **Version:** 1.0 integrated  
 **Stack:** NestJS + TypeORM + PostgreSQL; Redis/queue recommended for counters and event processing  
@@ -10,7 +10,7 @@
 
 ## 1. Purpose
 
-The Badges & Achievements System gives users durable proof of meaningful progress across Arc.
+The Badges & Achievements System gives users durable proof of meaningful progress across Arlo.
 
 Badges are not decorative-only rewards. They represent verified actions such as completing lessons, passing challenges, maintaining weekly consistency, finishing projects, helping friends, winning Battles fairly, studying together, progressing through a roadmap, returning after a break, and reaching referral milestones.
 
@@ -34,9 +34,9 @@ The system does not own XP, Gems, Coins, lesson completion, rank advancement, Le
 
 ---
 
-## 2. How Many Badges Arc Has
+## 2. How Many Badges Arlo Has
 
-Arc should launch with **36 core badges**.
+Arlo should launch with **36 core badges**.
 
 | Category | Number |
 |---|---:|
@@ -180,7 +180,7 @@ Rarity affects presentation and optional reward size, but never changes eligibil
 
 ### Consistency & Streaks — B16–B20
 
-Arc's main streak is based on weekly commitment, not daily app opening.
+Arlo's main streak is based on weekly commitment, not daily app opening.
 
 #### B16 — Weekly Warrior
 - **Rarity:** Common
@@ -250,7 +250,7 @@ Arc's main streak is based on weekly commitment, not daily app opening.
 
 #### B28 — Portfolio Hero
 - **Rarity:** Epic
-- **Criteria:** Complete 3 portfolio-ready projects and add them to the Arc portfolio.
+- **Criteria:** Complete 3 portfolio-ready projects and add them to the Arlo portfolio.
 - **Reward:** 750 Coins + 35 Gems
 
 #### B29 — Feedback Finisher
@@ -296,7 +296,7 @@ Arc's main streak is based on weekly commitment, not daily app opening.
 - **Criteria:** Reach 5 qualified referrals.
 - **Reward:** Use the existing referral milestone reward; do not double-grant.
 
-#### B36 — Arc Ambassador
+#### B36 — Arlo Ambassador
 - **Rarity:** Epic
 - **Criteria:** Reach 25 qualified referrals.
 - **Reward:** Use the existing referral milestone reward; do not double-grant.

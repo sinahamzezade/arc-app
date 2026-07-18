@@ -1,7 +1,7 @@
 {
-  "name": "Arc",
-  "short_name": "Arc",
-  "description": "Arc is an AI personal coach for career transformation.",
+  "name": "Arlo",
+  "short_name": "Arlo",
+  "description": "Arlo is an AI personal coach for career transformation.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -35,7 +35,7 @@ type ClayChipProps = {
   className?: string;
 };
 
-/** Arc clay wallet chip — icon well + bold tabular value. */
+/** Arlo clay wallet chip — icon well + bold tabular value. */
 export function ClayChip({
   label,
   value,

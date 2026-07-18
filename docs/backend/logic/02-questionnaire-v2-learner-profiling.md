@@ -2,7 +2,7 @@
 
 **Version:** 2.0 proposed replacement for the previous questionnaire specification  
 **Stack:** NestJS + TypeORM + PostgreSQL  
-**Consumers:** Arc iOS/PWA onboarding, Review Answers screen, Learner Profile, Roadmap Generator, Weekly Planner, Notifications, Arlo Coach  
+**Consumers:** Arlo iOS/PWA onboarding, Review Answers screen, Learner Profile, Roadmap Generator, Weekly Planner, Notifications, Arlo Coach  
 **Upstream:** Authentication and onboarding  
 **Downstream:** Learning Document Pool, Placement Assessment, Roadmap Generator, Course Timing, Weekly Plan, Arlo Coach
 
@@ -17,7 +17,7 @@ Its real purpose is to build a structured **Learner Profile** that answers four 
 1. **Where is the user now?**
 2. **Where does the user want to reach?**
 3. **How much sustainable study capacity does the user have?**
-4. **What kind of roadmap, content difficulty, lesson format, pace, reminders, and support should Arc provide?**
+4. **What kind of roadmap, content difficulty, lesson format, pace, reminders, and support should Arlo provide?**
 
 The corrected flow is:
 
@@ -283,7 +283,7 @@ Example:
 
 Why this is necessary:
 
-- selecting “SQL” alone does not tell Arc whether the user has only heard of SQL or can write complex queries
+- selecting “SQL” alone does not tell Arlo whether the user has only heard of SQL or can write complex queries
 - per-skill depth allows the roadmap to start SQL at Stage 1 while starting Excel at Stage 3
 
 Roadmap effect:
@@ -390,7 +390,7 @@ The user also selects a target deadline:
 
 Rule:
 
-> Deadline changes pace, not proof requirements. Arc must not silently remove mandatory lessons or assessments simply to promise an unrealistic date.
+> Deadline changes pace, not proof requirements. Arlo must not silently remove mandatory lessons or assessments simply to promise an unrealistic date.
 
 ---
 
@@ -626,7 +626,7 @@ Questionnaire profiling is provisional.
 
 ## 7.1 Placement is mandatory when
 
-- provisional Stage is 3 or higher and Arc plans to skip foundational content
+- provisional Stage is 3 or higher and Arlo plans to skip foundational content
 - self-reported stage and evidence-derived stage differ by more than one stage
 - stage confidence is low
 - the user selects “use professionally” without enough supporting context
@@ -733,14 +733,14 @@ estimated_weeks =
 | 11–25% longer | `intensive_option` |
 | More than 25% longer | `unrealistic_without_change` |
 
-When the requested deadline is unrealistic, Arc must offer explicit choices:
+When the requested deadline is unrealistic, Arlo must offer explicit choices:
 
 1. extend the deadline
 2. increase weekly study time
 3. choose a lower target stage
 4. keep the goal and accept the realistic estimate
 
-Arc must not silently remove job-critical content.
+Arlo must not silently remove job-critical content.
 
 ---
 
@@ -1135,7 +1135,7 @@ If placement changes the stage:
 
 ## 16. Profile freshness and continuous correction
 
-The questionnaire creates the first profile, but Arc should improve it from behavior.
+The questionnaire creates the first profile, but Arlo should improve it from behavior.
 
 Update evidence from:
 
@@ -1196,7 +1196,7 @@ Do not force existing users to repeat the full questionnaire unless essential fi
 - raw scoring weights remain server-side
 - all free text is length-limited and sanitized
 - all submitted profile versions are auditable
-- users can see why Arc estimated their stage in plain language
+- users can see why Arlo estimated their stage in plain language
 - users can request reassessment
 - users cannot directly submit `provisionalStage`, `verifiedStage`, or `stageScore`
 - roadmap jobs accept only server-created profile snapshot IDs

@@ -1,4 +1,4 @@
-# Arc Backend — Social Media, Friends & Following
+# Arlo Backend — Social Media, Friends & Following
 
 **Version:** 2.0 integrated  
 **Canonical integration:** SocialPermissionService is shared by Study Together and Battle. Notifications consumes social events; social never awards XP directly.
@@ -6,7 +6,7 @@
 See [00 — System Integration Contract](./00-system-integration.md).
 
 **Stack:** NestJS + TypeORM + PostgreSQL  
-**Consumers:** Arc Next.js PWA — Friends Hub, friend profile, followers/following, friend requests, Battle and Study Together entry points  
+**Consumers:** Arlo Next.js PWA — Friends Hub, friend profile, followers/following, friend requests, Battle and Study Together entry points  
 **Depends on:** `01-user-model-and-authentication.md`, `06-notifications.md`  
 **Feeds:** `battle_mode.md`, `study_together.md`, `leagues.md`
 
@@ -422,7 +422,7 @@ Notification examples:
 
 - “Priya sent you a friend request.”
 - “Alex accepted your friend request.”
-- “Mina followed your Arc journey.”
+- “Mina followed your Arlo journey.”
 
 Deep links must point to the specific request or profile.
 

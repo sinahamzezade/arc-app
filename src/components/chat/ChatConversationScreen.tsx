@@ -84,7 +84,7 @@ function dayLabel(iso: string) {
 }
 
 /**
- * Thread — Mengobrol layout, Arc gold sent bubbles + online status.
+ * Thread — Mengobrol layout, Arlo gold sent bubbles + online status.
  */
 export default function ChatConversationScreen() {
   const params = useParams<{ id: string }>();

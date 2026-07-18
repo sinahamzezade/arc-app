@@ -66,10 +66,17 @@ export function InlineMarkdown({
   text,
   className,
   as: Tag = "span",
+  dir,
 }: {
   text: string;
   className?: string;
   as?: "span" | "p";
+  /** e.g. "auto" for RTL/LTR from first strong character */
+  dir?: "auto" | "ltr" | "rtl";
 }) {
-  return <Tag className={cn(className)}>{renderInlineMarkdown(text)}</Tag>;
+  return (
+    <Tag dir={dir} className={cn(className)}>
+      {renderInlineMarkdown(text)}
+    </Tag>
+  );
 }

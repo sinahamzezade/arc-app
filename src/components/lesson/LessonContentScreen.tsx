@@ -13,6 +13,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion } from "motion/react";
 import { InlineMarkdown } from "@/lib/lesson/inline-markdown";
+import { resolveVideoEmbed } from "@/lib/lesson/video-embed";
 import { lessonsApi } from "@/lib/api/lessons";
 import type { LessonSectionBlockDto } from "@/lib/api/types";
 import { startSegmentFor, finishHrefFor, finishLabelFor, type PlayableLesson } from "@/lib/lesson/map-play";
@@ -204,6 +205,8 @@ function VideoContent({ lesson }: { lesson: PlayableLesson }) {
   const body = lesson.body;
   if (body.kind !== "video") return null;
 
+  const embed = resolveVideoEmbed(lesson.url);
+
   return (
     <LessonShell
       lessonId={lesson.id}
@@ -250,12 +253,42 @@ function VideoContent({ lesson }: { lesson: PlayableLesson }) {
             />
           </aside>
 
-          {lesson.url?.startsWith("http") ? (
-            <a
-              href={lesson.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 flex items-center gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 shadow-[0_4px_0_#ebe4f6]"
+          {embed?.kind === "embed" ? (
+            <div className="mt-3 overflow-hidden rounded-[18px] border-2 border-[#ebe4f6] bg-[#0f1220] shadow-[0_4px_0_#ebe4f6]">
+              <div className="relative aspect-video w-full">
+                <iframe
+                  src={embed.src}
+                  title={lesson.title}
+                  className="absolute inset-0 h-full w-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  // No allow-top-navigation*: YouTube "Watch on YouTube" must not
+                  // navigate/reload the Arlo lesson page — open popups only.
+                  sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms"
+                  referrerPolicy="origin-when-cross-origin"
+                  loading="eager"
+                />
+              </div>
+              {lesson.url?.startsWith("http") ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    window.open(lesson.url!, "_blank", "noopener,noreferrer")
+                  }
+                  className="flex w-full cursor-pointer items-center gap-2 border-t border-white/10 px-3.5 py-2.5 text-left text-[12px] font-bold text-white/70 transition hover:bg-white/5 hover:text-white"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+                  Open on {embed.provider === "vimeo" ? "Vimeo" : "YouTube"}
+                </button>
+              ) : null}
+            </div>
+          ) : embed?.kind === "external" ? (
+            <button
+              type="button"
+              onClick={() =>
+                window.open(embed.href, "_blank", "noopener,noreferrer")
+              }
+              className="mt-3 flex w-full cursor-pointer items-center gap-3 rounded-[18px] border-2 border-[#ebe4f6] bg-white p-3.5 text-left shadow-[0_4px_0_#ebe4f6]"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]">
                 <ExternalLink className="h-4 w-4" strokeWidth={2.5} />
@@ -265,10 +298,10 @@ function VideoContent({ lesson }: { lesson: PlayableLesson }) {
                   Open video
                 </span>
                 <span className="mt-0.5 block truncate font-display text-[15px] leading-snug font-bold text-[#0f1220]">
-                  {lesson.url}
+                  {embed.href}
                 </span>
               </span>
-            </a>
+            </button>
           ) : null}
 
           <p className="mt-4 text-[13px] leading-snug font-bold text-arc-lavender-600 text-pretty">

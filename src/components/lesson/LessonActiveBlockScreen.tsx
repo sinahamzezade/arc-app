@@ -35,6 +35,7 @@ import {
   LessonShell,
 } from "./LessonShell";
 import { LessonLoadState } from "./LessonLoadState";
+import { ReadingArloAssist } from "./ReadingArloAssist";
 
 type BlockReveal = LessonCheckActiveBlockResponse & { attempted: true };
 
@@ -303,6 +304,11 @@ export default function LessonActiveBlockScreen({
             />
           ))}
         </div>
+
+        <ReadingArloAssist
+          lessonId={lesson.id}
+          focusTitle={lesson.title}
+        />
 
         {checkError ? (
           <p className="mt-4 text-[13px] font-bold text-[#9a4a12]">

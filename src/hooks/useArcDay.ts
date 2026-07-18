@@ -6,7 +6,7 @@ import { meApi } from "@/lib/api/auth";
 import { arcDayNumber } from "@/lib/profile/arc-day";
 
 /**
- * Days since Arc start — prefer onboarding/questionnaire stamp, else user.createdAt.
+ * Days since Arlo start — prefer onboarding/questionnaire stamp, else user.createdAt.
  */
 export function useArcDay(fallback: number) {
   const { data: session } = useSession();

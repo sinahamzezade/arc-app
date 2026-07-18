@@ -35,7 +35,7 @@ type ChatVoiceBubbleProps = {
 };
 
 /**
- * Arc voice bubble — purple sent / lavender received, play + waveform.
+ * Arlo voice bubble — purple sent / lavender received, play + waveform.
  */
 export function ChatVoiceBubble({
   messageId,

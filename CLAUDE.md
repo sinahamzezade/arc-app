@@ -1,10 +1,10 @@
-# Arc — AI Career Coach
+# Arlo — AI Career Coach
 
 @AGENTS.md
 
-## What Arc is
+## What Arlo is
 
-Arc is **not** a course app. It is an AI personal coach that helps working adults
+Arlo is **not** a course app. It is an AI personal coach that helps working adults
 complete a career transformation. Core loop:
 
 **Goal → Roadmap → Weekly Plan → Lesson → Practice → Reward → Progress → Replan**

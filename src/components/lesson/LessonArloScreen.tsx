@@ -247,6 +247,7 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
                     </span>
                   ) : null}
                   <div
+                    dir="auto"
                     className={
                       isUser
                         ? "max-w-[85%] rounded-[20px] rounded-br-md bg-arc-purple-500 px-3.5 py-2.5 text-[14px] leading-snug font-bold text-white shadow-[0_3px_0_#4b2fd6]"
@@ -330,6 +331,7 @@ export default function LessonArloScreen({ lessonId }: { lessonId: string }) {
             <textarea
               ref={inputRef}
               rows={1}
+              dir="auto"
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);

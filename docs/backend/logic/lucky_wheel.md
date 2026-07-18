@@ -1,4 +1,4 @@
-# Arc Backend — Lucky Wheel
+# Arlo Backend — Lucky Wheel
 
 **Version:** 2.0 integrated  
 **Canonical integration:** One secure server spin transaction calls Gamification ledger; Wheel XP never becomes League XP.
@@ -6,7 +6,7 @@
 See [00 — System Integration Contract](./00-system-integration.md).
 
 **Stack:** NestJS + TypeORM + PostgreSQL  
-**Consumers:** Arc Lucky Wheel screen, Home daily bonus card, Rewards Wallet  
+**Consumers:** Arlo Lucky Wheel screen, Home daily bonus card, Rewards Wallet  
 **Depends on:** `01-user-model-and-authentication.md`, `06-notifications.md`, `gamification.md`
 
 ---

@@ -21,7 +21,7 @@ type BackButtonProps = {
 };
 
 /**
- * Shared Arc back control — rounded square, never circle.
+ * Shared Arlo back control — rounded square, never circle.
  * Use tone="dark" on navy stages, tone="light" on light sheets.
  */
 export function BackButton({

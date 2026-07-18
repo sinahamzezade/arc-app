@@ -1,8 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -26,6 +25,7 @@ import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { useLessonStore } from "@/store/useLessonStore";
 import { LessonPrimaryButton } from "./LessonShell";
 import { LessonLoadState } from "./LessonLoadState";
+import { LessonArloSheet } from "./LessonArloSheet";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 
@@ -72,6 +72,7 @@ export default function LessonOverviewScreen({
   const { lesson, isLoading, isError, error, refetch } =
     usePlayableLesson(lessonId);
   const { flags } = useSystemFlags();
+  const [arloOpen, setArloOpen] = useState(false);
   const startLesson = useLessonStore((s) => s.startLesson);
   const setAttemptId = useLessonStore((s) => s.setAttemptId);
   const startedRef = useRef<string | null>(null);
@@ -148,13 +149,14 @@ export default function LessonOverviewScreen({
             </div>
           </div>
           {flags.arlo_ai_enabled ? (
-            <Link
-              href={`/learn/${lesson.id}/arlo`}
+            <button
+              type="button"
               aria-label="Ask Arlo"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]"
+              onClick={() => setArloOpen(true)}
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-arc-purple-500 text-white shadow-[0_3px_0_var(--color-arc-purple-700)]"
             >
               <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
-            </Link>
+            </button>
           ) : null}
         </header>
 
@@ -266,6 +268,14 @@ export default function LessonOverviewScreen({
           </motion.div>
         </div>
       </div>
+
+      {flags.arlo_ai_enabled ? (
+        <LessonArloSheet
+          open={arloOpen}
+          onClose={() => setArloOpen(false)}
+          lessonId={lesson.id}
+        />
+      ) : null}
     </div>
   );
 }

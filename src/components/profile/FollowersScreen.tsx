@@ -198,7 +198,7 @@ export default function FollowersScreen() {
               </p>
               <p className="mt-2 text-[13px] font-semibold text-[#b3a8d6]">
                 {tab === "followers"
-                  ? "Share your Arc — peers can follow from the league board."
+                  ? "Share your Arlo — peers can follow from the league board."
                   : "Find people in Friends and tap Fol."}
               </p>
               <Link

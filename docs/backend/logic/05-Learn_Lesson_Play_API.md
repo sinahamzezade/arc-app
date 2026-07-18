@@ -176,8 +176,8 @@ Returns the full playable lesson: overview, content, practice, quiz, a reward _p
     "prompt": "Which snippet correctly opens a paragraph…",
     "hint": "Opening tag, text, closing tag…",
     "options": [
-      { "id": "a", "label": "<p>Hello Arc</p>" },
-      { "id": "b", "label": "<p>Hello Arc<p>" }
+      { "id": "a", "label": "<p>Hello Arlo</p>" },
+      { "id": "b", "label": "<p>Hello Arlo<p>" }
     ]
   },
   "quiz": [

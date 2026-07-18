@@ -26,7 +26,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       id: "arc-bridge",
-      name: "Arc Bridge",
+      name: "Arlo Bridge",
       credentials: {
         id: { label: "ID", type: "text" },
         email: { label: "Email", type: "email" },

@@ -1,4 +1,4 @@
-# 00 — Arc Backend System Integration Contract
+# 00 — Arlo Backend System Integration Contract
 
 **Version:** 2.0  
 **Stack:** NestJS + TypeORM + PostgreSQL; Redis/queues optional but recommended  
@@ -8,7 +8,7 @@
 
 ## 1. Why This File Exists
 
-Arc now contains authentication, personalization, content, roadmaps, schedules, lessons, economy, streaks, ranks, leagues, social features, Battles, Study Together, Lucky Wheel, and notifications.
+Arlo now contains authentication, personalization, content, roadmaps, schedules, lessons, economy, streaks, ranks, leagues, social features, Battles, Study Together, Lucky Wheel, and notifications.
 
 Without one integration contract, several modules could accidentally:
 

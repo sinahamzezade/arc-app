@@ -1,4 +1,4 @@
-# Arc Backend — Gamification, Economy, Store, Unlocks & Streaks
+# Arlo Backend — Gamification, Economy, Store, Unlocks & Streaks
 
 **Version:** 2.0 integrated  
 **Canonical integration:** Wallet/ledger and streak source of truth. Consumes doc 05 completion and doc 04 week-seal transactions; emits events through doc 00.
@@ -373,7 +373,7 @@ Store a snapshot of the reasons in `lesson_unlock_audits`.
 
 | Item | Color | Price |
 |---|---|---:|
-| Arc Beanie | Deep Purple | 500 |
+| Arlo Beanie | Deep Purple | 500 |
 | SQL Cap | Royal Blue | 650 |
 | Data Detective Hat | Brown + Gold | 850 |
 | Wizard of Data Hat | Purple + Gold | 1,100 |

@@ -1,4 +1,4 @@
-# Arc Backend — Battle Mode
+# Arlo Backend — Battle Mode
 
 **Stack:** NestJS + TypeORM + PostgreSQL; REST authoritative (WebSocket `/battle` deferred)  
 **Consumers:** Battle setup, incoming invite, live question, answer reveal, sudden death, victory, profile history  

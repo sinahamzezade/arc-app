@@ -5,7 +5,7 @@ declare module "next-auth" {
     accessToken?: string;
     expiresIn?: number;
     profile?: Profile;
-    /** Arc stores verification as boolean on JWT/session */
+    /** Arlo stores verification as boolean on JWT/session */
     arcEmailVerified?: boolean;
   }
 

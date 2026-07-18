@@ -3,10 +3,10 @@
 **Version:** 2.0 (domain-generalized)
 **Status:** Additive spec — extends existing modules, replaces nothing.
 **Stack:** NestJS + TypeORM + PostgreSQL
-**Consumers:** Arc iOS/PWA — Home, Learn/Lesson Play, Roadmap screen, Arlo chat, League/Rank screens
+**Consumers:** Arlo iOS/PWA — Home, Learn/Lesson Play, Roadmap screen, Arlo chat, League/Rank screens
 **Depends on:** [00 — System Integration Contract](./00-system-integration.md), [02 — Questionnaire](./02-questionnaire-v2-learner-profiling.md), [03 — Skill Graph, Roadmap Generator & AI Coach](./03-goals-and-roadmap.md), [05 — Learn / Lesson Play](./05-Learn_Lesson_Play_API.md), [content_pool.md](./content_pool.md), [badges_system.md](./badges_system.md), [ranking_system.md](./ranking_system.md), [leagues.md](./leagues.md), [gamification.md](./gamification.md)
 
-**What changed in 2.0:** v1.0 illustrated every feature through a single track (crypto trading). Arc actually spans many categories — Frontend Development, Digital Marketing, Data Analytics, and more, growing over time. v2.0 rewrites every block type and example as a **domain-neutral primitive**, instantiated per-track through role-recipe content — the same pattern `03-goals-and-roadmap.md` §0 already uses ("add Marketing / SEO / React / DevOps / AI = new pool documents + recipe edges. Do not change generator/coach algorithms for each domain") and `ranking_system.md` §3 already uses for gate mapping. No engine, schema, or endpoint in this doc is track-specific; only the _authored content_ is. It also adds one new idea (§10, Cross-Track Discovery) that only makes sense on a multi-category platform.
+**What changed in 2.0:** v1.0 illustrated every feature through a single track (crypto trading). Arlo actually spans many categories — Frontend Development, Digital Marketing, Data Analytics, and more, growing over time. v2.0 rewrites every block type and example as a **domain-neutral primitive**, instantiated per-track through role-recipe content — the same pattern `03-goals-and-roadmap.md` §0 already uses ("add Marketing / SEO / React / DevOps / AI = new pool documents + recipe edges. Do not change generator/coach algorithms for each domain") and `ranking_system.md` §3 already uses for gate mapping. No engine, schema, or endpoint in this doc is track-specific; only the _authored content_ is. It also adds one new idea (§10, Cross-Track Discovery) that only makes sense on a multi-category platform.
 
 ---
 
@@ -14,7 +14,7 @@
 
 Recurring user feedback: **"this is boring."**
 
-Root cause, given the current architecture: the loop is _read compiled unit → answer MCQ → collect XP_. That is a homework loop with a UI, not a game loop, and it is identical regardless of whether the learner picked Crypto Trading, Frontend Development, or Digital Marketing as their track. The Skill Graph, Roadmap Generator, Ranks, Badges, and Leagues already give Arc real bones (a DAG, a rank ladder, a league system, a coach). What's missing is **surface-level texture that works the same way for every category**: active decisions instead of passive reads, a path that looks like a journey, a coach that has a voice, format variety, rewards that surprise, competition that feels relevant, content that feels current, and an identity arc the user is climbing — not just a percentage bar.
+Root cause, given the current architecture: the loop is _read compiled unit → answer MCQ → collect XP_. That is a homework loop with a UI, not a game loop, and it is identical regardless of whether the learner picked Crypto Trading, Frontend Development, or Digital Marketing as their track. The Skill Graph, Roadmap Generator, Ranks, Badges, and Leagues already give Arlo real bones (a DAG, a rank ladder, a league system, a coach). What's missing is **surface-level texture that works the same way for every category**: active decisions instead of passive reads, a path that looks like a journey, a coach that has a voice, format variety, rewards that surprise, competition that feels relevant, content that feels current, and an identity arc the user is climbing — not just a percentage bar.
 
 This doc is deliberately **additive and domain-agnostic**. It does not change grading authority, XP/reward integrity rules, or the deterministic-selection principle in `content_pool.md` §0. The LLM still only narrates; the server still owns every gradeable fact. Every feature below is engine code that runs once — the domain flavor comes entirely from authored content and role-recipe mappings, never from a category-specific code path. It adds:
 
@@ -322,7 +322,7 @@ No new XP source is introduced — this reuses the existing weekly League XP led
 
 ## 8. Live/current-context content injection
 
-**Problem:** generic evergreen content feels disconnected from what's actually happening _right now_ in a fast-moving field — and every track Arc offers has its own version of "right now": markets move, browser/framework releases ship, ad-platform algorithms change, new datasets and tools appear.
+**Problem:** generic evergreen content feels disconnected from what's actually happening _right now_ in a fast-moving field — and every track Arlo offers has its own version of "right now": markets move, browser/framework releases ship, ad-platform algorithms change, new datasets and tools appear.
 
 **Fix:** a new, clearly-separated content type in the pool — curated, not model-invented, per `content_pool.md`'s "resources are stable URLs, never AI-invented" principle (see `content_pool.md` §6.12, added in v3.3).
 
@@ -414,7 +414,7 @@ The visual Path (§3) displays `narrativeTitle` per phase instead of "Phase N", 
 
 ## 10. New: Cross-track discovery nudges
 
-**Problem this only makes sense on a multi-category platform.** A single-track app (a pure crypto-trading app, say) has no "other courses" to point to. Arc does. Today, a Digital Marketing learner never sees that Data Analytics skills would sharpen their campaign reporting, and a Frontend Development learner never sees that a Digital Marketing unit on conversion copy would make their landing pages convert better. That's a discovery gap unique to a multi-category platform, and it's currently unaddressed.
+**Problem this only makes sense on a multi-category platform.** A single-track app (a pure crypto-trading app, say) has no "other courses" to point to. Arlo does. Today, a Digital Marketing learner never sees that Data Analytics skills would sharpen their campaign reporting, and a Frontend Development learner never sees that a Digital Marketing unit on conversion copy would make their landing pages convert better. That's a discovery gap unique to a multi-category platform, and it's currently unaddressed.
 
 ### 10.1 Rule
 

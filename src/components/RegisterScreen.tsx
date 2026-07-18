@@ -124,7 +124,7 @@ export default function RegisterScreen({
         <>
           Create your
           <br />
-          Arc account
+          Arlo account
         </>
       }
       subtitle="Then we shape your roadmap."

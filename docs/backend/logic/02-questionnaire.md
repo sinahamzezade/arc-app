@@ -5,7 +5,7 @@
 
 **Engine:** Question Engine (1 of 4 — see [README](./README.md))  
 **Stack:** NestJS + TypeORM + PostgreSQL  
-**Consumers:** Arc Next.js PWA (`arc-app`)  
+**Consumers:** Arlo Next.js PWA (`arc-app`)  
 **Product source:** `src/doc/Arc_MVP_Full_Technical_Roadmap.md` § Goal Interview, § `goals`, § `create_goal` / `generate_roadmap`  
 **Source of truth for questions:** DB tables `questionnaire_definitions` / `questionnaire_steps` / `questionnaire_options` (seeded from `arc-backend/src/questionnaire/schema/seed-data.ts`)  
 **Frontend:** fetches schema via API; maps icon keys → Lucide only (`src/lib/questionnaire/icons.ts`)  

@@ -1,4 +1,4 @@
-# Arc Backend — Course Timing, Scheduling & Reminder Engine
+# Arlo Backend — Course Timing, Scheduling & Reminder Engine
 
 **Version:** 2.0 integrated  
 **Canonical integration:** Owns long-term/future schedule. Doc 04 is the current-week projection; replans are versioned and invalidate old notifications.

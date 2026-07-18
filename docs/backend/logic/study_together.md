@@ -1,4 +1,4 @@
-# Arc Backend — Study Together
+# Arlo Backend — Study Together
 
 **Version:** 3.0 co-roadmap  
 **Canonical integration:** Normal lesson completion stays in doc 05; verified shared time updates Course Timing/Weekly Plan and shared bonuses use the Gamification ledger.

@@ -1,4 +1,4 @@
-# Arc Backend — Lifetime Ranking System
+# Arlo Backend — Lifetime Ranking System
 
 **Version:** 2.0 integrated  
 **Canonical integration:** Permanent rank consumes Lifetime XP plus proof/active-day gates; it is independent from weekly Leagues.
@@ -27,7 +27,7 @@ This prevents a user from farming XP and finishing the entire progression in one
 
 ## 2. The 12 Rank Levels
 
-The names match the current Arc Rank Ladder.
+The names match the current Arlo Rank Ladder.
 
 | Level | Rank | Lifetime XP | Minimum active days | Core gate |
 |---:|---|---:|---:|---|

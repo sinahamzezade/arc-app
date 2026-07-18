@@ -88,7 +88,7 @@ const cachedByUser = new Map<string, IdentityKeyPair>();
 const inflightByUser = new Map<string, Promise<IdentityKeyPair>>();
 
 /**
- * Load or create identity for a specific Arc user.
+ * Load or create identity for a specific Arlo user.
  * Keys are per-userId so account switches on one browser stay isolated.
  * Migrates legacy v1 `default` slot when present.
  * Serialized per userId — prevents dual-generate races that rotate the
