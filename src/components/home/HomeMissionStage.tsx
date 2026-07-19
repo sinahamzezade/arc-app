@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ArrowRight, Clock, Gem, Zap } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/ui/button";
 import { authCtaClassName } from "@/components/onboarding/AuthShell";
 import type { HomeData } from "@/lib/home/types";
 import { cn } from "@/lib/utils";

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -20,6 +20,7 @@ import { assets } from "@/lib/assets";
 import { lessonsApi } from "@/lib/api/lessons";
 import type { LessonPlayDto } from "@/lib/api/types";
 import { startHrefFor } from "@/lib/lesson/map-play";
+import { playQueryKey } from "@/lib/lesson/play-query-key";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useSystemFlags } from "@/hooks/useSystemFlags";
 import { isArloVisibleForLessonType } from "@/lib/lesson/arlo-visibility";
@@ -29,6 +30,11 @@ import { LessonLoadState } from "./LessonLoadState";
 import { LessonArloSheet } from "./LessonArloSheet";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
+
+const HERO_STARFIELD = {
+  backgroundImage:
+    "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1px at 55% 60%, #fff, transparent)",
+} as const;
 
 const START_LABELS: Record<string, string> = {
   reading: "Start reading",
@@ -93,13 +99,13 @@ export default function LessonOverviewScreen({
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const accessToken = session?.accessToken;
+  const userId = session?.user?.id;
   const { lesson, isLoading, isError, error, refetch } =
     usePlayableLesson(lessonId);
   const { flags } = useSystemFlags();
   const [arloOpen, setArloOpen] = useState(false);
   const startLesson = useLessonStore((s) => s.startLesson);
   const setAttemptId = useLessonStore((s) => s.setAttemptId);
-  const startedRef = useRef<string | null>(null);
 
   const startMutation = useMutation({
     mutationFn: () => lessonsApi.start(lessonId, accessToken),
@@ -107,20 +113,20 @@ export default function LessonOverviewScreen({
       if (!res.attemptId) return;
       setAttemptId(res.attemptId);
       queryClient.setQueryData<LessonPlayDto>(
-        ["lessons", "play", lessonId, accessToken ?? "anon"],
+        playQueryKey(lessonId, userId),
         (old) => (old ? { ...old, attemptId: res.attemptId } : old),
       );
     },
   });
 
-  useEffect(() => {
+  const beginLesson = () => {
     if (!lesson) return;
-    if (startedRef.current === lesson.id) return;
-    startedRef.current = lesson.id;
     startLesson(lesson.id);
-    startMutation.mutate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- start once per lesson id
-  }, [lesson?.id]);
+    if (!useLessonStore.getState().attemptId) {
+      startMutation.mutate();
+    }
+    router.push(startHrefFor(lesson));
+  };
 
   if (isLoading) {
     return <LessonLoadState message="Loading lesson…" />;
@@ -151,10 +157,7 @@ export default function LessonOverviewScreen({
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-30"
-          style={{
-            backgroundImage:
-              "radial-gradient(1.5px 1.5px at 18% 22%, #fff, transparent), radial-gradient(1px 1px at 72% 14%, #fff, transparent), radial-gradient(1.5px 1px at 55% 60%, #fff, transparent)",
-          }}
+          style={HERO_STARFIELD}
         />
 
         <header className="relative z-20 flex items-center gap-3">
@@ -218,8 +221,12 @@ export default function LessonOverviewScreen({
 
           <motion.div
             className="relative -mr-1 mb-[-6px]"
-            animate={{ y: [0, -5, 0] }}
-            transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }}
+            animate={arloOpen ? { y: 0 } : { y: [0, -5, 0] }}
+            transition={
+              arloOpen
+                ? softSpring
+                : { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
+            }
           >
             <Image
               src={assets.arlo.thinking}
@@ -281,7 +288,8 @@ export default function LessonOverviewScreen({
         <div className="mt-auto pt-6">
           <motion.div whileTap={{ scale: 0.98, y: 2 }} transition={softSpring}>
             <LessonPrimaryButton
-              href={startHrefFor(lesson)}
+              onClick={beginLesson}
+              disabled={startMutation.isPending}
               className="rounded-[18px] py-4 text-[16px] shadow-[0_5px_0_var(--color-arc-purple-700)]"
             >
               {lesson.status === "completed"
@@ -293,11 +301,13 @@ export default function LessonOverviewScreen({
         </div>
       </div>
 
-      {isArloVisibleForLessonType(flags, lesson.lessonType) ? (
+      {arloOpen &&
+      isArloVisibleForLessonType(flags, lesson.lessonType) ? (
         <LessonArloSheet
-          open={arloOpen}
+          open
           onClose={() => setArloOpen(false)}
           lessonId={lesson.id}
+          lessonTitle={lesson.title}
         />
       ) : null}
     </div>

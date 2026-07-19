@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { lessonsApi } from "@/lib/api/lessons";
 import type { LessonPlayDto } from "@/lib/api/types";
+import { playQueryKey } from "@/lib/lesson/play-query-key";
 import { useLessonStore } from "@/store/useLessonStore";
 
 /**
@@ -15,6 +16,7 @@ export function useEnsureLessonAttempt(lessonId: string) {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const accessToken = session?.accessToken;
+  const userId = session?.user?.id;
   const attemptId = useLessonStore((s) => s.attemptId);
   const setAttemptId = useLessonStore((s) => s.setAttemptId);
   const inFlight = useRef(false);
@@ -28,14 +30,14 @@ export function useEnsureLessonAttempt(lessonId: string) {
         if (!res.attemptId) return;
         setAttemptId(res.attemptId);
         queryClient.setQueryData<LessonPlayDto>(
-          ["lessons", "play", lessonId, accessToken],
+          playQueryKey(lessonId, userId),
           (old) => (old ? { ...old, attemptId: res.attemptId } : old),
         );
       })
       .finally(() => {
         inFlight.current = false;
       });
-  }, [attemptId, accessToken, lessonId, setAttemptId, queryClient]);
+  }, [attemptId, accessToken, userId, lessonId, setAttemptId, queryClient]);
 
   return attemptId;
 }

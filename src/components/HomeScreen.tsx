@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Route } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSession } from "next-auth/react";
+import { useShallow } from "zustand/react/shallow";
 import {
   emptyHomeData,
   greetingForHour,
@@ -12,20 +14,17 @@ import {
 } from "@/lib/home/types";
 import { mapHomeFromBackend } from "@/lib/home/map-home";
 import { isQuestionnaireComplete } from "@/lib/auth/post-auth-route";
-import { HomeExtras } from "@/components/home/HomeExtras";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { HomeMissionStage } from "@/components/home/HomeMissionStage";
 import { HomeQuestionnaireCta } from "@/components/home/HomeQuestionnaireCta";
 import { HomeSheetSkeleton } from "@/components/home/HomeSheetSkeleton";
 import { HomeWeekLockVault } from "@/components/home/HomeWeekLockVault";
+import { sheetVariants } from "@/components/home/motion";
 import { authCtaClassName } from "@/components/onboarding/AuthShell";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/ui/button";
 import { useCourseTiming } from "@/hooks/useCourseTiming";
 import { useCurrentRoadmap } from "@/hooks/useCurrentRoadmap";
 import { useCurrentWeek } from "@/hooks/useCurrentWeek";
-import { useIncomingFriendRequestCount } from "@/hooks/useIncomingFriendRequestCount";
-import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
-import { useUnreadChatCount } from "@/hooks/useUnreadChatCount";
 import { paceMeta } from "@/lib/course-timing/format";
 import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
@@ -33,6 +32,12 @@ import type {
   RoadmapCurrentResponse,
   WeekCurrentResponse,
 } from "@/lib/api/types";
+
+const HomeExtras = dynamic(
+  () =>
+    import("@/components/home/HomeExtras").then((m) => m.HomeExtras),
+  { ssr: false },
+);
 
 /**
  * Home — night dispatch hero + light sheet.
@@ -55,14 +60,10 @@ export default function HomeScreen({
   const { data: roadmapRes, isLoading: roadmapLoading } =
     useCurrentRoadmap(initialRoadmap);
   const { week, isLoading: weekLoading } = useCurrentWeek(initialWeek);
-  const { timing } = useCourseTiming();
-  const { data: unreadCount } = useUnreadNotificationCount();
-  const { data: friendRequestCount } = useIncomingFriendRequestCount();
-  const { data: chatUnreadCount } = useUnreadChatCount();
-  const xp = useEconomyStore((s) => s.xp);
-  const gems = useEconomyStore((s) => s.gems);
-  const coins = useEconomyStore((s) => s.coins);
-  const economyHydrated = useEconomyStore((s) => s.hydrated);
+  const { timing } = useCourseTiming({ feasibility: false });
+  const { xp, gems, coins } = useEconomyStore(
+    useShallow((s) => ({ xp: s.xp, gems: s.gems, coins: s.coins })),
+  );
 
   const qDone =
     questionnaireComplete || isQuestionnaireComplete(session?.profile ?? null);
@@ -95,7 +96,6 @@ export default function HomeScreen({
         xp,
         gems,
         coins,
-        notificationCount: unreadCount ?? dataProp?.notificationCount ?? 0,
         weeklyStreakWeeks: session?.profile?.weeklyStreak,
       }),
     [
@@ -106,13 +106,12 @@ export default function HomeScreen({
       session?.profile?.displayName,
       session?.profile?.weeklyStreak,
       session?.user?.name,
-      unreadCount,
       week,
       xp,
     ],
   );
 
-  const greeting = useMemo(() => greetingForHour(new Date().getHours()), []);
+  const greeting = greetingForHour(new Date().getHours());
   const timingPace = timing ? paceMeta(timing.pace) : null;
   const estimateMinutes =
     timing?.nextSession?.minutes ??
@@ -128,13 +127,9 @@ export default function HomeScreen({
           weekStreak={data.weeklyStreak.weeks}
           identityArc={identityArc}
           avatarUrl={session?.profile?.avatarUrl}
-            xp={data.stats.xp}
-            gems={data.stats.gems}
-            coins={data.stats.coins}
-            notificationCount={data.notificationCount}
-          friendRequestCount={friendRequestCount ?? 0}
-          chatUnreadCount={chatUnreadCount ?? 0}
-          loading={sessionStatus === "authenticated" && !economyHydrated}
+          xp={data.stats.xp}
+          gems={data.stats.gems}
+          coins={data.stats.coins}
         />
       </header>
 
@@ -142,12 +137,7 @@ export default function HomeScreen({
         className="relative z-10 -mt-6 space-y-3.5 rounded-t-[28px] bg-[#f2eefb] px-4 pt-5 pb-8"
         initial={reduceMotion || sheetLoading ? false : "hidden"}
         animate="visible"
-        variants={{
-          hidden: {},
-          visible: {
-            transition: { staggerChildren: 0.06, delayChildren: 0.08 },
-          },
-        }}
+        variants={sheetVariants}
       >
         {sheetLoading ? (
           <HomeSheetSkeleton />

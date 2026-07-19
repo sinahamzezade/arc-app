@@ -36,7 +36,7 @@ export default function GraduationScreen({
     const prefersReduced =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!prefersReduced) fireLessonConfetti();
+    if (!prefersReduced) void fireLessonConfetti();
   }, [data]);
 
   useEffect(() => {

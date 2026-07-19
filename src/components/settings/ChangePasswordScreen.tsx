@@ -180,10 +180,12 @@ export default function ChangePasswordScreen() {
               type="submit"
               fullWidth
               variant="primary"
-              isDisabled={isSubmitting || done}
+              isPending={isSubmitting}
+              isDisabled={done}
+              pendingLabel="Saving…"
               className="h-[54px] rounded-[18px] font-display text-[16px] font-bold shadow-[0_5px_0_var(--color-arc-purple-700)]"
             >
-              {isSubmitting ? "Saving…" : "Update password"}
+              Update password
             </Button>
           </motion.div>
         </form>

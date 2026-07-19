@@ -176,7 +176,8 @@ export default function OtpScreen() {
           <Button
             fullWidth
             variant="primary"
-            isDisabled={!isComplete || isLoading}
+            isPending={isLoading}
+            isDisabled={!isComplete}
             onPress={handleVerify}
             className={authCtaClassName}
           >

@@ -19,6 +19,11 @@ import { useSession } from "next-auth/react";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
 import { chatApi, type ConversationListItemDto } from "@/lib/api/chat";
 import { ApiError, messageForCode } from "@/lib/api/errors";
+import {
+  E2E_DEVICE_LOCKED_PREVIEW,
+  E2E_UNABLE_TO_DECRYPT,
+  isE2eDeviceMismatchMessage,
+} from "@/lib/chat/e2e";
 import { useChatInbox } from "@/hooks/useChatInbox";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +49,13 @@ function previewText(c: ConversationListItemDto) {
   const m = c.lastMessage;
   if (!m) return "Start chatting";
   if (m.deletedAt) return "Message deleted";
+  const rawBody = m.body?.trim() || "";
+  if (
+    rawBody === E2E_UNABLE_TO_DECRYPT ||
+    isE2eDeviceMismatchMessage(rawBody)
+  ) {
+    return E2E_DEVICE_LOCKED_PREVIEW;
+  }
   const body =
     m.type === "image"
       ? "Photo"
@@ -52,8 +64,8 @@ function previewText(c: ConversationListItemDto) {
         : m.type === "file"
           ? "File"
           : m.type === "system"
-            ? m.body?.trim() || "Call"
-            : m.body?.trim() || "No messages yet";
+            ? rawBody || "Call"
+            : rawBody || "No messages yet";
   if (c.type === "group" && m.senderName && !c.lastMessageFromMe) {
     return `${m.senderName} : ${body}`;
   }

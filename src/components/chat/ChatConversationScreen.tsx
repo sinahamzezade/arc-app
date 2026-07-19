@@ -38,7 +38,14 @@ import {
   decryptIncomingBlob,
   encryptOutgoingBlob,
   encryptOutgoingBody,
+  E2eIdentityMismatchError,
   E2eNotReadyError,
+  E2E_UNABLE_TO_DECRYPT,
+  clearConversationKeyCache,
+  ensureIdentityPublished,
+  getE2eIdentityMismatch,
+  isE2eDeviceMismatchMessage,
+  resetConversationSecureKeys,
 } from "@/lib/chat/e2e";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { useChatThread } from "@/hooks/useChatThread";
@@ -137,9 +144,14 @@ export default function ChatConversationScreen() {
     setPresenceLabel,
     setPeerLastReadMessageId,
     loadOlder: loadOlderMessages,
+    refetch: refetchThread,
   } = useChatThread(conversationId);
 
   const peerBlockedByMe = Boolean(conv?.peerBlockedByMe);
+  const [e2eBanner, setE2eBanner] = useState<
+    null | "establishing" | "deviceMismatch"
+  >(null);
+  const [resettingKeys, setResettingKeys] = useState(false);
 
   const clearStagedFile = useCallback(() => {
     setStagedFile((prev) => {
@@ -315,7 +327,85 @@ export default function ChatConversationScreen() {
       if (!conv?.peerUserId || payload.userId !== conv.peerUserId) return;
       setPresenceLabel(payload.status === "online" ? "Online" : "Offline");
     },
+    onKeysRekeyed: (payload) => {
+      if (payload.byUserId === myId) return;
+      clearConversationKeyCache(payload.conversationId);
+      void refetchThread();
+    },
   });
+
+  useEffect(() => {
+    if (!token || !conversationId) {
+      setE2eBanner(null);
+      return;
+    }
+    let cancelled = false;
+    setE2eBanner("establishing");
+    void ensureIdentityPublished(token, myId)
+      .then(() => {
+        if (cancelled) return;
+        if (getE2eIdentityMismatch()) {
+          setE2eBanner("deviceMismatch");
+          return;
+        }
+        setE2eBanner(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (
+          err instanceof E2eIdentityMismatchError ||
+          (err instanceof E2eNotReadyError &&
+            isE2eDeviceMismatchMessage(err.message))
+        ) {
+          setE2eBanner("deviceMismatch");
+          return;
+        }
+        setE2eBanner(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, conversationId, myId]);
+
+  useEffect(() => {
+    if (e2eBanner === "deviceMismatch") return;
+    if (getE2eIdentityMismatch()) {
+      setE2eBanner("deviceMismatch");
+      return;
+    }
+    const textMsgs = messages.filter(
+      (m) => m.type === "text" && m.body && !m.deletedAt,
+    );
+    if (textMsgs.length === 0) return;
+    const allLocked = textMsgs.every(
+      (m) =>
+        m.body === E2E_UNABLE_TO_DECRYPT ||
+        isE2eDeviceMismatchMessage(m.body),
+    );
+    if (allLocked) setE2eBanner("deviceMismatch");
+  }, [messages, e2eBanner]);
+
+  const resetSecureKeys = useCallback(async () => {
+    if (!token || !conversationId || resettingKeys) return;
+    setResettingKeys(true);
+    setError(null);
+    try {
+      await resetConversationSecureKeys(conversationId, token);
+      setE2eBanner(null);
+      await refetchThread();
+    } catch (err) {
+      setError(
+        err instanceof E2eNotReadyError
+          ? err.message
+          : err instanceof ApiError
+            ? messageForCode(err.code, err.message)
+            : "Could not reset secure keys",
+      );
+      setE2eBanner("deviceMismatch");
+    } finally {
+      setResettingKeys(false);
+    }
+  }, [token, conversationId, resettingKeys, refetchThread]);
 
   const call = useAppCall();
   const { flags } = useSystemFlags();
@@ -348,6 +438,9 @@ export default function ChatConversationScreen() {
     flags.voice_call_enabled && (callPrivacy?.allowVoiceCalls ?? true);
 
   const displayError = error ?? call.error ?? threadError;
+  const showDeviceMismatch =
+    e2eBanner === "deviceMismatch" ||
+    isE2eDeviceMismatchMessage(displayError);
 
   const sendVoiceRef = useRef<(rec: VoiceRecording) => void>(() => undefined);
 
@@ -625,7 +718,8 @@ export default function ChatConversationScreen() {
         return next;
       });
       setError(
-        err instanceof E2eNotReadyError
+        err instanceof E2eIdentityMismatchError ||
+          err instanceof E2eNotReadyError
           ? err.message
           : err instanceof ApiError
             ? messageForCode(err.code, err.message)
@@ -633,6 +727,13 @@ export default function ChatConversationScreen() {
               ? "Upload failed"
               : "Send failed",
       );
+      if (
+        err instanceof E2eIdentityMismatchError ||
+        (err instanceof E2eNotReadyError &&
+          isE2eDeviceMismatchMessage(err.message))
+      ) {
+        setE2eBanner("deviceMismatch");
+      }
       setText(body);
       if (fileSnapshot) {
         setStagedFile(fileSnapshot);
@@ -747,6 +848,13 @@ export default function ChatConversationScreen() {
             ? messageForCode(err.code, err.message)
             : "Voice send failed",
       );
+      if (
+        err instanceof E2eIdentityMismatchError ||
+        (err instanceof E2eNotReadyError &&
+          isE2eDeviceMismatchMessage(err.message))
+      ) {
+        setE2eBanner("deviceMismatch");
+      }
       if (replySnapshot) setReplyTo(replySnapshot);
     } finally {
       setSending(false);
@@ -1022,7 +1130,34 @@ export default function ChatConversationScreen() {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col bg-[#faf8ff]">
-        {displayError ? (
+        {e2eBanner === "establishing" && !showDeviceMismatch ? (
+          <p
+            role="status"
+            className="mx-4 mt-3 rounded-2xl bg-[#f4f0ff] px-3 py-2 text-sm font-semibold text-arc-purple-600"
+          >
+            Setting up secure chat…
+          </p>
+        ) : null}
+
+        {showDeviceMismatch ? (
+          <div
+            role="alert"
+            className="mx-4 mt-3 space-y-2 rounded-2xl bg-red-50 px-3 py-3 text-sm font-semibold text-red-700"
+          >
+            <p>
+              This device can’t read older messages. Reset keys to chat again
+              (history stays encrypted on this device).
+            </p>
+            <button
+              type="button"
+              disabled={resettingKeys}
+              onClick={() => void resetSecureKeys()}
+              className="cursor-pointer rounded-xl bg-arc-purple-500 px-3 py-2 text-[13px] font-extrabold text-white shadow-[0_3px_0_var(--color-arc-purple-700)] disabled:opacity-50"
+            >
+              {resettingKeys ? "Resetting…" : "Reset conversation keys"}
+            </button>
+          </div>
+        ) : displayError ? (
           <p
             role="alert"
             className="mx-4 mt-3 rounded-2xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700"

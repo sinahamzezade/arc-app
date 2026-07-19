@@ -32,6 +32,10 @@ type DeliveredHandler = (payload: {
   conversationId: string;
   userId: string;
 }) => void;
+type KeysRekeyedHandler = (payload: {
+  conversationId: string;
+  byUserId: string;
+}) => void;
 
 type GlobalOpts = {
   enabled?: boolean;
@@ -96,6 +100,7 @@ type ConversationOpts = {
   onPresence?: PresenceHandler;
   onDelivered?: DeliveredHandler;
   onUnreadChanged?: UnreadHandler;
+  onKeysRekeyed?: KeysRekeyedHandler;
 };
 
 /**
@@ -110,6 +115,7 @@ export function useChatSocket({
   onPresence,
   onDelivered,
   onUnreadChanged,
+  onKeysRekeyed,
 }: ConversationOpts) {
   const [connected, setConnected] = useState(getChatRealtimeConnected);
   const socketRef = useRef<Socket | null>(getChatSocket());
@@ -120,6 +126,7 @@ export function useChatSocket({
     onPresence,
     onDelivered,
     onUnreadChanged,
+    onKeysRekeyed,
   });
   handlers.current = {
     onMessage,
@@ -128,6 +135,7 @@ export function useChatSocket({
     onPresence,
     onDelivered,
     onUnreadChanged,
+    onKeysRekeyed,
   };
   const joinedConvRef = useRef<string | null>(null);
 
@@ -161,6 +169,7 @@ export function useChatSocket({
       socket.off("presence", onPresenceEv);
       socket.off("message.delivered", onDeliveredEv);
       socket.off("unread.changed", onUnread);
+      socket.off("keys.rekeyed", onKeysRekeyedEv);
     };
 
     const leaveJoined = (socket: Socket) => {
@@ -215,6 +224,17 @@ export function useChatSocket({
         handlers.current.onUnreadChanged?.(payload.unreadTotal);
       }
     };
+    const onKeysRekeyedEv = (payload: {
+      conversationId?: string;
+      byUserId?: string;
+    }) => {
+      if (!payload?.conversationId) return;
+      if (conversationId && payload.conversationId !== conversationId) return;
+      handlers.current.onKeysRekeyed?.({
+        conversationId: payload.conversationId,
+        byUserId: payload.byUserId ?? "",
+      });
+    };
 
     const attach = (socket: Socket | null) => {
       if (activeSocket) {
@@ -233,6 +253,7 @@ export function useChatSocket({
       socket.on("presence", onPresenceEv);
       socket.on("message.delivered", onDeliveredEv);
       socket.on("unread.changed", onUnread);
+      socket.on("keys.rekeyed", onKeysRekeyedEv);
       if (socket.connected) {
         setConnected(true);
         join(socket);

@@ -94,9 +94,9 @@ export function LessonShell({
         {children}
       </div>
 
-      {arloVisible ? (
+      {arloVisible && arloOpen ? (
         <LessonArloSheet
-          open={arloOpen}
+          open
           onClose={() => setArloOpen(false)}
           lessonId={lessonId}
         />

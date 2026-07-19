@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
@@ -116,6 +116,130 @@ export default function LessonActiveBlockScreen({
     },
   });
 
+  const onScenarioPick = useCallback((blockId: string, id: string) => {
+    setScenarioPick((s) => ({ ...s, [blockId]: id }));
+  }, []);
+
+  const onHotspotPick = useCallback((blockId: string, id: string) => {
+    setHotspotPick((s) => ({ ...s, [blockId]: id }));
+  }, []);
+
+  const onDebatePick = useCallback((blockId: string, side: "a" | "b") => {
+    setDebatePick((s) => ({ ...s, [blockId]: side }));
+  }, []);
+
+  const onDragReorder = useCallback((blockId: string, ids: string[]) => {
+    setDragOrder((s) => ({ ...s, [blockId]: ids }));
+  }, []);
+
+  const onSandboxToggle = useCallback((blockId: string, action: string) => {
+    setSandboxActions((s) => {
+      const cur = s[blockId] ?? [];
+      const next = cur.includes(action)
+        ? cur.filter((a) => a !== action)
+        : [...cur, action];
+      return { ...s, [blockId]: next };
+    });
+  }, []);
+
+  const onCheckBlock = useCallback(
+    (block: LessonActiveBlockDto, blockId: string) => {
+      if (!attemptId) return;
+      if (reveals[blockId]) return;
+      const token = session?.accessToken;
+
+      switch (block.type) {
+        case "scenario_decision": {
+          const optionId = scenarioPick[blockId];
+          if (!optionId) return;
+          checkMutation.mutate({
+            blockId,
+            fn: () =>
+              lessonsApi.checkScenario(
+                lessonId,
+                blockId,
+                { attemptId, optionId },
+                token,
+              ),
+          });
+          break;
+        }
+        case "visual_hotspot": {
+          const hotspotId = hotspotPick[blockId];
+          if (!hotspotId) return;
+          checkMutation.mutate({
+            blockId,
+            fn: () =>
+              lessonsApi.checkVisualHotspot(
+                lessonId,
+                blockId,
+                { attemptId, hotspotId },
+                token,
+              ),
+          });
+          break;
+        }
+        case "drag_order": {
+          const ordered =
+            dragOrder[blockId] ?? block.items.map((i) => i.id);
+          checkMutation.mutate({
+            blockId,
+            fn: () =>
+              lessonsApi.checkDragOrder(
+                lessonId,
+                blockId,
+                { attemptId, orderedIds: ordered },
+                token,
+              ),
+          });
+          break;
+        }
+        case "debate_pick": {
+          const side = debatePick[blockId];
+          if (!side) return;
+          checkMutation.mutate({
+            blockId,
+            fn: () =>
+              lessonsApi.checkDebate(
+                lessonId,
+                blockId,
+                { attemptId, side },
+                token,
+              ),
+          });
+          break;
+        }
+        case "sandbox_simulation": {
+          const actions = sandboxActions[blockId] ?? [];
+          if (actions.length === 0) return;
+          checkMutation.mutate({
+            blockId,
+            fn: () =>
+              lessonsApi.checkSandboxSimulation(
+                lessonId,
+                blockId,
+                { attemptId, actions },
+                token,
+              ),
+          });
+          break;
+        }
+      }
+    },
+    [
+      attemptId,
+      checkMutation,
+      debatePick,
+      dragOrder,
+      hotspotPick,
+      lessonId,
+      reveals,
+      sandboxActions,
+      scenarioPick,
+      session?.accessToken,
+    ],
+  );
+
   if (isLoading || wrongSegment) {
     return (
       <LessonShell
@@ -172,138 +296,34 @@ export default function LessonActiveBlockScreen({
         ) : null}
 
         <div className="mt-5 space-y-6">
-          {blocks.map((block, index) => (
-            <ActiveBlockView
-              key={blockKey(block, index)}
-              block={block}
-              blockId={blockKey(block, index)}
-              reveal={reveals[blockKey(block, index)]}
-              checking={checkingBlockId === blockKey(block, index)}
-              scenarioPick={scenarioPick[blockKey(block, index)]}
-              hotspotPick={hotspotPick[blockKey(block, index)]}
-              debatePick={debatePick[blockKey(block, index)]}
-              dragIds={
-                dragOrder[blockKey(block, index)] ??
-                (block.type === "drag_order"
-                  ? block.items.map((i) => i.id)
-                  : [])
-              }
-              sandboxSelected={
-                sandboxActions[blockKey(block, index)] ?? []
-              }
-              onScenarioPick={(id) =>
-                setScenarioPick((s) => ({
-                  ...s,
-                  [blockKey(block, index)]: id,
-                }))
-              }
-              onHotspotPick={(id) =>
-                setHotspotPick((s) => ({
-                  ...s,
-                  [blockKey(block, index)]: id,
-                }))
-              }
-              onDebatePick={(side) =>
-                setDebatePick((s) => ({
-                  ...s,
-                  [blockKey(block, index)]: side,
-                }))
-              }
-              onDragReorder={(ids) =>
-                setDragOrder((s) => ({
-                  ...s,
-                  [blockKey(block, index)]: ids,
-                }))
-              }
-              onSandboxToggle={(action) => {
-                const key = blockKey(block, index);
-                setSandboxActions((s) => {
-                  const cur = s[key] ?? [];
-                  const next = cur.includes(action)
-                    ? cur.filter((a) => a !== action)
-                    : [...cur, action];
-                  return { ...s, [key]: next };
-                });
-              }}
-              onCheck={() => {
-                const id = blockKey(block, index);
-                if (!attemptId) return;
-                if (reveals[id]) return;
-
-                switch (block.type) {
-                  case "scenario_decision":
-                    if (!scenarioPick[id]) return;
-                    checkMutation.mutate({
-                      blockId: id,
-                      fn: () =>
-                        lessonsApi.checkScenario(
-                          lessonId,
-                          id,
-                          { attemptId, optionId: scenarioPick[id]! },
-                          session?.accessToken,
-                        ),
-                    });
-                    break;
-                  case "visual_hotspot":
-                    if (!hotspotPick[id]) return;
-                    checkMutation.mutate({
-                      blockId: id,
-                      fn: () =>
-                        lessonsApi.checkVisualHotspot(
-                          lessonId,
-                          id,
-                          { attemptId, hotspotId: hotspotPick[id]! },
-                          session?.accessToken,
-                        ),
-                    });
-                    break;
-                  case "drag_order": {
-                    const ordered =
-                      dragOrder[id] ?? block.items.map((i) => i.id);
-                    checkMutation.mutate({
-                      blockId: id,
-                      fn: () =>
-                        lessonsApi.checkDragOrder(
-                          lessonId,
-                          id,
-                          { attemptId, orderedIds: ordered },
-                          session?.accessToken,
-                        ),
-                    });
-                    break;
-                  }
-                  case "debate_pick":
-                    if (!debatePick[id]) return;
-                    checkMutation.mutate({
-                      blockId: id,
-                      fn: () =>
-                        lessonsApi.checkDebate(
-                          lessonId,
-                          id,
-                          { attemptId, side: debatePick[id]! },
-                          session?.accessToken,
-                        ),
-                    });
-                    break;
-                  case "sandbox_simulation": {
-                    const actions = sandboxActions[id] ?? [];
-                    if (actions.length === 0) return;
-                    checkMutation.mutate({
-                      blockId: id,
-                      fn: () =>
-                        lessonsApi.checkSandboxSimulation(
-                          lessonId,
-                          id,
-                          { attemptId, actions },
-                          session?.accessToken,
-                        ),
-                    });
-                    break;
-                  }
+          {blocks.map((block, index) => {
+            const id = blockKey(block, index);
+            return (
+              <ActiveBlockView
+                key={id}
+                block={block}
+                blockId={id}
+                reveal={reveals[id]}
+                checking={checkingBlockId === id}
+                scenarioPick={scenarioPick[id]}
+                hotspotPick={hotspotPick[id]}
+                debatePick={debatePick[id]}
+                dragIds={
+                  dragOrder[id] ??
+                  (block.type === "drag_order"
+                    ? block.items.map((i) => i.id)
+                    : [])
                 }
-              }}
-            />
-          ))}
+                sandboxSelected={sandboxActions[id] ?? []}
+                onScenarioPick={onScenarioPick}
+                onHotspotPick={onHotspotPick}
+                onDebatePick={onDebatePick}
+                onDragReorder={onDragReorder}
+                onSandboxToggle={onSandboxToggle}
+                onCheck={onCheckBlock}
+              />
+            );
+          })}
         </div>
 
         <ReadingArloAssist
@@ -335,7 +355,7 @@ export default function LessonActiveBlockScreen({
   );
 }
 
-function ActiveBlockView({
+const ActiveBlockView = memo(function ActiveBlockView({
   block,
   blockId,
   reveal,
@@ -361,12 +381,12 @@ function ActiveBlockView({
   debatePick?: "a" | "b";
   dragIds: string[];
   sandboxSelected: string[];
-  onScenarioPick: (id: string) => void;
-  onHotspotPick: (id: string) => void;
-  onDebatePick: (side: "a" | "b") => void;
-  onDragReorder: (ids: string[]) => void;
-  onSandboxToggle: (action: string) => void;
-  onCheck: () => void;
+  onScenarioPick: (blockId: string, id: string) => void;
+  onHotspotPick: (blockId: string, id: string) => void;
+  onDebatePick: (blockId: string, side: "a" | "b") => void;
+  onDragReorder: (blockId: string, ids: string[]) => void;
+  onSandboxToggle: (blockId: string, action: string) => void;
+  onCheck: (block: LessonActiveBlockDto, blockId: string) => void;
 }) {
   const revealed = Boolean(reveal);
 
@@ -473,10 +493,12 @@ function ActiveBlockView({
                 label={opt.label}
                 selected={scenarioPick === opt.id}
                 revealed={revealed}
-                correct={revealed ? reveal?.correct && scenarioPick === opt.id : false}
+                correct={
+                  revealed ? reveal?.correct && scenarioPick === opt.id : false
+                }
                 onSelect={() => {
                   if (revealed) return;
-                  onScenarioPick(opt.id);
+                  onScenarioPick(blockId, opt.id);
                 }}
               />
             ))}
@@ -498,7 +520,7 @@ function ActiveBlockView({
                   key={hs.id}
                   type="button"
                   disabled={revealed}
-                  onClick={() => onHotspotPick(hs.id)}
+                  onClick={() => onHotspotPick(blockId, hs.id)}
                   style={
                     left != null && top != null
                       ? { left, top, transform: "translate(-50%, -50%)" }
@@ -509,8 +531,7 @@ function ActiveBlockView({
                     hotspotPick === hs.id
                       ? "border-arc-purple-500 bg-arc-purple-500 text-white"
                       : "border-white/80 bg-white/90 text-[#2b1b57]",
-                    left == null &&
-                      "mx-1 mt-2 inline-flex",
+                    left == null && "mx-1 mt-2 inline-flex",
                     revealed &&
                       reveal?.correct &&
                       hotspotPick === hs.id &&
@@ -535,7 +556,7 @@ function ActiveBlockView({
                   }
                   onSelect={() => {
                     if (revealed) return;
-                    onHotspotPick(hs.id);
+                    onHotspotPick(blockId, hs.id);
                   }}
                 />
               ))}
@@ -550,7 +571,7 @@ function ActiveBlockView({
           order={dragIds}
           revealed={revealed}
           correct={revealed ? reveal?.correct : undefined}
-          onReorder={onDragReorder}
+          onReorder={(ids) => onDragReorder(blockId, ids)}
         />
       ) : null}
 
@@ -567,7 +588,7 @@ function ActiveBlockView({
               correct={revealed ? reveal?.correct && debatePick === "a" : false}
               onSelect={() => {
                 if (revealed) return;
-                onDebatePick("a");
+                onDebatePick(blockId, "a");
               }}
             />
             <LessonOptionCard
@@ -577,7 +598,7 @@ function ActiveBlockView({
               correct={revealed ? reveal?.correct && debatePick === "b" : false}
               onSelect={() => {
                 if (revealed) return;
-                onDebatePick("b");
+                onDebatePick(blockId, "b");
               }}
             />
           </div>
@@ -597,7 +618,7 @@ function ActiveBlockView({
                   key={action}
                   type="button"
                   disabled={revealed}
-                  onClick={() => onSandboxToggle(action)}
+                  onClick={() => onSandboxToggle(blockId, action)}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-[12px] font-bold transition-colors",
                     on
@@ -630,7 +651,7 @@ function ActiveBlockView({
         <div className="mt-4">
           <LessonPrimaryButton
             disabled={!canCheck || checking}
-            onClick={onCheck}
+            onClick={() => onCheck(block, blockId)}
             className="py-3 text-[14px]"
           >
             {checking ? "Checking…" : "Check"}
@@ -639,7 +660,7 @@ function ActiveBlockView({
       ) : null}
     </motion.section>
   );
-}
+});
 
 function DragOrderList({
   block,

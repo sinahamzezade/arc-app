@@ -4,7 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { courseTimingApi } from "@/lib/api/course-timing";
 
-export function useCourseTiming() {
+type UseCourseTimingOptions = {
+  /** When false, skips the feasibility query. Default true. */
+  feasibility?: boolean;
+};
+
+export function useCourseTiming(options: UseCourseTimingOptions = {}) {
+  const includeFeasibility = options.feasibility !== false;
   const { data: session, status } = useSession();
   const accessToken = session?.accessToken;
   const qc = useQueryClient();
@@ -38,7 +44,7 @@ export function useCourseTiming() {
   const feasibility = useQuery({
     queryKey: ["course-timing", "feasibility", accessToken ?? "anon"],
     queryFn: () => courseTimingApi.getFeasibility(accessToken),
-    enabled,
+    enabled: enabled && includeFeasibility,
     staleTime: 60_000,
     retry: false,
   });

@@ -23,17 +23,38 @@ export class E2eNotReadyError extends Error {
   }
 }
 
+/** True when local identity PK ≠ server `chat_user_keys` (new device / cleared IDB). */
+export class E2eIdentityMismatchError extends E2eNotReadyError {
+  readonly code = "IDENTITY_MISMATCH" as const;
+  constructor(
+    message = "This device can’t read older messages. Reset keys to chat again.",
+  ) {
+    super(message);
+    this.name = "E2eIdentityMismatchError";
+  }
+}
+
+export const E2E_UNABLE_TO_DECRYPT = "🔒 Unable to decrypt";
+/** Softer inbox preview when ciphertext can’t open on this device. */
+export const E2E_DEVICE_LOCKED_PREVIEW = "Encrypted — open chat to continue";
+
 type ConvSession = {
   key: Uint8Array;
   epoch: number;
-  /** Fingerprint of server wrap — busts stale local cache after rekey. */
+  /** Fingerprint of server wrap — only set after successful seal_open. */
   wrapFp: string;
 };
 
+type ReadyOpts = { allowCreate: boolean; allowReset: boolean };
+
 const convCache = new Map<string, ConvSession>();
-const inflight = new Map<string, Promise<ConvSession>>();
+/** Send path (create/reset allowed) — must not share promises with decrypt. */
+const inflightSend = new Map<string, Promise<ConvSession>>();
+/** Decrypt path (read-only) — never awaits a wrap wipe. */
+const inflightDecrypt = new Map<string, Promise<ConvSession>>();
 let publishedForUser: { userId: string; publicKeyB64: string } | null = null;
 let activeUserId: string | null = null;
+let identityMismatch = false;
 
 /** Read `sub` from JWT access token (no verify — already authed). */
 function userIdFromAccessToken(token?: string | null): string | null {
@@ -69,6 +90,10 @@ function copyKey(key: Uint8Array): Uint8Array {
   return new Uint8Array(key);
 }
 
+function inflightKey(conversationId: string, opts: ReadyOpts): string {
+  return `${conversationId}:c${opts.allowCreate ? 1 : 0}:r${opts.allowReset ? 1 : 0}`;
+}
+
 async function rememberSession(
   userId: string,
   conversationId: string,
@@ -87,15 +112,34 @@ async function rememberSession(
 export function setE2eUserId(userId: string | null): void {
   if (activeUserId && userId && activeUserId !== userId) {
     convCache.clear();
-    inflight.clear();
+    inflightSend.clear();
+    inflightDecrypt.clear();
     publishedForUser = null;
+    identityMismatch = false;
   }
   activeUserId = userId;
+}
+
+export function getE2eIdentityMismatch(): boolean {
+  return identityMismatch;
+}
+
+export function isE2eDeviceMismatchMessage(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return (
+    message === E2E_UNABLE_TO_DECRYPT ||
+    message.includes("Unable to decrypt") ||
+    message.includes("Could not open conversation key") ||
+    message.includes("not wrapped yet") ||
+    message.includes("can’t read older messages") ||
+    message.includes("can't read older messages")
+  );
 }
 
 export async function ensureIdentityPublished(
   accessToken?: string | null,
   userId?: string | null,
+  opts?: { force?: boolean },
 ): Promise<IdentityKeyPair> {
   const uid = resolveUserId(userId, accessToken);
   if (!uid) {
@@ -105,19 +149,27 @@ export async function ensureIdentityPublished(
   const identity = await loadOrCreateIdentity(uid);
 
   // Always reconcile with server — never trust in-memory publish flag alone.
-  // Another tab/device can overwrite chat_user_keys and leave wraps unopenable.
   try {
     const { keys } = await chatApi.getPublicKeys([uid], accessToken);
     const serverKey = keys.find((k) => k.userId === uid)?.publicKey;
     if (serverKey && serverKey === identity.publicKeyB64) {
+      identityMismatch = false;
       publishedForUser = { userId: uid, publicKeyB64: identity.publicKeyB64 };
       return identity;
+    }
+    if (serverKey && serverKey !== identity.publicKeyB64) {
+      identityMismatch = true;
+      // Do not silently overwrite — old wraps stay sealed to serverKey.
+      if (!opts?.force) {
+        return identity;
+      }
     }
   } catch {
     /* publish below */
   }
 
   await chatApi.putMyPublicKey(identity.publicKeyB64, accessToken);
+  identityMismatch = false;
   publishedForUser = { userId: uid, publicKeyB64: identity.publicKeyB64 };
   return identity;
 }
@@ -155,7 +207,9 @@ async function createWraps(
   epoch = 1,
   existingKey?: Uint8Array,
 ): Promise<ConvSession> {
-  const identity = await ensureIdentityPublished(accessToken);
+  const identity = await ensureIdentityPublished(accessToken, null, {
+    force: true,
+  });
   const uid = resolveUserId(null, accessToken);
   if (!uid) throw new E2eNotReadyError("Not signed in for secure chat");
 
@@ -172,13 +226,19 @@ async function createWraps(
     ? copyKey(existingKey)
     : await generateConversationKey();
 
-  const tryPutAndOpen = async (keyEpoch: number): Promise<ConvSession | null> => {
+  const tryPutAndOpen = async (
+    keyEpoch: number,
+  ): Promise<ConvSession | null> => {
     const wraps = await sealWrapsForMembers(conversationKey, memberIds, byUser);
-    await chatApi.putKeyWraps(
+    const put = await chatApi.putKeyWraps(
       conversationId,
       { epoch: keyEpoch, wraps },
       accessToken,
     );
+    // Insert-only server: no-op means stale wrap still owns this epoch.
+    if (typeof put.inserted === "number" && put.inserted === 0 && wraps.length > 0) {
+      return null;
+    }
     const refreshed = await chatApi.getKeyWraps(conversationId, accessToken);
     if (!refreshed.wrappedKey || refreshed.epoch == null) return null;
     const opened = await openConversationKey(refreshed.wrappedKey, identity);
@@ -209,11 +269,8 @@ async function createWraps(
  */
 async function ensureConversationReadyInner(
   conversationId: string,
-  accessToken?: string | null,
-  opts: { allowCreate: boolean; allowReset: boolean } = {
-    allowCreate: true,
-    allowReset: false,
-  },
+  accessToken: string | null | undefined,
+  opts: ReadyOpts,
 ): Promise<ConvSession> {
   const identity = await ensureIdentityPublished(accessToken);
   const uid = resolveUserId(null, accessToken);
@@ -240,15 +297,21 @@ async function ensureConversationReadyInner(
       });
     } catch (err) {
       // Prefer locally persisted key (survives wrap/identity churn) over wipe.
+      // Never stamp failed wrap fingerprint — that poisons the session cache.
       const local = await listConversationKeys(uid, conversationId);
       if (local[0] && !opts.allowReset) {
         return rememberSession(uid, conversationId, {
           key: copyKey(local[0].key),
           epoch: local[0].epoch,
-          wrapFp: wrapFingerprint(wrapInfo.wrappedKey),
+          wrapFp: `local:${local[0].epoch}`,
         });
       }
-      if (!opts.allowReset) throw err;
+      if (!opts.allowReset) {
+        if (identityMismatch) {
+          throw new E2eIdentityMismatchError();
+        }
+        throw err;
+      }
       convCache.delete(conversationId);
       await chatApi.resetKeyWraps(conversationId, accessToken);
       // Re-wrap the known local key when possible so history stays readable.
@@ -268,9 +331,7 @@ async function ensureConversationReadyInner(
     return rememberSession(uid, conversationId, {
       key: copyKey(localKeys[0].key),
       epoch: localKeys[0].epoch,
-      wrapFp: wrapInfo.wrappedKey
-        ? wrapFingerprint(wrapInfo.wrappedKey)
-        : `local:${localKeys[0].epoch}`,
+      wrapFp: `local:${localKeys[0].epoch}`,
     });
   }
 
@@ -283,17 +344,15 @@ async function ensureConversationReadyInner(
       });
     }
     if (!opts.allowReset) {
+      if (identityMismatch) {
+        throw new E2eIdentityMismatchError();
+      }
       throw new E2eNotReadyError(
         "Secure chat keys exist but this device is not wrapped yet",
       );
     }
     await chatApi.resetKeyWraps(conversationId, accessToken);
-    return createWraps(
-      conversationId,
-      wrapInfo.memberIds,
-      accessToken,
-      1,
-    );
+    return createWraps(conversationId, wrapInfo.memberIds, accessToken, 1);
   }
 
   if (!wrapInfo.memberIds.length) {
@@ -308,12 +367,17 @@ async function ensureConversationReadyInner(
         wrapFp: `local:${localKeys[0].epoch}`,
       });
     }
+    if (identityMismatch) {
+      throw new E2eIdentityMismatchError();
+    }
     throw new E2eNotReadyError("Conversation key not ready");
   }
 
   // Dual-bootstrap guard: another client may have just written wraps.
   if (!wrapInfo.hasWraps) {
-    await new Promise((r) => setTimeout(r, 40 + Math.floor(Math.random() * 80)));
+    await new Promise((r) =>
+      setTimeout(r, 40 + Math.floor(Math.random() * 80)),
+    );
     const again = await chatApi.getKeyWraps(conversationId, accessToken);
     if (again.wrappedKey && again.epoch != null) {
       const opened = await openConversationKey(again.wrappedKey, identity);
@@ -333,6 +397,9 @@ async function ensureConversationReadyInner(
           accessToken,
           (again.epoch ?? 0) + 1,
         );
+      }
+      if (identityMismatch) {
+        throw new E2eIdentityMismatchError();
       }
       throw new E2eNotReadyError(
         "Could not open conversation key on this device",
@@ -357,23 +424,33 @@ async function ensureConversationReadyInner(
   return createWraps(conversationId, wrapInfo.memberIds, accessToken, 1);
 }
 
+function runInflight(
+  map: Map<string, Promise<ConvSession>>,
+  conversationId: string,
+  opts: ReadyOpts,
+  accessToken?: string | null,
+): Promise<ConvSession> {
+  const key = inflightKey(conversationId, opts);
+  const existing = map.get(key);
+  if (existing) return existing;
+  const pending = ensureConversationReadyInner(conversationId, accessToken, opts)
+    .finally(() => {
+      map.delete(key);
+    });
+  map.set(key, pending);
+  return pending;
+}
+
 export async function ensureConversationReady(
   conversationId: string,
   accessToken?: string | null,
 ): Promise<ConvSession> {
-  const existing = inflight.get(conversationId);
-  if (existing) return existing;
-
-  const pending = ensureConversationReadyInner(conversationId, accessToken, {
-    allowCreate: true,
-    // Only send path may reset — decrypt must never wipe history.
-    allowReset: true,
-  })
-    .finally(() => {
-      inflight.delete(conversationId);
-    });
-  inflight.set(conversationId, pending);
-  return pending;
+  return runInflight(
+    inflightSend,
+    conversationId,
+    { allowCreate: true, allowReset: true },
+    accessToken,
+  );
 }
 
 async function ensureConversationForDecrypt(
@@ -381,16 +458,12 @@ async function ensureConversationForDecrypt(
   accessToken?: string | null,
 ): Promise<ConvSession | null> {
   try {
-    const existing = inflight.get(conversationId);
-    if (existing) return existing;
-    const pending = ensureConversationReadyInner(conversationId, accessToken, {
-      allowCreate: false,
-      allowReset: false,
-    }).finally(() => {
-      inflight.delete(conversationId);
-    });
-    inflight.set(conversationId, pending);
-    return await pending;
+    return await runInflight(
+      inflightDecrypt,
+      conversationId,
+      { allowCreate: false, allowReset: false },
+      accessToken,
+    );
   } catch {
     const uid = resolveUserId(null, accessToken);
     if (!uid) return null;
@@ -404,6 +477,20 @@ async function ensureConversationForDecrypt(
     convCache.set(conversationId, session);
     return session;
   }
+}
+
+/**
+ * Force-publish local identity, wipe conversation wraps, create fresh keys.
+ * Old ciphertext stays undecryptable on this device (expected).
+ */
+export async function resetConversationSecureKeys(
+  conversationId: string,
+  accessToken?: string | null,
+): Promise<void> {
+  await ensureIdentityPublished(accessToken, null, { force: true });
+  clearConversationKeyCache(conversationId);
+  await chatApi.resetKeyWraps(conversationId, accessToken);
+  await ensureConversationReady(conversationId, accessToken);
 }
 
 /** After adding group members — re-seal current key for newcomers. */
@@ -444,11 +531,22 @@ export async function rewrapConversationKeys(
   }
 
   const wraps = await sealWrapsForMembers(session.key, memberIds, byUser);
-  await chatApi.putKeyWraps(
+  const put = await chatApi.putKeyWraps(
     conversationId,
     { epoch: session.epoch, wraps },
     accessToken,
   );
+  if (typeof put.inserted === "number" && put.inserted === 0 && wraps.length > 0) {
+    // Epoch already has wraps — bump via reset+create for newcomers.
+    await chatApi.resetKeyWraps(conversationId, accessToken);
+    await createWraps(
+      conversationId,
+      memberIds,
+      accessToken,
+      session.epoch + 1,
+      session.key,
+    );
+  }
 }
 
 export async function encryptOutgoingBody(
@@ -506,14 +604,14 @@ export async function decryptIncomingBody(
         convCache.set(conversationId, {
           key: copyKey(row.key),
           epoch: row.epoch,
-          wrapFp: session?.wrapFp ?? `local:${row.epoch}`,
+          wrapFp: `local:${row.epoch}`,
         });
         return plain;
       }
     }
   }
 
-  return "🔒 Unable to decrypt";
+  return E2E_UNABLE_TO_DECRYPT;
 }
 
 export async function decryptIncomingBlob(
@@ -558,13 +656,20 @@ export async function decryptIncomingBlob(
 export function clearConversationKeyCache(conversationId?: string): void {
   if (conversationId) {
     convCache.delete(conversationId);
-    inflight.delete(conversationId);
+    for (const key of [...inflightSend.keys()]) {
+      if (key.startsWith(`${conversationId}:`)) inflightSend.delete(key);
+    }
+    for (const key of [...inflightDecrypt.keys()]) {
+      if (key.startsWith(`${conversationId}:`)) inflightDecrypt.delete(key);
+    }
   } else {
     convCache.clear();
-    inflight.clear();
+    inflightSend.clear();
+    inflightDecrypt.clear();
   }
 }
 
 export function resetE2ePublishState(): void {
   publishedForUser = null;
+  identityMismatch = false;
 }

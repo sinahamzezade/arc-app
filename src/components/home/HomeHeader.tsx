@@ -4,9 +4,14 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Bell, Coins, Flame, Gem, Send, Users, Zap } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { useSession } from "next-auth/react";
 import { UserAvatar } from "@/components/avatar/UserAvatar";
-import { Skeleton } from "@/components/ui";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useIncomingFriendRequestCount } from "@/hooks/useIncomingFriendRequestCount";
+import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
+import { useUnreadChatCount } from "@/hooks/useUnreadChatCount";
 import { formatBalance } from "@/lib/economy/format-balance";
+import { useEconomyStore } from "@/store/useEconomyStore";
 import { cn } from "@/lib/utils";
 import { pop, soft } from "./motion";
 
@@ -19,15 +24,12 @@ type HomeHeaderProps = {
   xp: number;
   gems: number;
   coins?: number;
-  notificationCount: number;
-  friendRequestCount?: number;
-  chatUnreadCount?: number;
-  loading?: boolean;
 };
 
 /**
  * Learner plate — night clay ID with status ports.
  * Built from zero (not a polish of the old masthead).
+ * Owns badge counts + economy hydration so pulse ticks stay off the sheet.
  */
 export function HomeHeader({
   greeting,
@@ -38,12 +40,14 @@ export function HomeHeader({
   xp,
   gems,
   coins = 0,
-  notificationCount,
-  friendRequestCount = 0,
-  chatUnreadCount = 0,
-  loading = false,
 }: HomeHeaderProps) {
   const reduceMotion = useReducedMotion();
+  const { status: sessionStatus } = useSession();
+  const economyHydrated = useEconomyStore((s) => s.hydrated);
+  const { data: notificationCount = 0 } = useUnreadNotificationCount();
+  const { data: friendRequestCount = 0 } = useIncomingFriendRequestCount();
+  const { data: chatUnreadCount = 0 } = useUnreadChatCount();
+  const loading = sessionStatus === "authenticated" && !economyHydrated;
   const name = userName?.trim() || "Learner";
   const initial = (name[0] || "?").toUpperCase();
   const dayStamp = greeting.replace(/^good\s+/i, "").trim() || "today";

@@ -161,7 +161,8 @@ export default function LoginScreen() {
             type="submit"
             fullWidth
             variant="primary"
-            isDisabled={isSubmitting || oauthBusy}
+            isPending={isSubmitting}
+            isDisabled={oauthBusy}
             className={authCtaClassName}
           >
             Log in

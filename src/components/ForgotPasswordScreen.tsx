@@ -100,7 +100,7 @@ export default function ForgotPasswordScreen() {
             type="submit"
             fullWidth
             variant="primary"
-            isDisabled={isSubmitting}
+            isPending={isSubmitting}
             className={authCtaClassName}
           >
             Send reset code

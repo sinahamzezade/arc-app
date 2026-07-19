@@ -14,6 +14,14 @@ const tabs = [
   { href: "/profile", label: "Profile", icon: User },
 ] as const;
 
+/** Tabs that smooth-scroll window to top on press (shared document scroll + Activity keep-alive). */
+const SMOOTH_SCROLL_TOP = new Set<string>([
+  "/home",
+  "/battle",
+  "/study",
+  "/profile",
+]);
+
 const spring = {
   type: "spring" as const,
   stiffness: 440,
@@ -23,6 +31,10 @@ const spring = {
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function scrollWindowTopSmooth() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 export function MobileTabBar() {
@@ -43,6 +55,7 @@ export function MobileTabBar() {
           {tabs.map((tab) => {
             const active = isActive(pathname, tab.href);
             const exactTab = pathname === tab.href;
+            const smoothTop = SMOOTH_SCROLL_TOP.has(tab.href);
             const Icon = tab.icon;
 
             return (
@@ -50,14 +63,19 @@ export function MobileTabBar() {
                 <Link
                   href={tab.href}
                   prefetch
-                  scroll={!exactTab}
+                  // Avoid Next's instant jump so we can smooth-scroll ourselves.
+                  scroll={smoothTop ? false : !exactTab}
                   aria-current={active ? "page" : undefined}
                   aria-label={tab.label}
                   onClick={(e) => {
-                    // Already on this tab root — skip navigation (keep-alive stays warm).
                     if (exactTab) {
                       e.preventDefault();
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      scrollWindowTopSmooth();
+                      return;
+                    }
+                    if (smoothTop) {
+                      // After Activity swaps tab, ease shared window scroll to top.
+                      requestAnimationFrame(scrollWindowTopSmooth);
                     }
                   }}
                   className={cn(

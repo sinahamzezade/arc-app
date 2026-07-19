@@ -279,6 +279,8 @@ export const chatApi = {
       conversationId: string;
       epoch: number;
       count: number;
+      inserted?: number;
+      skipped?: number;
     }>(`/chat/conversations/${conversationId}/key-wraps`, {
       method: "PUT",
       body,

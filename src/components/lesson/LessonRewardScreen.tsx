@@ -16,8 +16,7 @@ import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 import { useEnsureLessonAttempt } from "@/hooks/useEnsureLessonAttempt";
 import { useLessonStore } from "@/store/useLessonStore";
 import { useEconomyStore } from "@/store/useEconomyStore";
-import { fireLessonConfetti } from "@/components/ui/confetti";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/ui/button";
 import { authCtaClassName } from "@/components/onboarding/AuthShell";
 import { cn } from "@/lib/utils";
 import { LessonLoadState } from "./LessonLoadState";
@@ -104,7 +103,10 @@ export default function LessonRewardScreen({ lessonId }: { lessonId: string }) {
   useEffect(() => {
     if (!result || confettiFiredRef.current) return;
     confettiFiredRef.current = true;
-    if (!reduceMotion) fireLessonConfetti();
+    if (reduceMotion) return;
+    void import("@/components/ui/fire-lesson-confetti").then((m) =>
+      m.fireLessonConfetti(),
+    );
   }, [result, reduceMotion]);
 
   if (isLoading || !attemptId) {

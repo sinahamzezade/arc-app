@@ -29,10 +29,13 @@ export function LessonArloSheet({
   open,
   onClose,
   lessonId,
+  lessonTitle: lessonTitleProp,
 }: {
   open: boolean;
   onClose: () => void;
   lessonId: string;
+  /** When parent already has the title, avoids waiting on play map for chrome. */
+  lessonTitle?: string;
 }) {
   const titleId = useId();
   const { data: session } = useSession();
@@ -70,7 +73,7 @@ export function LessonArloSheet({
     el.style.height = `${next}px`;
   };
 
-  const lessonTitle = lesson?.title ?? "this lesson";
+  const lessonTitle = lessonTitleProp ?? lesson?.title ?? "this lesson";
 
   const send = async (text: string) => {
     const trimmed = text.trim();
@@ -79,7 +82,7 @@ export function LessonArloSheet({
     const base =
       msgs.length > 0
         ? msgs
-        : [{ role: "arlo" as const, text: openingLine(lesson.title) }];
+        : [{ role: "arlo" as const, text: openingLine(lessonTitle) }];
 
     setMsgs([...base, { role: "user", text: trimmed }]);
     setInput("");
@@ -107,7 +110,7 @@ export function LessonArloSheet({
         ...prev,
         {
           role: "arlo",
-          text: `Couldn't reach coach just now — keep going on “${lesson.title}”.`,
+          text: `Couldn't reach coach just now — keep going on “${lessonTitle}”.`,
         },
       ]);
       setErrorMsg("Coach briefly offline. Try again.");
@@ -120,8 +123,8 @@ export function LessonArloSheet({
   const thread =
     msgs.length > 0
       ? msgs
-      : lesson
-        ? [{ role: "arlo" as const, text: openingLine(lesson.title) }]
+      : lesson || lessonTitleProp
+        ? [{ role: "arlo" as const, text: openingLine(lessonTitle) }]
         : [];
 
   const showSuggestions =

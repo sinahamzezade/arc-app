@@ -160,7 +160,7 @@ export default function ResetPasswordScreen() {
             type="submit"
             fullWidth
             variant="primary"
-            isDisabled={isSubmitting}
+            isPending={isSubmitting}
             className={authCtaClassName}
           >
             Reset password

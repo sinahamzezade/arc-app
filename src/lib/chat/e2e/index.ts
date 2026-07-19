@@ -26,12 +26,18 @@ export {
   ensureIdentityPublished,
   ensureConversationReady,
   rewrapConversationKeys,
+  resetConversationSecureKeys,
   encryptOutgoingBody,
   encryptOutgoingBlob,
   decryptIncomingBody,
   decryptIncomingBlob,
   clearConversationKeyCache,
   setE2eUserId,
+  getE2eIdentityMismatch,
+  isE2eDeviceMismatchMessage,
   E2eNotReadyError,
+  E2eIdentityMismatchError,
+  E2E_UNABLE_TO_DECRYPT,
+  E2E_DEVICE_LOCKED_PREVIEW,
 } from "./session";
 export { decryptChatMessage, decryptChatMessages } from "./decrypt-message";

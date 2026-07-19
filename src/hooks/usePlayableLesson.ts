@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { lessonsApi } from "@/lib/api/lessons";
+import type { LessonPlayDto } from "@/lib/api/types";
 import {
   mapPlayDtoToLesson,
   type PlayableLesson,
 } from "@/lib/lesson/map-play";
+import { playQueryKey } from "@/lib/lesson/play-query-key";
 import { useLessonStore } from "@/store/useLessonStore";
+import { useLessonPlayInitial } from "@/components/lesson/LessonPlayProvider";
 
 export type UsePlayableLessonResult = {
   lesson: PlayableLesson | null;
@@ -22,18 +25,21 @@ export type UsePlayableLessonResult = {
 export function usePlayableLesson(lessonId: string): UsePlayableLessonResult {
   const { data: session, status } = useSession();
   const accessToken = session?.accessToken;
+  const userId = session?.user?.id;
   const hydrateFromProgress = useLessonStore((s) => s.hydrateFromProgress);
+  const layoutInitial = useLessonPlayInitial();
+  const initialData: LessonPlayDto | undefined =
+    layoutInitial?.id === lessonId ? layoutInitial : undefined;
 
   const query = useQuery({
-    // Key on user, not token — token rotation must not blow away the cache
-    // (it remounts the whole lesson screen mid-read).
-    queryKey: ["lessons", "play", lessonId, session?.user?.id ?? "anon"],
+    queryKey: playQueryKey(lessonId, userId),
     enabled:
       status === "authenticated" &&
       Boolean(accessToken) &&
       Boolean(lessonId) &&
       isUuid(lessonId),
     queryFn: () => lessonsApi.getPlay(lessonId, accessToken),
+    initialData,
     staleTime: 30_000,
   });
 
@@ -54,13 +60,17 @@ export function usePlayableLesson(lessonId: string): UsePlayableLessonResult {
     });
   }, [query.data, lessonId, hydrateFromProgress]);
 
-  const lesson = query.data ? mapPlayDtoToLesson(query.data) : null;
+  const lesson = useMemo(
+    () => (query.data ? mapPlayDtoToLesson(query.data) : null),
+    [query.data],
+  );
 
   return {
     lesson,
     isLoading:
-      status === "loading" ||
-      (status === "authenticated" && query.isLoading),
+      !query.data &&
+      (status === "loading" ||
+        (status === "authenticated" && query.isLoading)),
     isError: query.isError || (status === "unauthenticated" && isUuid(lessonId)),
     error: (query.error as Error | null) ?? null,
     refetch: () => {
