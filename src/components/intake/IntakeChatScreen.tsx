@@ -27,6 +27,12 @@ import { ApiError, messageForCode } from "@/lib/api/errors";
 import { isStepComplete } from "@/lib/questionnaire/format-answers";
 import { emptyQuestionnaireAnswers } from "@/schemas/questionnaire";
 import { useQuestionnaireStore } from "@/store/useQuestionnaireStore";
+import { InlineMarkdown } from "@/lib/lesson/inline-markdown";
+import {
+  detectTextDirection,
+  textDirectionClass,
+} from "@/lib/text-direction";
+import { cn } from "@/lib/utils";
 
 const softSpring = { type: "spring" as const, stiffness: 380, damping: 28 };
 const FALLBACK_TOTAL_FIELDS = 10;
@@ -426,6 +432,7 @@ export default function IntakeChatScreen() {
           <AnimatePresence initial={false}>
             {(turn?.transcript ?? []).map((msg, i) => {
               const isUser = msg.role === "user";
+              const textDir = detectTextDirection(msg.content);
               return (
                 <motion.div
                   key={`${msg.role}-${i}`}
@@ -444,13 +451,19 @@ export default function IntakeChatScreen() {
                     </span>
                   ) : null}
                   <div
-                    className={
+                    dir={textDir}
+                    className={cn(
+                      textDirectionClass(textDir),
                       isUser
                         ? "max-w-[85%] rounded-[20px] rounded-br-md bg-arc-purple-500 px-3.5 py-2.5 text-[14px] leading-snug font-bold text-white shadow-[0_3px_0_#4b2fd6]"
-                        : "max-w-[88%] rounded-[20px] rounded-bl-md border border-[#ebe4f6] bg-white px-3.5 py-2.5 text-[14px] leading-snug font-bold text-[#0f1220] shadow-[0_4px_0_#ebe4f6]"
-                    }
+                        : "max-w-[88%] rounded-[20px] rounded-bl-md border border-[#ebe4f6] bg-white px-3.5 py-2.5 text-[14px] leading-snug font-medium text-[#0f1220] shadow-[0_4px_0_#ebe4f6]",
+                    )}
                   >
-                    {msg.content}
+                    <InlineMarkdown
+                      text={msg.content}
+                      dir={textDir}
+                      className="whitespace-pre-wrap"
+                    />
                   </div>
                 </motion.div>
               );
@@ -559,6 +572,7 @@ export default function IntakeChatScreen() {
               <textarea
                 ref={inputRef}
                 rows={1}
+                dir={detectTextDirection(input || "a")}
                 value={input}
                 onChange={(e) => {
                   setInput(e.target.value);
@@ -572,7 +586,10 @@ export default function IntakeChatScreen() {
                 }}
                 placeholder="Your answer…"
                 disabled={sending || loading}
-                className="box-border h-12 max-h-[120px] min-h-12 w-full min-w-0 flex-1 resize-none rounded-2xl border-2 border-[#0f1220]/10 bg-white px-3.5 py-[13px] text-[14px] leading-none font-bold text-[#0f1220] outline-none transition-[border-color] placeholder:text-arc-lavender-500 focus:border-[#0f1220] disabled:opacity-60"
+                className={cn(
+                  "box-border h-12 max-h-[120px] min-h-12 w-full min-w-0 flex-1 resize-none rounded-2xl border-2 border-[#0f1220]/10 bg-white px-3.5 py-[13px] text-[14px] leading-none font-bold text-[#0f1220] outline-none transition-[border-color] placeholder:text-arc-lavender-500 focus:border-[#0f1220] disabled:opacity-60",
+                  textDirectionClass(detectTextDirection(input || "a")),
+                )}
               />
               <motion.button
                 type="submit"
@@ -694,25 +711,25 @@ function SuggestionChips({
             {suggestions.options
               .filter((opt) => suggestions.allowOther || opt.value !== "other")
               .map((opt) => {
-              const active = picked.includes(opt.value);
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() =>
-                    suggestions.selection === "single"
-                      ? onSingle(opt.value)
-                      : onToggleMulti(opt.value)
-                  }
-                  className={chipClass(
-                    suggestions.selection === "multi" ? active : false,
-                  )}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
+                const active = picked.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() =>
+                      suggestions.selection === "single"
+                        ? onSingle(opt.value)
+                        : onToggleMulti(opt.value)
+                    }
+                    className={chipClass(
+                      suggestions.selection === "multi" ? active : false,
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
           </div>
 
           {showOtherInput ? (

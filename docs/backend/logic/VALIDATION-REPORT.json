@@ -1,5 +1,96 @@
 {
-  "markdown_files": 19,
+  "markdown_files": 27,
+  "modules": [
+    "auth",
+    "badges",
+    "battles",
+    "calls",
+    "chat",
+    "content-pool",
+    "course-timing",
+    "engagement",
+    "gamification",
+    "integration",
+    "leagues",
+    "lessons",
+    "lucky-wheel",
+    "notifications",
+    "questionnaire",
+    "ranks",
+    "referrals",
+    "roadmaps",
+    "social",
+    "study-together",
+    "weeks"
+  ],
+  "layout": {
+    "auth": [
+      "01-user-model-and-authentication.md"
+    ],
+    "badges": [
+      "20-badges-system.md"
+    ],
+    "battles": [
+      "14-battle-mode.md"
+    ],
+    "calls": [
+      "18-voice-and-video-calls.md"
+    ],
+    "chat": [
+      "17-chat-and-messaging.md"
+    ],
+    "content-pool": [
+      "08-content-pool.md"
+    ],
+    "course-timing": [
+      "09-course-timing.md"
+    ],
+    "engagement": [
+      "19-engagement-layer-active-learning.md"
+    ],
+    "gamification": [
+      "07-gamification.md"
+    ],
+    "integration": [
+      "00-system-integration.md"
+    ],
+    "leagues": [
+      "11-leagues.md"
+    ],
+    "lessons": [
+      "05-learn-lesson-play-api.md"
+    ],
+    "lucky-wheel": [
+      "15-lucky-wheel.md"
+    ],
+    "notifications": [
+      "06-notifications.md"
+    ],
+    "questionnaire": [
+      "02-questionnaire-v2-learner-profiling.md",
+      "02-questionnaire.md"
+    ],
+    "ranks": [
+      "10-ranking-system.md"
+    ],
+    "referrals": [
+      "21-referral-system.md"
+    ],
+    "roadmaps": [
+      "03-goals-and-roadmap.md",
+      "16-roadmap-completion-and-reenrollment.md",
+      "22-roadmap-engine.md"
+    ],
+    "social": [
+      "12-social-media.md"
+    ],
+    "study-together": [
+      "13-study-together.md"
+    ],
+    "weeks": [
+      "04-weekly-plan-and-lessons.md"
+    ]
+  },
   "missing_relative_links": [],
   "coherence_findings": []
 }

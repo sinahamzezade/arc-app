@@ -1,16 +1,21 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import {
+  detectTextDirection,
+  textDirectionClass,
+  type TextDirection,
+} from "@/lib/text-direction";
 
 /**
- * Lightweight inline markdown for lesson copy:
- * `**bold**`, `*italic*`, `` `code` ``.
+ * Lightweight inline markdown for lesson / chat copy:
+ * `**bold**`, `*italic*`, `` `code` ``, `~~strike~~`.
  * Unescapes common backslash-escaped markers from CMS dumps.
  */
 export function renderInlineMarkdown(raw: string): ReactNode[] {
   const text = unescapeMarkdown(raw);
   const nodes: ReactNode[] = [];
-  // Split keeping delimiters: **...**, *...*, `...`
-  const re = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+  // Split keeping delimiters: **...**, ~~...~~, *...*, `...`
+  const re = /(\*\*[^*]+\*\*|~~[^~]+~~|\*[^*]+\*|`[^`]+`)/g;
   let last = 0;
   let match: RegExpExecArray | null;
   let key = 0;
@@ -25,6 +30,12 @@ export function renderInlineMarkdown(raw: string): ReactNode[] {
         <strong key={key++} className="font-extrabold text-inherit">
           {token.slice(2, -2)}
         </strong>,
+      );
+    } else if (token.startsWith("~~") && token.endsWith("~~")) {
+      nodes.push(
+        <s key={key++} className="text-inherit opacity-80">
+          {token.slice(2, -2)}
+        </s>,
       );
     } else if (token.startsWith("`") && token.endsWith("`")) {
       nodes.push(
@@ -56,7 +67,7 @@ export function renderInlineMarkdown(raw: string): ReactNode[] {
 
 function unescapeMarkdown(input: string): string {
   return input
-    .replace(/\\([*_`])/g, "$1")
+    .replace(/\\([*_`~])/g, "$1")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
@@ -66,16 +77,29 @@ export function InlineMarkdown({
   text,
   className,
   as: Tag = "span",
-  dir,
+  dir = "auto",
 }: {
   text: string;
   className?: string;
   as?: "span" | "p";
-  /** e.g. "auto" for RTL/LTR from first strong character */
-  dir?: "auto" | "ltr" | "rtl";
+  /**
+   * `auto` = dominant script (Farsi/Arabic/Hebrew → rtl).
+   * Explicit `ltr` / `rtl` overrides.
+   */
+  dir?: "auto" | TextDirection;
 }) {
+  const resolved: TextDirection =
+    dir === "auto" ? detectTextDirection(text) : dir;
+
   return (
-    <Tag dir={dir} className={cn(className)}>
+    <Tag
+      dir={resolved}
+      className={cn(
+        "block w-full",
+        textDirectionClass(resolved),
+        className,
+      )}
+    >
       {renderInlineMarkdown(text)}
     </Tag>
   );

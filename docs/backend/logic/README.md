@@ -1,54 +1,66 @@
-# Arlo Backend — Integrated Implementation Specs
+# Arc Backend — Integrated Implementation Specs
 
 **Version:** 2.0  
 **Frontend:** Next.js PWA (`arc-app`)  
 **Backend:** NestJS + TypeORM + PostgreSQL
 
-Start with [00 — System Integration Contract](./00-system-integration.md). It defines ownership, atomic transactions, events, time boundaries, and the full handoff between roadmap, scheduling, lessons, rewards, streaks, ranks, leagues, social systems, and notifications.
+Docs live under `docs/backend/logic/<module>/`, matching `arc-backend/src/<module>/`.
+
+Start with [00 — System Integration Contract](./integration/00-system-integration.md). It defines ownership, atomic transactions, events, time boundaries, and the full handoff between roadmap, scheduling, lessons, rewards, streaks, ranks, leagues, social systems, and notifications.
 
 ---
 
 ## Architecture
 
-Arlo uses four personalization engines plus cross-cutting product services.
+Arc uses four personalization engines plus cross-cutting product services.
 
 | Engine / service | Owns | Main docs |
 |---|---|---|
-| Question Engine | Adaptive intake and goal tokens | [02](./02-questionnaire.md) |
-| Content Pool / Skill Graph | Published reusable curriculum and question bank | [03](./03-goals-and-roadmap.md), [content_pool](./content_pool.md) |
-| Roadmap Generator | Versioned personalized path instance | [03](./03-goals-and-roadmap.md) |
-| AI Coach | Contextual help and safe replan requests | [03](./03-goals-and-roadmap.md) |
-| Course Timing | Feasibility, future slots, dynamic ETA | [course_timing](./course_timing.md) |
-| Weekly Plan | Current-week commitment projection and seal | [04](./04-weekly-plan-and-lessons.md) |
-| Lesson Play | Content delivery, grading, progress, completion orchestration | [05](./05-Learn_Lesson_Play_API.md) |
-| Gamification | Wallet, ledger, rewards, store, unlock evaluation, streaks | [gamification](./gamification.md) |
-| Ranking / Leagues | Permanent rank and weekly competition | [ranking](./ranking_system.md), [leagues](./leagues.md) |
-| Social / Study / Battle | Relationships and cooperative/competitive flows | [social](./social_media.md), [study](./study_together.md), [battle](./battle_mode.md) |
-| Lucky Wheel | Daily bonus entitlement and secure reward selection | [wheel](./lucky_wheel.md) |
-| Notifications | Inbox, preferences, scheduled/delivered messages | [06](./06-notifications.md) |
+| Question Engine | Adaptive intake and goal tokens | [02](./questionnaire/02-questionnaire.md) |
+| Content Pool / Skill Graph | Published reusable curriculum and question bank | [03](./roadmaps/03-goals-and-roadmap.md), [08](./content-pool/08-content-pool.md) |
+| Roadmap Generator | Versioned personalized path instance | [03](./roadmaps/03-goals-and-roadmap.md), [22](./roadmaps/22-roadmap-engine.md) |
+| AI Coach | Contextual help and safe replan requests | [03](./roadmaps/03-goals-and-roadmap.md) |
+| Course Timing | Feasibility, future slots, dynamic ETA | [09](./course-timing/09-course-timing.md) |
+| Weekly Plan | Current-week commitment projection and seal | [04](./weeks/04-weekly-plan-and-lessons.md) |
+| Lesson Play | Content delivery, grading, progress, completion orchestration | [05](./lessons/05-learn-lesson-play-api.md) |
+| Gamification | Wallet, ledger, rewards, store, unlock evaluation, streaks | [07](./gamification/07-gamification.md) |
+| Ranking / Leagues | Permanent rank and weekly competition | [10](./ranks/10-ranking-system.md), [11](./leagues/11-leagues.md) |
+| Social / Study / Battle | Relationships and cooperative/competitive flows | [12](./social/12-social-media.md), [13](./study-together/13-study-together.md), [14](./battles/14-battle-mode.md) |
+| Lucky Wheel | Daily bonus entitlement and secure reward selection | [15](./lucky-wheel/15-lucky-wheel.md) |
+| Notifications | Inbox, preferences, scheduled/delivered messages | [06](./notifications/06-notifications.md) |
+| Chat / Calls | Messaging and WebRTC signaling | [17](./chat/17-chat-and-messaging.md), [18](./calls/18-voice-and-video-calls.md) |
+| Badges / Referrals | Achievements and growth loops | [20](./badges/20-badges-system.md), [21](./referrals/21-referral-system.md) |
 
 ---
 
 ## Document Set
 
-| # | Document | Status |
-|---:|---|---|
-| 00 | [System Integration Contract](./00-system-integration.md) | Required |
-| 01 | [User Model & Authentication](./01-user-model-and-authentication.md) | Required |
-| 02 | [Questionnaire / Goal Interview](./02-questionnaire.md) | Required |
-| 03 | [Goals, Content Graph, Roadmap Generator & AI Coach](./03-goals-and-roadmap.md) | Required |
-| 04 | [Weekly Plan & Lessons Projection](./04-weekly-plan-and-lessons.md) | Required |
-| 05 | [Learn / Lesson Play API](./05-Learn_Lesson_Play_API.md) | Required |
-| 06 | [Notifications](./06-notifications.md) | Required |
-| 07 | [Gamification](./gamification.md) | Required for economy |
-| 08 | [Content Pool](./content_pool.md) | Required for scalable curriculum |
-| 09 | [Course Timing](./course_timing.md) | Required for personalization |
-| 10 | [Ranking System](./ranking_system.md) | Required for rank UI |
-| 11 | [Leagues](./leagues.md) | Required for League UI |
-| 12 | [Social Media](./social_media.md) | Required for Friends Hub |
-| 13 | [Study Together](./study_together.md) | Required for shared focus |
-| 14 | [Battle Mode](./battle_mode.md) | Required for Battles |
-| 15 | [Lucky Wheel](./lucky_wheel.md) | Required for daily bonus |
+| # | Document | Nest module | Status |
+|---:|---|---|---|
+| 00 | [System Integration Contract](./integration/00-system-integration.md) | `integration/` (cross-cutting) | Required |
+| 01 | [User Model & Authentication](./auth/01-user-model-and-authentication.md) | `auth/`, `users/`, `profiles/` | Required |
+| 02 | [Questionnaire / Goal Interview](./questionnaire/02-questionnaire.md) | `questionnaire/` | Required |
+| 02v2 | [Questionnaire v2 Learner Profiling](./questionnaire/02-questionnaire-v2-learner-profiling.md) | `questionnaire/` | Proposed |
+| 03 | [Skill Graph, Roadmap Generator & AI Coach](./roadmaps/03-goals-and-roadmap.md) | `skill-graph/`, `roadmaps/`, `coach/` | Required |
+| 04 | [Weekly Plan & Lessons Projection](./weeks/04-weekly-plan-and-lessons.md) | `weeks/` | Required |
+| 05 | [Learn / Lesson Play API](./lessons/05-learn-lesson-play-api.md) | `lessons/` | Required |
+| 06 | [Notifications](./notifications/06-notifications.md) | `notifications/` | Required |
+| 07 | [Gamification](./gamification/07-gamification.md) | `gamification/` | Required |
+| 08 | [Content Pool](./content-pool/08-content-pool.md) | `content-pool/`, `catalog/` | Required |
+| 09 | [Course Timing](./course-timing/09-course-timing.md) | `course-timing/` | Required |
+| 10 | [Ranking System](./ranks/10-ranking-system.md) | `ranks/` | Required |
+| 11 | [Leagues](./leagues/11-leagues.md) | `leagues/` | Required |
+| 12 | [Social Media](./social/12-social-media.md) | `social/` | Required |
+| 13 | [Study Together](./study-together/13-study-together.md) | `study-together/` | Required |
+| 14 | [Battle Mode](./battles/14-battle-mode.md) | `battles/` | Required |
+| 15 | [Lucky Wheel](./lucky-wheel/15-lucky-wheel.md) | `lucky-wheel/` | Required |
+| 16 | [Roadmap Completion & Re-enrollment](./roadmaps/16-roadmap-completion-and-reenrollment.md) | `roadmaps/` | Required |
+| 17 | [Chat & Messaging](./chat/17-chat-and-messaging.md) | `chat/` | Required |
+| 18 | [Voice & Video Calls](./calls/18-voice-and-video-calls.md) | `calls/` | Required |
+| 19 | [Engagement Layer](./engagement/19-engagement-layer-active-learning.md) | (extends lessons/coach/pool) | Additive |
+| 20 | [Badges & Achievements](./badges/20-badges-system.md) | `badges/` | Required |
+| 21 | [Referral System](./referrals/21-referral-system.md) | `referrals/` | Required |
+| 22 | [Roadmap Engine](./roadmaps/22-roadmap-engine.md) | `roadmaps/` | Companion to 03 |
 
 ---
 
@@ -80,6 +92,9 @@ Arlo uses four personalization engines plus cross-cutting product services.
 9. Ranking + Leagues
 10. Social + Study Together + Battle
 11. Lucky Wheel
+12. Chat + Calls
+13. Badges + Referrals
+14. Engagement layer polish
 
 ---
 

@@ -7,6 +7,12 @@ import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "motion/react";
 import { assets } from "@/lib/assets";
 import { sanitizeArloReply } from "@/lib/lesson/arlo-reply";
+import { InlineMarkdown } from "@/lib/lesson/inline-markdown";
+import {
+  detectTextDirection,
+  textDirectionClass,
+} from "@/lib/text-direction";
+import { cn } from "@/lib/utils";
 import { lessonsApi } from "@/lib/api/lessons";
 import { usePlayableLesson } from "@/hooks/usePlayableLesson";
 
@@ -216,6 +222,7 @@ export function LessonArloSheet({
                   <AnimatePresence initial={false}>
                     {thread.map((msg, i) => {
                       const isUser = msg.role === "user";
+                      const textDir = detectTextDirection(msg.text);
                       return (
                         <motion.div
                           key={`${msg.role}-${i}`}
@@ -240,14 +247,19 @@ export function LessonArloSheet({
                             </span>
                           ) : null}
                           <div
-                            dir="auto"
-                            className={
+                            dir={textDir}
+                            className={cn(
+                              textDirectionClass(textDir),
                               isUser
                                 ? "max-w-[85%] rounded-[20px] rounded-br-md bg-arc-purple-500 px-3.5 py-2.5 text-[14px] leading-snug font-bold text-white shadow-[0_3px_0_#4b2fd6]"
-                                : "max-w-[88%] rounded-[20px] rounded-bl-md border border-[#ebe4f6] bg-white px-3.5 py-2.5 text-[14px] leading-snug font-bold text-[#0f1220] shadow-[0_4px_0_#ebe4f6]"
-                            }
+                                : "max-w-[88%] rounded-[20px] rounded-bl-md border border-[#ebe4f6] bg-white px-3.5 py-2.5 text-[14px] leading-snug font-medium text-[#0f1220] shadow-[0_4px_0_#ebe4f6]",
+                            )}
                           >
-                            {msg.text}
+                            <InlineMarkdown
+                              text={msg.text}
+                              dir={textDir}
+                              className="whitespace-pre-wrap"
+                            />
                           </div>
                         </motion.div>
                       );
@@ -325,7 +337,7 @@ export function LessonArloSheet({
                 <textarea
                   ref={inputRef}
                   rows={1}
-                  dir="auto"
+                  dir={detectTextDirection(input || "a")}
                   value={input}
                   onChange={(e) => {
                     setInput(e.target.value);
@@ -339,7 +351,10 @@ export function LessonArloSheet({
                   }}
                   placeholder="Ask about this lesson…"
                   disabled={sending || isLoading || !lesson}
-                  className="box-border h-12 max-h-[120px] min-h-12 w-full min-w-0 flex-1 resize-none rounded-2xl border-2 border-[#0f1220]/10 bg-white px-3.5 py-[13px] text-[14px] leading-none font-bold text-[#0f1220] outline-none transition-[border-color] placeholder:text-arc-lavender-500 focus:border-[#0f1220] disabled:opacity-60"
+                  className={cn(
+                    "box-border h-12 max-h-[120px] min-h-12 w-full min-w-0 flex-1 resize-none rounded-2xl border-2 border-[#0f1220]/10 bg-white px-3.5 py-[13px] text-[14px] leading-none font-bold text-[#0f1220] outline-none transition-[border-color] placeholder:text-arc-lavender-500 focus:border-[#0f1220] disabled:opacity-60",
+                    textDirectionClass(detectTextDirection(input || "a")),
+                  )}
                 />
                 <motion.button
                   type="submit"

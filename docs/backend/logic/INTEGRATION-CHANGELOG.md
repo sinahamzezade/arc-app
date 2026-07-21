@@ -4,7 +4,7 @@
 
 - README and backend docs 01–06
 - full product roadmap as product reference
-- Arlo design-system file as UI terminology reference
+- Arc design-system file as UI terminology reference
 - previously created Gamification, Content Pool, Course Timing, Ranking, Leagues, Social, Study Together, Battle, and Lucky Wheel specs
 
 ## Main Conflicts Corrected
